@@ -1,178 +1,185 @@
 # Braxis
 
-**The axis of agent knowledge. Keep your agents aligned as your codebase evolves.**
+**Auto-generate AI agent context files. Keep them in sync with your code.**
 
-When you use AI agents in your workflow, they read from `AGENTS.md` on day 1. Then your codebase evolves. That file becomes stale. Agents hallucinate, miss patterns, violate conventions they no longer see.
+Your AI agents (Claude Code, Cursor, Copilot) read from `AGENTS.md` to understand your project. When your code changes, that file gets stale. Agents miss patterns, violate conventions, hallucinate.
 
-Braxis solves this by auto-generating and keeping in sync four instruction files that AI agents read:
+Braxis solves this: **one command generates four context files that stay in sync with your codebase.**
 
-- **`AGENTS.md`** — Universal agent context (read by 20+ AI tools)
-- **`CLAUDE.md`** — Claude Code optimized variant
-- **`.cursorrules`** — Cursor IDE specific rules
-- **`.agentic-config.json`** — Machine-readable metadata
+---
 
-Runs on CI/CD. Zero external dependencies. Your agents always work from current truth.
+## See It In Action
 
-## The Problem
+Before Braxis:
 
-Imagine this workflow:
+Day 1: Agent reads stale AGENTS.md from 2 weeks ago
+Sees old directory structure
+Doesn't know about new error handling pattern
+Makes bad suggestions based on outdated info
 
-Day 1: Agent A reads AGENTS.md → Learns your codebase
-Day 5: You refactor src/ directory → AGENTS.md becomes outdated
-Day 6: Agent B starts → Reads stale AGENTS.md
-Result: Agents disagree on conventions, miss patterns, coordination breaks
 
-In multi-agent systems (like Neo), this gets exponentially worse. One agent's stale context breaks the coordination protocol another agent depends on.
+After Braxis:
 
-## The Solution
+Every push: GitHub Actions runs Braxis
+Analyzes current codebase
+Regenerates AGENTS.md, CLAUDE.md, .cursorrules, .agentic-config.json
+Creates PR with updates
+Your agents always see current reality
 
-Braxis runs on every code change and regenerates your context files automatically.
 
-Every push: Braxis analyzes repo → Regenerates AGENTS.md, CLAUDE.md, .cursorrules
-Result: All agents always see current truth
+---
 
-## Quick Start (5 minutes)
-1. Install
+## How To Use Braxis On Your Project (5 minutes)
 
+### Step 1: Install
+
+```bash
 pip install braxis
+```
 
-2. Run
+### Step 2: Go to Your Project
 
+```bash
+cd /path/to/your/project
+```
+
+### Step 3: Generate Context Files
+
+```bash
 braxis generate
+```
 
-3. Commit
+That's it. Braxis creates:
 
+your-project/
+├── AGENTS.md (Universal agent instructions)
+├── CLAUDE.md (Claude Code optimized)
+├── .cursorrules (Cursor IDE rules)
+├── .agentic-config.json (Machine-readable metadata)
+└── (your existing files)
+
+
+### Step 4: See What It Generated
+
+```bash
+cat AGENTS.md
+```
+
+### Step 5: Commit to Your Repo
+
+```bash
 git add AGENTS.md CLAUDE.md .cursorrules .agentic-config.json
-git commit -m "chore: add agent context files"
+git commit -m "chore: add AI agent context files"
 git push
+```
 
+### Step 6: Your Agents Now Use These Files
 
-This creates four files that your AI tools will read automatically.
+**In Claude Code:** Automatically reads `CLAUDE.md`
+**In Cursor:** Copy `.cursorrules` into Cursor Settings → Rules
+**In any agent:** Reads `AGENTS.md` (universal format)
 
-## Usage
-Generate all context files
+---
 
-braxis generate
+## Make It Auto-Update (Optional)
 
-Score your repo's agent readiness (0-100)
+Create `.github/workflows/braxis.yml`:
 
-braxis score
-
-See what Braxis found about your repo
-
-braxis inspect
-
-Validate that AGENTS.md exists
-
-braxis validate
-
-
-## Auto-Regenerate on Every Push (Optional)
-
-Copy this to `.github/workflows/braxis.yml` in your repo:
-
-name: Regenerate Context Files
+```yaml
+name: Auto-Regenerate Context Files
 
 on:
-push:
-paths:
-- 'src/**'
-- 'package.json'
-- 'pyproject.toml'
+  push:
+    paths:
+      - 'src/**'
+      - 'lib/**'
+      - 'package.json'
+      - 'pyproject.toml'
+      - 'setup.py'
 
 jobs:
-regenerate:
-runs-on: ubuntu-latest
-steps:
-- uses: actions/checkout@v4
-- uses: actions/setup-python@v4
-with:
-python-version: '3.11'
-- run: pip install braxis
-- run: braxis generate
-- uses: peter-evans/create-pull-request@v5
-with:
-commit-message: "chore: regenerate context files"
-title: "chore: update AGENTS.md and related files"
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - run: pip install braxis
+      - run: braxis generate
+      - uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: "chore: regenerate context files"
+          title: "chore: update AGENTS.md and context files"
+          branch: braxis/auto-update
+```
 
+Now every time you push code, GitHub Actions automatically regenerates all context files.
 
-Now on every code push, GitHub Actions will auto-regenerate your context files. Your agents always see current reality.
+---
 
-## What Gets Generated
+## Customize For Your Project (Optional)
 
-AGENTS.md (Universal)
-Universal instructions for any AI agent reading your repo.
+Create `.agentic-config.json`:
 
-CLAUDE.md (Claude Code Optimized)
-Concise summary optimized for Claude's context budget.
-
-.cursorrules (Cursor IDE)
-Rules that guide Cursor's AI when editing your code.
-
-.agentic-config.json (Machine Readable)
-Metadata in JSON format for automated systems.
-
-## Customize (Optional)
-
-Create `.agentic-config.json` to override defaults:
-
+```json
 {
-"name": "My Project",
-"description": "What it does",
-"custom_conventions": {
-"error_handling": "Use Result pattern",
-"async_patterns": "asyncio preferred"
-},
-"critical_files": [
-"src/main.py",
-"src/core.py"
-]
+  "name": "MyApp",
+  "description": "A production API service",
+  "exclude_patterns": [
+    "node_modules/**",
+    ".venv/**",
+    "build/**"
+  ],
+  "custom_conventions": {
+    "error_handling": "Always use try/except and log",
+    "async_patterns": "All I/O must be async",
+    "validation": "Use Pydantic models for inputs"
+  },
+  "critical_files": [
+    "src/main.py",
+    "src/api/routes.py",
+    "README.md"
+  ]
 }
+```
 
+---
 
-## Why This Matters
+## What Each File Does
 
-For Solo Developers: Your Claude Code / Cursor / Copilot sessions always see current context.
+**AGENTS.md** - Universal format read by any AI agent
 
-For Teams: All developers' AI assistants see the same ground truth about the codebase.
+**CLAUDE.md** - Optimized for Claude Code
 
-For Multi-Agent Systems: Agents can trust each other's context. Coordination protocols work reliably.
+**.cursorrules** - Rules for Cursor IDE
 
-## Installation
-From PyPI
+**.agentic-config.json** - Machine-readable metadata
 
-pip install braxis
+---
 
-From source
+## Commands
 
-git clone https://github.com/jaykrishna316/braxis
-cd braxis
-pip install -e .
+```bash
+braxis generate     # Generate context files
+braxis score        # Score agent readiness (0-100)
+braxis inspect      # See what Braxis found
+braxis validate     # Verify AGENTS.md exists
+```
 
+---
 
 ## Requirements
 
 - Python 3.8+
 - Zero external dependencies
 
-## FAQ
-
-Q: Does Braxis run my code?
-A: No. Static analysis only. Safe to run anywhere.
-
-Q: Can I customize what gets generated?
-A: Yes. Create `.agentic-config.json` in your repo root.
-
-Q: Can I use this with Claude / Cursor / Copilot?
-A: Yes. Braxis generates files for all of them.
-
-Q: How do I keep files in sync?
-A: Copy `.github/workflows/braxis.yml` to your repo. GitHub Actions will auto-regenerate on every code change.
+---
 
 ## License
 
-MIT - Use, modify, and ship it freely.
+MIT
 
 ---
 
-Braxis — The axis of agent knowledge. Keep your agents aligned.
+**Braxis** — Keep your agents aligned. Keep your code context current.
