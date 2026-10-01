@@ -158,14 +158,97 @@ Create `.agentic-config.json`:
 
 ---
 
+## Score Your Project
+
+### See Your Agent Readiness Score
+
+Check how ready your codebase is for AI agents:
+
+```bash
+braxis score
+```
+
+**Example output:**
+
+```
+============================================================
+Agent Readiness Score: 71/100
+============================================================
+
+Breakdown:
+
+ Architecture          10/100 [██░░░░░░░░░░░░░░░░░░]
+ Testing                7/100 [█░░░░░░░░░░░░░░░░░░]
+ Dependencies          12/100 [██░░░░░░░░░░░░░░░░░]
+ Conventions           10/100 [██░░░░░░░░░░░░░░░░░░]
+ Entry Points           4/100 [░░░░░░░░░░░░░░░░░░░]
+ Security              10/100 [██░░░░░░░░░░░░░░░░░░]
+ Build                 10/100 [██░░░░░░░░░░░░░░░░░░]
+ Documentation          8/100 [█░░░░░░░░░░░░░░░░░░]
+
+Tier: AI-Native
+
+Detected:
+ Languages: python
+ Build System: Python (pip/setuptools)
+ Test Frameworks: pytest, unittest
+ Test Files: 1
+ Critical Files: 0
+
+Recommendations:
+ * Increase test coverage
+ * Add input validation and security checks
+```
+
+### Understanding Your Score
+
+| Score | Tier | Meaning |
+|-------|------|---------|
+| 90-100 | **Agent-Optimized** | Production-ready for AI agents |
+| 80-89 | **AI-Native-Plus** | Excellent agent compatibility |
+| 60-79 | **AI-Native** | Good agent support |
+| 30-59 | **Agent-Aware** | Basic agent compatibility |
+| 0-29 | **Not Ready** | Needs improvements |
+
+### Score Categories Explained
+
+- **Architecture** - Critical files, entry points, project structure
+- **Testing** - Test coverage and test framework detection
+- **Dependencies** - Build system and dependency management
+- **Conventions** - Code patterns, error handling, type hints
+- **Entry Points** - Main functions and executable files
+- **Security** - Input validation, security checks, config management
+- **Build** - Build files and dependency tracking
+- **Documentation** - README and project documentation
+
+### Test a Specific Project
+
+```bash
+python3 braxis.py score --path /path/to/project
+```
+
+---
+
 ## Commands
 
 ```bash
-braxis generate     # Generate context files
-braxis score        # Score agent readiness (0-100)
-braxis inspect      # See what Braxis found
-braxis validate     # Verify AGENTS.md exists
+braxis score                          # Score agent readiness (0-100)
+braxis score --path /path/to/project  # Score a specific project
+braxis generate                       # Generate context files
+braxis inspect                        # See what Braxis found
+braxis validate                       # Verify AGENTS.md exists
 ```
+
+---
+
+## Safety & Reliability
+
+Braxis includes robust error handling and data safety features:
+
+- **Input Validation** - Validates project paths and file inputs with clear error messages
+- **Atomic File Writing** - Uses temporary files and atomic operations to prevent partial writes
+- **Error Handling** - Comprehensive error handling with informative feedback
+- **Tested** - 30+ unit tests covering all major functionality
 
 ---
 
