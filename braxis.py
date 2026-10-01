@@ -132,6 +132,92 @@ class BraxisAnalyzer:
 
         print(f"\n{'='*60}\n")
 
+    def get_llm_recommendations(self):
+        """Get intelligent recommendations using Claude API."""
+        try:
+            import anthropic
+        except ImportError:
+            print("Claude API not available. Install with: pip install braxis[llm]")
+            return None
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            print("ANTHROPIC_API_KEY not set. Skipping LLM recommendations.")
+            print("Set your API key: export ANTHROPIC_API_KEY='sk-ant-...'")
+            return None
+
+        try:
+            client = anthropic.Anthropic(api_key=api_key)
+
+            # Build project analysis summary
+            analysis_summary = f"""
+Project: {self.project_path.name}
+Agent Readiness Score: {self.total_score}/100 ({self.tier})
+
+Score Breakdown:
+{self._format_score_breakdown()}
+
+Project Details:
+- Languages: {', '.join(self.languages.keys()) if self.languages else 'None detected'}
+- Build System: {self.build_system}
+- Test Frameworks: {', '.join(self.test_frameworks)}
+- Test Files: {len(self.test_files)}
+- Total Files: {len(self.files)}
+- Critical Files: {len(self.critical_files)}
+- Config Files: {len(self.config_files)}
+
+Detected Conventions:
+- Error Handling: {'Yes' if 'error_handling' in self.conventions else 'No'}
+- Type Hints: {'Yes' if 'type_hints' in self.conventions else 'No'}
+- Logging: {'Yes' if 'logging' in self.conventions else 'No'}
+- Validation: {'Yes' if 'validation' in self.conventions else 'No'}
+- Async Patterns: {'Yes' if 'async' in self.conventions else 'No'}
+"""
+
+            prompt = f"""Based on this project analysis, provide 5-7 specific, actionable recommendations to improve AI agent readiness and code quality:
+
+{analysis_summary}
+
+Format your response as a numbered list with:
+1. A clear title for each recommendation
+2. Why it matters (1-2 sentences)
+3. How to implement it (concrete steps)
+
+Focus on high-impact improvements that would increase the Agent Readiness Score."""
+
+            response = client.messages.create(
+                model="claude-opus-5-5",
+                max_tokens=2000,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+
+            # Extract text from response
+            recommendations = ""
+            for block in response.content:
+                if block.type == "text":
+                    recommendations += block.text
+
+            return recommendations
+
+        except anthropic.APIError as e:
+            print(f"API Error: {e.message}")
+            return None
+        except Exception as e:
+            print(f"Error getting recommendations: {e}")
+            return None
+
+    def _format_score_breakdown(self):
+        """Format score breakdown for display."""
+        lines = []
+        for category, score in self.score_breakdown.items():
+            lines.append(f"  {category}: {score}/100")
+        return "\n".join(lines)
+
     def analyze(self):
         """Analyze the project."""
         self._scan_files()
@@ -387,13 +473,13 @@ __version__ = "1.0.0"
 def main():
     parser = argparse.ArgumentParser(description='Braxis - AI agent context generator')
     parser.add_argument('--version', action='version', version=f'Braxis {__version__}')
-    parser.add_argument('command', choices=['generate', 'score', 'inspect', 'validate', 'history'],
+    parser.add_argument('command', choices=['generate', 'score', 'inspect', 'validate', 'history', 'recommendations'],
                         help='Command to run')
     parser.add_argument('--path', default='.', help='Project path')
     parser.add_argument('--trends', action='store_true', help='Show score trends')
     args = parser.parse_args()
 
-    if not args.command or args.command not in ['generate', 'score', 'inspect', 'validate', 'history']:
+    if not args.command or args.command not in ['generate', 'score', 'inspect', 'validate', 'history', 'recommendations']:
         parser.print_help()
         sys.exit(1)
 
@@ -413,6 +499,25 @@ def main():
                         score = entry['score']
                         tier = entry['tier']
                         print(f"{i}. {timestamp} - {score}/100 ({tier})")
+        except (ValueError, FileNotFoundError, NotADirectoryError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        return
+
+    if args.command == 'recommendations':
+        try:
+            analyzer = BraxisAnalyzer(args.path)
+            analyzer.analyze()
+            print("\nGenerating AI-powered recommendations...")
+            recommendations = analyzer.get_llm_recommendations()
+            if recommendations:
+                print(f"\n{'='*60}")
+                print(f"LLM-Powered Recommendations for {analyzer.project_path.name}")
+                print(f"{'='*60}\n")
+                print(recommendations)
+                print(f"\n{'='*60}\n")
+            else:
+                print("Could not generate recommendations.")
         except (ValueError, FileNotFoundError, NotADirectoryError) as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)

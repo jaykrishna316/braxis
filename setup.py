@@ -31,6 +31,10 @@ setup(
     ],
     python_requires=">=3.8",
     py_modules=["braxis"],
+    install_requires=[],
+    extras_require={
+        "llm": ["anthropic>=0.24.0"],
+    },
     entry_points={
         "console_scripts": [
             "braxis=braxis:main",
