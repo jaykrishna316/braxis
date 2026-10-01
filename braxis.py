@@ -7,6 +7,7 @@ import os
 import sys
 import json
 import argparse
+import tempfile
 from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
@@ -38,7 +39,7 @@ class BraxisAnalyzer:
     CONFIG_FILES = ['.env', '.env.example', 'config.json', 'settings.py', 'config.yaml']
 
     def __init__(self, project_path='.'):
-        self.project_path = Path(project_path)
+        self.project_path = self._validate_project_path(project_path)
         self.files = []
         self.languages = defaultdict(int)
         self.test_files = []
@@ -48,6 +49,17 @@ class BraxisAnalyzer:
         self.critical_files = []
         self.score_breakdown = {}
         self.tier = "Not Ready"
+
+    def _validate_project_path(self, project_path):
+        """Validate and normalize project path."""
+        if not project_path:
+            raise ValueError("Project path cannot be empty")
+        path = Path(project_path).resolve()
+        if not path.exists():
+            raise FileNotFoundError(f"Project path does not exist: {project_path}")
+        if not path.is_dir():
+            raise NotADirectoryError(f"Project path is not a directory: {project_path}")
+        return path
 
     def analyze(self):
         """Analyze the project."""
@@ -195,6 +207,31 @@ class BraxisAnalyzer:
         else:
             self.tier = "Not Ready"
 
+    def _write_file_safely(self, filepath, content):
+        """Write file safely using atomic operation with temp file."""
+        if not filepath:
+            raise ValueError("Filepath cannot be empty")
+        if not isinstance(content, str):
+            raise TypeError(f"Content must be str, got {type(content).__name__}")
+        filepath = Path(filepath)
+        tmp_path = None
+        try:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(
+                mode='w',
+                dir=filepath.parent,
+                suffix='.tmp',
+                delete=False,
+                encoding='utf-8'
+            ) as tmp_file:
+                tmp_file.write(content)
+                tmp_path = Path(tmp_file.name)
+            tmp_path.replace(filepath)
+        except Exception as e:
+            if tmp_path and tmp_path.exists():
+                tmp_path.unlink()
+            raise IOError(f"Failed to write file {filepath}: {e}")
+
     def print_score(self):
         """Print the score report."""
         print(f"\n{'='*60}")
@@ -279,27 +316,35 @@ def main():
     parser.add_argument('--path', default='.', help='Project path')
     args = parser.parse_args()
 
-    analyzer = BraxisAnalyzer(args.path)
-    analyzer.analyze()
+    if not args.command or args.command not in ['generate', 'score', 'inspect', 'validate']:
+        parser.print_help()
+        sys.exit(1)
+
+    try:
+        analyzer = BraxisAnalyzer(args.path)
+        analyzer.analyze()
+    except (ValueError, FileNotFoundError, NotADirectoryError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
     if args.command == 'score':
         analyzer.print_score()
     elif args.command == 'generate':
         print("Generating context files...")
-        with open('AGENTS.md', 'w') as f:
-            f.write(analyzer.generate_agents_md())
-        print("* AGENTS.md")
-        with open('CLAUDE.md', 'w') as f:
-            f.write(analyzer.generate_claude_md())
-        print("* CLAUDE.md")
-        with open('.cursorrules', 'w') as f:
-            f.write(analyzer.generate_cursorrules())
-        print("* .cursorrules")
-        with open('.agentic-config.json', 'w') as f:
-            f.write(analyzer.generate_agentic_config())
-        print("* .agentic-config.json")
-        print(f"\nAgent Readiness: {analyzer.total_score}/100 ({analyzer.tier})")
-        print("\nFiles created successfully!")
+        try:
+            analyzer._write_file_safely('AGENTS.md', analyzer.generate_agents_md())
+            print("* AGENTS.md")
+            analyzer._write_file_safely('CLAUDE.md', analyzer.generate_claude_md())
+            print("* CLAUDE.md")
+            analyzer._write_file_safely('.cursorrules', analyzer.generate_cursorrules())
+            print("* .cursorrules")
+            analyzer._write_file_safely('.agentic-config.json', analyzer.generate_agentic_config())
+            print("* .agentic-config.json")
+            print(f"\nAgent Readiness: {analyzer.total_score}/100 ({analyzer.tier})")
+            print("\nFiles created successfully!")
+        except IOError as e:
+            print(f"Error writing files: {e}", file=sys.stderr)
+            sys.exit(1)
     elif args.command == 'inspect':
         print(f"\nProject Analysis:")
         print(f" Languages: {dict(analyzer.languages)}")
