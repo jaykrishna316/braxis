@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
+import hashlib
 
 
 class BraxisAnalyzer:
@@ -60,6 +61,76 @@ class BraxisAnalyzer:
         if not path.is_dir():
             raise NotADirectoryError(f"Project path is not a directory: {project_path}")
         return path
+
+    def _get_project_hash(self):
+        """Generate unique hash for project for tracking."""
+        project_str = str(self.project_path).encode()
+        return hashlib.md5(project_str).hexdigest()[:8]
+
+    def _get_history_file(self):
+        """Get path to score history file."""
+        home = Path.home()
+        history_dir = home / '.braxis' / 'history'
+        history_dir.mkdir(parents=True, exist_ok=True)
+        return history_dir / f"scores_{self._get_project_hash()}.json"
+
+    def _save_score_to_history(self):
+        """Save current score to history."""
+        history_file = self._get_history_file()
+        history = []
+
+        if history_file.exists():
+            try:
+                history = json.loads(history_file.read_text())
+            except (json.JSONDecodeError, IOError):
+                history = []
+
+        history.append({
+            "timestamp": datetime.now().isoformat(),
+            "score": self.total_score,
+            "tier": self.tier,
+            "breakdown": self.score_breakdown
+        })
+
+        history_file.write_text(json.dumps(history, indent=2))
+
+    def get_score_history(self, limit=None):
+        """Get score history for this project."""
+        history_file = self._get_history_file()
+        if not history_file.exists():
+            return []
+
+        try:
+            history = json.loads(history_file.read_text())
+            return history[-limit:] if limit else history
+        except (json.JSONDecodeError, IOError):
+            return []
+
+    def show_score_trends(self):
+        """Show score trends over time."""
+        history = self.get_score_history()
+        if not history:
+            print("No score history available yet. Run 'braxis score' to start tracking.")
+            return
+
+        print(f"\n{'='*60}")
+        print(f"Score History for {self.project_path.name}")
+        print(f"{'='*60}\n")
+
+        for i, entry in enumerate(history, 1):
+            timestamp = entry['timestamp'][:10]  # Date only
+            score = entry['score']
+            tier = entry['tier']
+            print(f"{i}. {timestamp} - {score}/100 ({tier})")
+
+        if len(history) > 1:
+            first_score = history[0]['score']
+            latest_score = history[-1]['score']
+            change = latest_score - first_score
+            direction = "📈" if change > 0 else "📉" if change < 0 else "➡️"
+            print(f"\nTrend: {direction} {abs(change):+d} points")
+
+        print(f"\n{'='*60}\n")
 
     def analyze(self):
         """Analyze the project."""
@@ -206,6 +277,7 @@ class BraxisAnalyzer:
             self.tier = "Agent-Aware"
         else:
             self.tier = "Not Ready"
+        self._save_score_to_history()
 
     def _write_file_safely(self, filepath, content):
         """Write file safely using atomic operation with temp file."""
@@ -309,16 +381,42 @@ This is a {primary_lang.capitalize()} project using {self.build_system}.
         return json.dumps(config, indent=2)
 
 
+__version__ = "1.0.0"
+
+
 def main():
     parser = argparse.ArgumentParser(description='Braxis - AI agent context generator')
-    parser.add_argument('command', choices=['generate', 'score', 'inspect', 'validate'],
+    parser.add_argument('--version', action='version', version=f'Braxis {__version__}')
+    parser.add_argument('command', choices=['generate', 'score', 'inspect', 'validate', 'history'],
                         help='Command to run')
     parser.add_argument('--path', default='.', help='Project path')
+    parser.add_argument('--trends', action='store_true', help='Show score trends')
     args = parser.parse_args()
 
-    if not args.command or args.command not in ['generate', 'score', 'inspect', 'validate']:
+    if not args.command or args.command not in ['generate', 'score', 'inspect', 'validate', 'history']:
         parser.print_help()
         sys.exit(1)
+
+    if args.command == 'history':
+        try:
+            analyzer = BraxisAnalyzer(args.path)
+            if args.trends:
+                analyzer.show_score_trends()
+            else:
+                history = analyzer.get_score_history()
+                if not history:
+                    print("No score history available. Run 'braxis score' to start tracking.")
+                else:
+                    print(f"\nScore History for {analyzer.project_path.name}:")
+                    for i, entry in enumerate(history, 1):
+                        timestamp = entry['timestamp'][:10]
+                        score = entry['score']
+                        tier = entry['tier']
+                        print(f"{i}. {timestamp} - {score}/100 ({tier})")
+        except (ValueError, FileNotFoundError, NotADirectoryError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        return
 
     try:
         analyzer = BraxisAnalyzer(args.path)
