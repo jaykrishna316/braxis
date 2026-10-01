@@ -1,0 +1,64 @@
+name: Braxis Score Check
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'lib/**'
+      - '**.py'
+      - 'package.json'
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'Makefile'
+      - '.github/workflows/braxis-score.yml'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install braxis
+        run: pip install braxis
+
+      - name: Check agent readiness score
+        run: braxis score
+
+      - name: Generate context files
+        run: braxis generate
+
+      - name: Check if files changed
+        id: verify
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request for updates
+        if: steps.verify.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: 'chore: regenerate braxis context files'
+          title: 'chore: update agent context files'
+          body: |
+            Braxis has detected changes in your codebase and regenerated the context files.
+
+            This ensures your AI agents (Claude Code, Cursor, Copilot) always see current project context.
+
+            **Files updated:**
+            - AGENTS.md
+            - CLAUDE.md
+            - .cursorrules
+            - .agentic-config.json
+          branch: braxis/auto-update
+          delete-branch: true

@@ -1,0 +1,23 @@
+# Example .pre-commit-config.yaml for using Braxis in your project
+# Copy this to your repo root and rename to .pre-commit-config.yaml
+
+repos:
+  - repo: https://github.com/jaykrishna316/braxis
+    rev: v1.0.0  # Use the latest version
+    hooks:
+      - id: braxis-score
+        stages: [commit]
+      - id: braxis-validate
+        stages: [commit]
+
+# Install pre-commit:
+#   pip install pre-commit
+#
+# Install the git hook scripts:
+#   pre-commit install
+#
+# Run against all files:
+#   pre-commit run --all-files
+#
+# Update hooks:
+#   pre-commit autoupdate

@@ -309,8 +309,12 @@ This is a {primary_lang.capitalize()} project using {self.build_system}.
         return json.dumps(config, indent=2)
 
 
+__version__ = "1.0.0"
+
+
 def main():
     parser = argparse.ArgumentParser(description='Braxis - AI agent context generator')
+    parser.add_argument('--version', action='version', version=f'Braxis {__version__}')
     parser.add_argument('command', choices=['generate', 'score', 'inspect', 'validate'],
                         help='Command to run')
     parser.add_argument('--path', default='.', help='Project path')

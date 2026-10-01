@@ -1,0 +1,16 @@
+- id: braxis-score
+  name: Braxis Agent Readiness Score
+  entry: braxis score
+  language: system
+  files: ^(src/|lib/|.*\.py|package\.json|pyproject\.toml|setup\.py|Makefile)
+  stages: [commit]
+  pass_filenames: false
+  always_run: false
+
+- id: braxis-validate
+  name: Braxis Context Files Validation
+  entry: braxis validate
+  language: system
+  stages: [commit]
+  pass_filenames: false
+  always_run: true
