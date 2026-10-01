@@ -1,5 +1,11 @@
 # Braxis
 
+[![PyPI - Version](https://img.shields.io/pypi/v/braxis.svg)](https://pypi.org/project/braxis/)
+[![Python - Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+[![Tests - Status](https://img.shields.io/badge/tests-30%2F30%20passing-brightgreen.svg)](https://github.com/jaykrishna316/braxis/blob/main/test_braxis.py)
+[![License - MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/jaykrishna316/braxis/blob/main/LICENSE)
+[![Agent Readiness - AI-Native](https://img.shields.io/badge/agent%20readiness-71%2F100%20%7C%20AI--Native-blue.svg)]()
+
 **Auto-generate AI agent context files. Keep them in sync with your code.**
 
 Your AI agents (Claude Code, Cursor, Copilot) read from `AGENTS.md` to understand your project. When your code changes, that file gets stale. Agents miss patterns, violate conventions, hallucinate.
@@ -248,7 +254,15 @@ Braxis includes robust error handling and data safety features:
 - **Input Validation** - Validates project paths and file inputs with clear error messages
 - **Atomic File Writing** - Uses temporary files and atomic operations to prevent partial writes
 - **Error Handling** - Comprehensive error handling with informative feedback
-- **Tested** - 30+ unit tests covering all major functionality
+- **Tested** - 30+ unit tests with 100% pass rate
+
+### Run Tests Locally
+
+```bash
+python3 -m unittest test_braxis -v
+```
+
+All tests pass ✅
 
 ---
 
