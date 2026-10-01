@@ -40,10 +40,24 @@ Your agents always see current reality
 ### Step 1: Install
 
 ```bash
+# Basic installation (core features)
 pip install braxis
+
+# With LLM support (for AI recommendations)
+pip install braxis[llm]
 ```
 
-### Step 2: Go to Your Project
+### Step 2: (Optional) Set Up Claude API
+
+For LLM-powered recommendations:
+
+```bash
+export ANTHROPIC_API_KEY='sk-ant-...'
+```
+
+Get your API key: https://console.anthropic.com
+
+### Step 3: Go to Your Project
 
 ```bash
 cd /path/to/your/project
@@ -94,12 +108,14 @@ git push
 - ✅ **One Command** - Generate all context files with `braxis generate`
 - ✅ **Zero Config** - Works out of the box, no setup needed
 - ✅ **Auto-Score** - Measure your project's AI agent readiness (0-100)
+- ✅ **Score History** - Track improvements over time with trends & analytics
+- ✅ **LLM Recommendations** - AI-powered suggestions using Claude API (optional)
 - ✅ **Multi-Language** - Supports Python, JavaScript, TypeScript, Go, Rust, Java, and more
 - ✅ **CI/CD Ready** - GitHub Actions workflow included
 - ✅ **Pre-commit Hooks** - Validate before every commit
 - ✅ **Safe & Reliable** - Input validation, atomic writes, comprehensive error handling
 - ✅ **Well-Tested** - 30+ unit tests with 100% pass rate
-- ✅ **No Dependencies** - Pure Python, zero external packages
+- ✅ **No Dependencies** - Pure Python, zero external packages (LLM features optional)
 - ✅ **Production-Grade** - Used in real projects, actively maintained
 
 ---
@@ -184,6 +200,91 @@ pre-commit install
 ```
 
 Now braxis will validate your project before each commit! 🔐
+
+### Score History & Trends
+
+Track your project's AI agent readiness score over time.
+
+```bash
+# View all historical scores
+braxis history
+
+# View scores with trends and direction indicators
+braxis history --trends
+```
+
+**Example output:**
+```
+============================================================
+Score History for myproject
+============================================================
+
+1. 2026-10-01 - 65/100 (AI-Native)
+2. 2026-10-05 - 72/100 (AI-Native)
+3. 2026-10-10 - 78/100 (AI-Native-Plus)
+
+Trend: 📈 +13 points
+
+============================================================
+```
+
+**Features:**
+- Automatic score persistence on every `braxis score` run
+- Project-specific tracking (stored in `~/.braxis/history/`)
+- Trend indicators: 📈 (improving) 📉 (declining) ➡️ (stable)
+- Configurable history limits
+- Timestamps and tier information included
+
+### LLM-Powered Recommendations
+
+Get intelligent, actionable recommendations from Claude AI.
+
+**Setup:**
+```bash
+# Install with LLM support
+pip install braxis[llm]
+
+# Set your API key
+export ANTHROPIC_API_KEY='sk-ant-...'
+```
+
+**Usage:**
+```bash
+braxis recommendations
+```
+
+**Example output:**
+```
+============================================================
+LLM-Powered Recommendations for myproject
+============================================================
+
+1. Add Comprehensive Test Suite
+   Why it matters: Testing is the foundation of reliable code.
+   Current state: Only 7% testing coverage
+   How to implement:
+   - Start with pytest fixtures for common patterns
+   - Aim for 80%+ coverage on core modules
+   - Run: pytest --cov to measure progress
+
+2. Implement Input Validation Framework
+   Why it matters: Validation prevents bugs and security issues
+   Current state: No systematic validation detected
+   How to implement:
+   - Use Pydantic for request validation
+   - Add schema validation to all API endpoints
+   - Example: from pydantic import BaseModel
+
+[... more recommendations ...]
+```
+
+**Features:**
+- Uses Claude Opus 5.5 for high-quality analysis
+- 5-7 actionable recommendations per run
+- Concrete implementation steps for each suggestion
+- Focuses on improving Agent Readiness Score
+- Gracefully handles missing API keys
+- Optional dependency (braxis works without it)
 
 ---
 
@@ -344,6 +445,16 @@ braxis inspect --path /path/to/project
 # Validate context files exist
 braxis validate
 braxis validate --path /path/to/project
+
+# View score history
+braxis history
+braxis history --path /path/to/project
+braxis history --trends                 # Show trends with emoji indicators
+braxis history --path /path/to/project --trends
+
+# Get LLM-powered recommendations (requires: export ANTHROPIC_API_KEY='sk-ant-...')
+braxis recommendations
+braxis recommendations --path /path/to/project
 ```
 
 ---
@@ -385,6 +496,25 @@ coverage report
 
 ---
 
+## Why Braxis Stands Out
+
+| Feature | Braxis | CursorRules | .cursorrules | Other Tools |
+|---------|--------|-------------|--------------|-------------|
+| **Auto-generates context** | ✅ Four formats | ❌ Manual | ❌ Manual | Varies |
+| **Scores readiness** | ✅ 0-100 with 5 tiers | ❌ No | ❌ No | ❌ Limited |
+| **Tracks history** | ✅ Over time with trends | ❌ No | ❌ No | ❌ No |
+| **AI recommendations** | ✅ Claude-powered | ❌ No | ❌ No | ❌ Limited |
+| **Multi-language** | ✅ 15+ languages | ❌ Limited | ❌ Limited | Varies |
+| **CI/CD integration** | ✅ GitHub Actions ready | ⚠️ Manual | ⚠️ Manual | Varies |
+| **Zero dependencies** | ✅ Core only | ✅ Yes | ✅ Yes | Varies |
+| **Production-tested** | ✅ 30+ tests | ⚠️ Limited | ⚠️ Limited | Varies |
+| **Atomic file ops** | ✅ Safe writes | ❌ No | ❌ No | ❌ No |
+| **Active updates** | ✅ Latest Claude models | ⚠️ Varies | ⚠️ Varies | Varies |
+
+**The difference:** Braxis goes beyond rules files. It continuously analyzes your codebase, scores your readiness, tracks progress, and provides AI-driven guidance—all automatically.
+
+---
+
 ## Requirements
 
 - Python 3.8+
@@ -401,9 +531,47 @@ coverage report
 
 ---
 
-## License
+## Real-World Usage Examples
 
-MIT - Free to use in personal and commercial projects
+### Scenario 1: Onboarding New Team Members
+```bash
+# New developer clones repo
+$ braxis score
+Agent Readiness: 78/100 (AI-Native-Plus)
+
+# They immediately understand the project structure, conventions, and quality baseline
+# Opens AGENTS.md in Claude Code - instant context
+```
+
+### Scenario 2: Tracking Quality Improvements
+```bash
+# Initial state
+$ braxis score
+Score: 45/100 (Agent-Aware)
+
+# After 2 weeks of improvements
+$ braxis history --trends
+📈 +28 points
+
+# Team celebrates progress with visual trend data
+```
+
+### Scenario 3: CI/CD Automated Updates
+```bash
+# Every commit triggers workflow
+$ braxis score
+$ braxis generate
+# PR created with updated context files
+# Agents always have latest project info
+```
+
+### Scenario 4: Before Starting Major Refactor
+```bash
+$ braxis recommendations
+# Get AI-powered guidance on what to improve
+# Prioritize high-impact changes
+# Measure progress with `braxis history`
+```
 
 ---
 
@@ -415,11 +583,40 @@ AI agents need current context to work effectively. Without it, they:
 - ❌ Make outdated suggestions
 - ❌ Waste your time with hallucinations
 
-Braxis solves this automatically. One command. Always in sync. ✨
+Braxis solves this automatically:
+1. **Generates** context files from real code analysis
+2. **Scores** your readiness for AI agents (0-100)
+3. **Tracks** improvements over time with trends
+4. **Recommends** actionable next steps via Claude AI
+
+One command. Always in sync. Always improving. ✨
+
+---
+
+## License
+
+MIT - Free to use in personal and commercial projects
+
+See [LICENSE](LICENSE) for details.
+
+---
+
+## Roadmap
+
+Upcoming features in development:
+- 🚧 Custom scoring rules engine
+- 🚧 Project comparison & benchmarking
+- 🚧 Web dashboard for visualization
+- 🚧 Score forecasting & predictions
+- 🚧 Integration with more IDE platforms
+
+Have a feature request? [Open an issue](https://github.com/jaykrishna316/braxis/issues/new)
 
 ---
 
 **Braxis** — Keep your agents aligned. Keep your code context current.
 
-Made with ❤️ for AI-native development.
+Continuously analyze. Automatically improve. Always sync. ✨
+
+Made with ❤️ for AI-native development by developers, for developers.
 
