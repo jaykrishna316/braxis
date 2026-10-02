@@ -3,7 +3,7 @@
     "project_name": "braxis",
     "description": "A Python project with Python (pip/setuptools)",
     "generated_by": "Braxis",
-    "generated_at": "2026-10-02T08:44:14.930307",
+    "generated_at": "2026-10-02T09:07:23.854604",
     "schema_version": "1.0"
   },
   "project": {
@@ -13,7 +13,9 @@
     "primary_language": "python",
     "build_system": "Python (pip/setuptools)",
     "architecture": "single-package",
-    "is_monorepo": false
+    "is_monorepo": false,
+    "monorepo_type": null,
+    "subsystems": []
   },
   "ai_readiness": {
     "overall_score": 71,
@@ -63,12 +65,12 @@
       "language_version": "3.9+",
       "package_manager": "pip or uv",
       "key_tools": [
-        "Mocha",
-        "JUnit",
-        "RSpec",
         "pytest",
+        "RSpec",
         "unittest",
+        "Mocha",
         "Jest",
+        "JUnit",
         "ruff",
         "mypy"
       ]
@@ -105,6 +107,10 @@
       "Inconsistent naming or style",
       "Dead code or commented code"
     ]
+  },
+  "contribution_boundaries": {
+    "project_scale": "micro",
+    "suggestion": "This micro-project is early-stage. Accept most contributions."
   },
   "commands": {
     "setup": {
