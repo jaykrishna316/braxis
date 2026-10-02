@@ -10,9 +10,9 @@
 
 Your AI agents (Claude Code, Cursor, Copilot) read from `AGENTS.md` to understand your project. When your code changes, that file gets stale. Agents miss patterns, violate conventions, hallucinate.
 
-Braxis v1.1 solves this: **one command generates context files that stay in sync with your codebase—with special support for monorepos and MCP-enabled projects.**
+Braxis v1.2 solves this: **one command generates context files that stay in sync with your codebase—with deep pattern detection, repository gotchas, and ownership mapping.**
 
-> **What's New in v1.1:** Hierarchical AGENTS.md for monorepos (pnpm, uv, yarn, npm, lerna), automatic MCP server detection, and project scale analysis with contribution boundaries. All backward compatible.
+> **What's New in v1.2:** Automatic detection of repository gotchas, subsystem ownership mapping, cross-subsystem contract visualization, common mistake identification with fixes, and enhanced testing pattern analysis. All backward compatible with v1.1 features.
 
 ---
 
@@ -52,11 +52,18 @@ Your agents always see current reality
 - ✅ **No Dependencies** - Pure Python, zero external packages (LLM features optional)
 - ✅ **Production-Grade** - Used in real projects, actively maintained
 
+### NEW in v1.2: Pattern Detection & Architecture Mapping
+- ✅ **Repository Gotchas Detection** - Automatically identifies common pitfalls (I/O in transactions, missing error handling, etc.)
+- ✅ **Subsystem Ownership Mapping** - Visualizes which subsystem owns what, prevents scope creep and conflicts
+- ✅ **Cross-Subsystem Contracts** - Documents dependencies and data flow between subsystems
+- ✅ **Common Mistakes Identification** - Detects anti-patterns with before/after code examples
+- ✅ **Enhanced Testing Patterns** - Comprehensive analysis of test frameworks, structure, and coverage capabilities
+- ✅ **100% Backward Compatible** - All v1.1 features preserved; new patterns seamlessly integrate
+
 ### NEW in v1.1: Monorepo & MCP Support
 - ✅ **Hierarchical AGENTS.md** - Auto-generates scoped guidance files for monorepo subsystems (pnpm, uv, yarn, npm, lerna)
 - ✅ **MCP Detection** - Automatically detects and documents MCP servers (Claude Desktop config, Python entry points)
 - ✅ **Project Scale Analysis** - Categorizes projects by size with growth-phase-appropriate contribution boundaries
-- ✅ **100% Backward Compatible** - Single-package projects unaffected; new features activate automatically when applicable
 
 ---
 
@@ -692,13 +699,22 @@ See [LICENSE](LICENSE) for details.
 
 ## Roadmap
 
+### Released: v1.2.0 ✅
+- ✅ Repository gotchas automatic detection
+- ✅ Subsystem ownership mapping and visualization
+- ✅ Cross-subsystem contract documentation
+- ✅ Common mistakes identification with before/after patterns
+- ✅ Enhanced testing pattern analysis
+
 ### Released: v1.1.0 ✅
 - ✅ Hierarchical AGENTS.md for monorepos
 - ✅ MCP server detection and documentation
 - ✅ Project scale analysis with contribution boundaries
 
-### Coming in v1.2 (Q1 2027)
+### Coming in v1.3 (Q2 2027)
 - 🚧 Architecture Decision Records (ADRs) - MADR template generation
+- 🚧 Automated dependency graph visualization
+- 🚧 Performance profiling patterns detection
 - 🚧 Auto-Generated Documentation Blocks - Framework-aware regeneration
 - 🚧 Multi-Tier Environment Configuration - Scoped .env files per subsystem
 

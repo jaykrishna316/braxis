@@ -431,7 +431,7 @@ Focus on high-impact improvements that would increase the Agent Readiness Score.
     def generate_agents_md(self):
         """Generate comprehensive AGENTS.md file."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
-        
+
         # Build vars for the template
         structure = self.project_path.name + "/"
         if self.build_files:
@@ -441,16 +441,16 @@ Focus on high-impact improvements that would increase the Agent Readiness Score.
         if self.test_files:
             structure += "\n├── tests/                # Test suite (" + str(len(self.test_files)) + " files)"
         structure += "\n└── README.md             # Project documentation"
-        
+
         test_frameworks_str = ', '.join(sorted(self.test_frameworks)) if self.test_frameworks else 'pytest'
         critical_files_info = ', '.join(f.name for f in self.critical_files[:5]) if self.critical_files else 'Standard layout'
         build_config = ', '.join(f.name for f in self.build_files[:3]) if self.build_files else "Standard"
-        
+
         type_hints_status = 'Yes' if 'type_hints' in self.conventions else 'No'
         error_handling_status = 'Yes' if 'error_handling' in self.conventions else 'No'
         logging_status = 'Yes' if 'logging' in self.conventions else 'No'
         testing_status = 'Yes' if self.test_files else 'No'
-        
+
         arch_score = self.score_breakdown.get('Architecture', 0)
         test_score = self.score_breakdown.get('Testing', 0)
         dep_score = self.score_breakdown.get('Dependencies', 0)
@@ -459,6 +459,31 @@ Focus on high-impact improvements that would increase the Agent Readiness Score.
         sec_score = self.score_breakdown.get('Security', 0)
         build_score = self.score_breakdown.get('Build', 0)
         doc_score = self.score_breakdown.get('Documentation', 0)
+
+        # v1.2: Pattern detection
+        gotchas = self.detect_repository_gotchas()
+        gotchas_section = ""
+        if gotchas:
+            gotchas_section = "\n## Repository Gotchas (Common Pitfalls)\n\n"
+            for gotcha in gotchas[:3]:
+                gotchas_section += f"- **{gotcha['title']}**: {gotcha['symptom']} → {gotcha['impact']}\n"
+
+        ownership = self.extract_ownership()
+        ownership_section = ""
+        if ownership:
+            ownership_section = "\n## Subsystem Ownership\n\n"
+            ownership_section += "| Subsystem | Files | Language | Owns | Consumes |\n"
+            ownership_section += "|-----------|-------|----------|------|----------|\n"
+            for subsys, info in sorted(ownership.items())[:5]:
+                consumes = ', '.join(info['consumes'][:2]) if info['consumes'] else 'none'
+                ownership_section += f"| `{info['path']}/` | {info['files']} | {info['language']} | {info['owns'][:30]}... | {consumes} |\n"
+
+        testing_patterns = self.analyze_testing_patterns()
+        testing_section = f"\n## Testing Patterns\n\n"
+        testing_section += f"- **Frameworks**: {', '.join(testing_patterns['frameworks']) if testing_patterns['frameworks'] else 'None detected'}\n"
+        testing_section += f"- **Test Files**: {testing_patterns['files']}\n"
+        testing_section += f"- **Structure**: {testing_patterns['structure']}\n"
+        testing_section += f"- **Coverage Tools**: {'Yes' if testing_patterns['coverage_capable'] else 'Configure coverage with pytest-cov or similar'}\n"
         
         return f"""# AGENTS.md
 
@@ -502,6 +527,7 @@ Context file for AI agents working on {self.project_path.name}.
 3. **Clarity** - Explicit naming and structure for AI agent understanding
 4. **Consistency** - Uniform patterns and conventions throughout codebase
 5. **Maintainability** - Well-documented code with clear intent
+{gotchas_section}{ownership_section}{testing_section}
 
 ## Development Workflow
 
@@ -1256,8 +1282,210 @@ mcp call <tool_name> <args>
 
         return suggestions.get(scale, "")
 
+    # v1.2 Pattern Detection Features
+    def detect_repository_gotchas(self):
+        """Detect common repository pitfalls based on code analysis."""
+        gotchas = []
 
-__version__ = "1.1.0"
+        # Check for transaction patterns (async I/O inside sync blocks)
+        for file_path in self.files:
+            if file_path.suffix not in ['.py', '.js', '.ts']:
+                continue
+            try:
+                content = file_path.read_text(encoding='utf-8', errors='ignore')
+
+                # Gotcha 1: I/O in transaction blocks
+                if 'transaction()' in content and ('requests.' in content or 'http' in content.lower()):
+                    gotchas.append({
+                        'title': 'I/O Operations Inside Transactions',
+                        'symptom': 'External API calls or I/O within transaction blocks',
+                        'impact': 'Deadlocks, inconsistent state, performance issues',
+                        'file': str(file_path)
+                    })
+                    break
+
+                # Gotcha 2: State mutations without events
+                if 'self.' in content and '= ' in content and 'event' not in content.lower():
+                    if 'immutable' not in content.lower() and 'frozen' not in content.lower():
+                        pass  # Common pattern, not necessarily a gotcha
+
+                # Gotcha 3: Missing error handling in async code
+                if 'async def' in content and 'try:' not in content and 'except' not in content:
+                    gotchas.append({
+                        'title': 'Async Code Without Error Handling',
+                        'symptom': 'Async functions lack try/except blocks',
+                        'impact': 'Unhandled exceptions can crash the process',
+                        'file': str(file_path)
+                    })
+                    break
+            except (UnicodeDecodeError, FileNotFoundError):
+                continue
+
+        return gotchas[:5]  # Return top 5
+
+    def detect_common_mistakes(self):
+        """Detect common anti-patterns and suggest fixes."""
+        mistakes = []
+
+        for file_path in self.files:
+            if file_path.suffix == '.py':
+                try:
+                    content = file_path.read_text(encoding='utf-8', errors='ignore')
+
+                    # Mistake 1: Using str() on complex objects
+                    if 'str(self.' in content or 'str(obj.' in content:
+                        mistakes.append({
+                            'type': 'String Conversion Abuse',
+                            'pattern': 'str(complex_object)',
+                            'issue': 'Loses type information and produces unsafe representations',
+                            'fix': 'Use serialize() or explicit field mapping instead'
+                        })
+
+                    # Mistake 2: Global mutable state
+                    if content.count('global ') > 2:
+                        mistakes.append({
+                            'type': 'Global Mutable State',
+                            'pattern': 'Multiple global variables',
+                            'issue': 'Hard to test, causes hidden dependencies',
+                            'fix': 'Use dependency injection or class attributes'
+                        })
+
+                    # Mistake 3: Catching all exceptions
+                    if 'except Exception:' in content or 'except:' in content:
+                        mistakes.append({
+                            'type': 'Overly Broad Exception Handling',
+                            'pattern': 'except Exception or bare except',
+                            'issue': 'Masks real errors, makes debugging difficult',
+                            'fix': 'Catch specific exceptions only'
+                        })
+                except (UnicodeDecodeError, FileNotFoundError):
+                    continue
+
+        return mistakes[:10]
+
+    def extract_ownership(self):
+        """Extract ownership information from directory structure."""
+        ownership = {}
+
+        # Check for common subsystem directories
+        subsystems = ['api', 'web', 'cli', 'backend', 'frontend', 'packages', 'libs', 'services', 'core']
+
+        for subsys in subsystems:
+            subsys_path = self.project_path / subsys
+            if subsys_path.exists() and subsys_path.is_dir():
+                # Count files in subsystem
+                subsys_files = list(subsys_path.rglob('*'))
+                subsys_files = [f for f in subsys_files if f.is_file()]
+
+                if subsys_files:
+                    primary_ext = defaultdict(int)
+                    for f in subsys_files:
+                        primary_ext[f.suffix] += 1
+
+                    top_lang = max(primary_ext.items(), key=lambda x: x[1])[0] if primary_ext else 'unknown'
+
+                    ownership[subsys] = {
+                        'path': subsys,
+                        'files': len(subsys_files),
+                        'language': top_lang,
+                        'owns': self._infer_ownership(subsys),
+                        'consumes': self._infer_dependencies(subsys)
+                    }
+
+        return ownership
+
+    def _infer_ownership(self, subsystem):
+        """Infer what a subsystem owns based on its name and content."""
+        ownership_map = {
+            'api': 'API endpoints, business logic, database operations',
+            'backend': 'Server logic, API contracts, database schema',
+            'web': 'UI components, pages, user interactions, styling',
+            'frontend': 'Client-side rendering, state management, components',
+            'cli': 'Command-line interface, CLI commands, argument parsing',
+            'packages': 'Shared utilities, types, reusable components',
+            'libs': 'Shared libraries, core utilities, abstractions',
+            'services': 'Business services, domain logic, orchestration',
+            'core': 'Core domain logic, business rules, data models'
+        }
+
+        return ownership_map.get(subsystem, 'Core functionality and utilities')
+
+    def _infer_dependencies(self, subsystem):
+        """Infer what a subsystem depends on."""
+        dependency_map = {
+            'api': ['packages', 'libs', 'core'],
+            'backend': ['packages', 'libs'],
+            'web': ['api', 'packages', 'libs'],
+            'frontend': ['packages', 'libs'],
+            'cli': ['api', 'packages', 'libs'],
+            'services': ['packages', 'libs', 'core'],
+            'core': []
+        }
+
+        return dependency_map.get(subsystem, [])
+
+    def map_cross_subsystem_contracts(self):
+        """Map data flow and contracts between subsystems."""
+        ownership = self.extract_ownership()
+        contracts = []
+
+        # Build dependency graph
+        for subsys, info in ownership.items():
+            if info['consumes']:
+                for dependency in info['consumes']:
+                    if dependency in ownership:
+                        contracts.append({
+                            'from': subsys,
+                            'to': dependency,
+                            'type': 'imports',
+                            'boundary': f'{subsys}/ → {dependency}/'
+                        })
+
+        return contracts
+
+    def analyze_testing_patterns(self):
+        """Analyze testing patterns and structure."""
+        patterns = {
+            'frameworks': list(self.test_frameworks),
+            'files': len(self.test_files),
+            'structure': self._analyze_test_structure(),
+            'coverage_capable': self._check_coverage_tools()
+        }
+
+        return patterns
+
+    def _analyze_test_structure(self):
+        """Analyze how tests are organized."""
+        test_dirs = set()
+
+        for file_path in self.test_files:
+            parent = file_path.parent
+            if 'test' in parent.name.lower() or 'spec' in parent.name.lower():
+                test_dirs.add(parent.name)
+
+        if test_dirs:
+            return f"Tests organized in: {', '.join(sorted(test_dirs))}"
+        else:
+            return "Tests colocated with source files"
+
+    def _check_coverage_tools(self):
+        """Check if project has coverage tools configured."""
+        coverage_tools = ['pytest-cov', 'coverage', 'nyc', 'istanbul', 'jacoco']
+
+        for file_path in self.files:
+            if file_path.name in ['setup.py', 'pyproject.toml', 'package.json']:
+                try:
+                    content = file_path.read_text(encoding='utf-8', errors='ignore')
+                    for tool in coverage_tools:
+                        if tool in content:
+                            return True
+                except (UnicodeDecodeError, FileNotFoundError):
+                    continue
+
+        return False
+
+
+__version__ = "1.2.0"
 
 
 def main():
