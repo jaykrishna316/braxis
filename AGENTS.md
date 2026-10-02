@@ -10,7 +10,7 @@ braxis is a Python project using Python (pip/setuptools).
 - **Primary Language:** Python
 - **Build System:** Python (pip/setuptools)
 - **Test Framework:** JUnit, Jest, Mocha, RSpec, pytest, unittest
-- **Total Files:** 17
+- **Total Files:** 21
 - **Test Files:** 1
 - **AI Readiness Score:** 71/100 (AI-Native)
 

@@ -3,7 +3,7 @@
     "project_name": "braxis",
     "description": "A Python project with Python (pip/setuptools)",
     "generated_by": "Braxis",
-    "generated_at": "2026-10-02T08:44:14.930307",
+    "generated_at": "2026-10-02T08:49:59.667630",
     "schema_version": "1.0"
   },
   "project": {
@@ -63,12 +63,12 @@
       "language_version": "3.9+",
       "package_manager": "pip or uv",
       "key_tools": [
-        "Mocha",
-        "JUnit",
         "RSpec",
-        "pytest",
-        "unittest",
+        "Mocha",
         "Jest",
+        "pytest",
+        "JUnit",
+        "unittest",
         "ruff",
         "mypy"
       ]
