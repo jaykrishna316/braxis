@@ -45,6 +45,18 @@ braxis/
 4. **Consistency** - Uniform patterns and conventions throughout codebase
 5. **Maintainability** - Well-documented code with clear intent
 
+## Repository Gotchas (Common Pitfalls)
+
+- **I/O Operations Inside Transactions**: External API calls or I/O within transaction blocks → Deadlocks, inconsistent state, performance issues
+
+## Testing Patterns
+
+- **Frameworks**: JUnit, RSpec, Jest, pytest, unittest, Mocha
+- **Test Files**: 1
+- **Structure**: Tests colocated with source files
+- **Coverage Tools**: Configure coverage with pytest-cov or similar
+
+
 ## Development Workflow
 
 ### Initial Setup
