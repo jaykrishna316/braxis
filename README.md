@@ -32,6 +32,22 @@ Regenerates AGENTS.md, CLAUDE.md, .cursorrules, .agentic-config.json
 Creates PR with updates
 Your agents always see current reality
 
+---
+
+## ✨ Key Features
+
+- ✅ **One Command** - Generate all context files with `braxis generate`
+- ✅ **Zero Config** - Works out of the box, no setup needed
+- ✅ **Auto-Score** - Measure your project's AI agent readiness (0-100)
+- ✅ **Score History** - Track improvements over time with trends & analytics
+- ✅ **LLM Recommendations** - AI-powered suggestions using Claude API (optional)
+- ✅ **Multi-Language** - Supports Python, JavaScript, TypeScript, Go, Rust, Java, and more
+- ✅ **CI/CD Ready** - GitHub Actions workflow included
+- ✅ **Pre-commit Hooks** - Validate before every commit
+- ✅ **Safe & Reliable** - Input validation, atomic writes, comprehensive error handling
+- ✅ **Well-Tested** - 30+ unit tests with 100% pass rate
+- ✅ **No Dependencies** - Pure Python, zero external packages (LLM features optional)
+- ✅ **Production-Grade** - Used in real projects, actively maintained
 
 ---
 
@@ -98,25 +114,6 @@ git push
 **In Claude Code:** Automatically reads `CLAUDE.md`
 **In Cursor:** Copy `.cursorrules` into Cursor Settings → Rules
 **In any agent:** Reads `AGENTS.md` (universal format)
-
----
-
----
-
-## ✨ Key Features
-
-- ✅ **One Command** - Generate all context files with `braxis generate`
-- ✅ **Zero Config** - Works out of the box, no setup needed
-- ✅ **Auto-Score** - Measure your project's AI agent readiness (0-100)
-- ✅ **Score History** - Track improvements over time with trends & analytics
-- ✅ **LLM Recommendations** - AI-powered suggestions using Claude API (optional)
-- ✅ **Multi-Language** - Supports Python, JavaScript, TypeScript, Go, Rust, Java, and more
-- ✅ **CI/CD Ready** - GitHub Actions workflow included
-- ✅ **Pre-commit Hooks** - Validate before every commit
-- ✅ **Safe & Reliable** - Input validation, atomic writes, comprehensive error handling
-- ✅ **Well-Tested** - 30+ unit tests with 100% pass rate
-- ✅ **No Dependencies** - Pure Python, zero external packages (LLM features optional)
-- ✅ **Production-Grade** - Used in real projects, actively maintained
 
 ---
 
