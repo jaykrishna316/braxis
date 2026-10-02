@@ -10,7 +10,9 @@
 
 Your AI agents (Claude Code, Cursor, Copilot) read from `AGENTS.md` to understand your project. When your code changes, that file gets stale. Agents miss patterns, violate conventions, hallucinate.
 
-Braxis solves this: **one command generates four context files that stay in sync with your codebase.**
+Braxis v1.1 solves this: **one command generates context files that stay in sync with your codebase—with special support for monorepos and MCP-enabled projects.**
+
+> **What's New in v1.1:** Hierarchical AGENTS.md for monorepos (pnpm, uv, yarn, npm, lerna), automatic MCP server detection, and project scale analysis with contribution boundaries. All backward compatible.
 
 ---
 
@@ -36,6 +38,7 @@ Your agents always see current reality
 
 ## ✨ Key Features
 
+### Core Features
 - ✅ **One Command** - Generate all context files with `braxis generate`
 - ✅ **Zero Config** - Works out of the box, no setup needed
 - ✅ **Auto-Score** - Measure your project's AI agent readiness (0-100)
@@ -48,6 +51,12 @@ Your agents always see current reality
 - ✅ **Well-Tested** - 30+ unit tests with 100% pass rate
 - ✅ **No Dependencies** - Pure Python, zero external packages (LLM features optional)
 - ✅ **Production-Grade** - Used in real projects, actively maintained
+
+### NEW in v1.1: Monorepo & MCP Support
+- ✅ **Hierarchical AGENTS.md** - Auto-generates scoped guidance files for monorepo subsystems (pnpm, uv, yarn, npm, lerna)
+- ✅ **MCP Detection** - Automatically detects and documents MCP servers (Claude Desktop config, Python entry points)
+- ✅ **Project Scale Analysis** - Categorizes projects by size with growth-phase-appropriate contribution boundaries
+- ✅ **100% Backward Compatible** - Single-package projects unaffected; new features activate automatically when applicable
 
 ---
 
@@ -114,6 +123,71 @@ git push
 **In Claude Code:** Automatically reads `CLAUDE.md`
 **In Cursor:** Copy `.cursorrules` into Cursor Settings → Rules
 **In any agent:** Reads `AGENTS.md` (universal format)
+
+---
+
+## 🎯 NEW in v1.1: Monorepo & MCP Support
+
+### Hierarchical AGENTS.md for Monorepos
+
+For monorepo projects, Braxis v1.1 automatically generates scoped guidance files:
+
+```bash
+braxis generate
+```
+
+**Output for pnpm/uv/yarn monorepo:**
+```
+Detected monorepo! Generating hierarchical AGENTS.md...
+* AGENTS.md (root - monorepo patterns)
+* api/AGENTS.md (backend-specific)
+* web/AGENTS.md (frontend-specific)
+* cli/AGENTS.md (CLI conventions)
+* packages/AGENTS.md (library patterns)
+
+✓ Monorepo detected: PNPM with 4 subsystems
+```
+
+**Key Benefits:**
+- **Follows Nearest File Pattern** - Developers read the most relevant scoped AGENTS.md
+- **Scales Infinitely** - Works equally well from 10 to 10,000 files
+- **Maintains Consistency** - Root AGENTS.md keeps monorepo-wide patterns
+- **Allows Customization** - Each subsystem can have local rules
+
+### MCP Server Detection
+
+Braxis v1.1 automatically detects and documents MCP servers:
+
+```bash
+braxis inspect
+```
+
+**Output for MCP-enabled project:**
+```
+✓ MCP servers detected: 1 server(s)
+  - llama-index-tools-mcp (python_entry_point)
+```
+
+**Features:**
+- Detects from `.claude/claude_desktop_config.json`
+- Detects from `pyproject.toml` entry points
+- Detects custom MCP configs
+- Generates MCP usage documentation in AGENTS.md
+
+### Project Scale Analysis
+
+Braxis automatically analyzes project scale and suggests contribution boundaries:
+
+```
+💡 Project Scale (large): This large project should define clear contribution 
+boundaries. Consider LlamaIndex model: 'no new X' policy.
+```
+
+**Scale Categories:**
+- **Micro** (<50 files): Accept most contributions
+- **Small** (50-200 files): Consider boundaries as you grow
+- **Medium** (200-500 files): Define clear scope
+- **Large** (>500 files): Define "no new X" policies
 
 ---
 
@@ -510,6 +584,24 @@ coverage report
 
 **The difference:** Braxis goes beyond rules files. It continuously analyzes your codebase, scores your readiness, tracks progress, and provides AI-driven guidance—all automatically.
 
+### Why v1.1 Changes Everything for Monorepos
+
+**Before v1.1:** Single flat AGENTS.md doesn't scale for monorepos
+- 150+ lines of mixed guidance
+- Developers search for "backend" sections mixed with frontend advice
+- New subsystems added with no local guidance
+
+**After v1.1:** Hierarchical guidance at every level
+- Root AGENTS.md: General patterns and monorepo gotchas
+- Scoped files: Backend-specific, frontend-specific, CLI-specific rules
+- Automatic detection: Works for pnpm, uv, yarn, npm, lerna
+- Automatic MCP docs: MCP-enabled projects get full documentation
+
+**Real-world example:** Dify monorepo with 50K stars
+- v1.0: 1 flat AGENTS.md for 13,000+ files
+- v1.1: Root + 7 scoped AGENTS.md (root, api, web, cli, packages, etc.)
+- Result: 50 lines of relevant guidance per developer instead of 150 generic lines
+
 ---
 
 ## Requirements
@@ -600,7 +692,17 @@ See [LICENSE](LICENSE) for details.
 
 ## Roadmap
 
-Upcoming features in development:
+### Released: v1.1.0 ✅
+- ✅ Hierarchical AGENTS.md for monorepos
+- ✅ MCP server detection and documentation
+- ✅ Project scale analysis with contribution boundaries
+
+### Coming in v1.2 (Q1 2027)
+- 🚧 Architecture Decision Records (ADRs) - MADR template generation
+- 🚧 Auto-Generated Documentation Blocks - Framework-aware regeneration
+- 🚧 Multi-Tier Environment Configuration - Scoped .env files per subsystem
+
+### Future
 - 🚧 Custom scoring rules engine
 - 🚧 Project comparison & benchmarking
 - 🚧 Web dashboard for visualization
