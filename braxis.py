@@ -50,6 +50,10 @@ class BraxisAnalyzer:
         self.critical_files = []
         self.score_breakdown = {}
         self.tier = "Not Ready"
+        # v1.1 features
+        self.monorepo_type = None
+        self.monorepo_subsystems = []
+        self.mcp_servers = []
 
     def _validate_project_path(self, project_path):
         """Validate and normalize project path."""
@@ -226,6 +230,11 @@ Focus on high-impact improvements that would increase the Agent Readiness Score.
         self._detect_test_framework()
         self._detect_conventions()
         self._identify_critical_files()
+        # v1.1: Detect monorepo and MCP
+        self.monorepo_type = self.detect_monorepo_type()
+        if self.monorepo_type:
+            self.monorepo_subsystems = self.get_monorepo_subsystems()
+        self.mcp_servers = self.detect_mcp_servers()
         self._calculate_score()
 
     def _scan_files(self):
@@ -758,8 +767,13 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                 "languages": list(self.languages.keys()),
                 "primary_language": primary_lang,
                 "build_system": self.build_system,
-                "architecture": "single-package",
-                "is_monorepo": False
+                "architecture": "monorepo" if self.monorepo_type else "single-package",
+                "is_monorepo": bool(self.monorepo_type),
+                "monorepo_type": self.monorepo_type,
+                "subsystems": [
+                    {"name": s['name'], "language": s['language'], "path": s['path']}
+                    for s in self.monorepo_subsystems
+                ] if self.monorepo_subsystems else []
             },
             "ai_readiness": {
                 "overall_score": self.total_score,
@@ -820,7 +834,10 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                 ] if self.critical_files else [],
                 "layers": ["CLI interface (if applicable)", "Business logic", "Utilities and helpers"]
             },
-            "mcp_servers": [],
+            "mcp_servers": [
+                {"name": s['name'], "type": s['type'], "config_file": str(s.get('location', 'unknown'))}
+                for s in self.mcp_servers
+            ] if self.mcp_servers else [],
             "core_principles": [
                 "Modularity - Code organized by functionality",
                 "Testability - Comprehensive test coverage",
@@ -842,6 +859,10 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                     "Dead code or commented code"
                 ]
             },
+            "contribution_boundaries": {
+                "project_scale": self.analyze_project_scale(),
+                "suggestion": self.suggest_contribution_boundaries()
+            },
             "commands": {
                 "setup": {"command": setup_cmd, "description": "Install dependencies and set up development environment"},
                 "test": {"command": test_cmd, "description": "Run all tests"},
@@ -855,11 +876,388 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                 "run_command": test_cmd
             }
         }
-        
+
         return json.dumps(config, indent=2)
 
+    # ============================================================================
+    # BRAXIS v1.1 FEATURES
+    # ============================================================================
 
-__version__ = "1.0.0"
+    def detect_monorepo_type(self):
+        """Detect monorepo platform: pnpm, uv, yarn, npm workspaces, or lerna."""
+        monorepo_indicators = {
+            'pnpm': 'pnpm-workspace.yaml',
+            'uv': 'pyproject.toml',  # Check for [tool.uv.workspaces]
+            'yarn': 'package.json',  # Check for workspaces
+            'npm': 'package.json',  # Check for workspaces
+            'lerna': 'lerna.json',
+        }
+
+        for monorepo_type, indicator_file in monorepo_indicators.items():
+            file_path = self.project_path / indicator_file
+            if file_path.exists():
+                if monorepo_type == 'pnpm' and 'pnpm-workspace' in file_path.name:
+                    return 'pnpm'
+                elif monorepo_type == 'lerna':
+                    return 'lerna'
+                elif monorepo_type in ('uv', 'yarn', 'npm'):
+                    # Check content for workspaces configuration
+                    try:
+                        content = file_path.read_text()
+                        if 'workspaces' in content or '[tool.uv.workspaces]' in content:
+                            return monorepo_type
+                    except (IOError, UnicodeDecodeError):
+                        pass
+
+        return None
+
+    def get_monorepo_subsystems(self):
+        """Identify subsystems in a monorepo (api, web, packages, etc.)."""
+        subsystems = []
+
+        # Common subsystem directories
+        subsystem_dirs = ['api', 'web', 'cli', 'packages', 'libs', 'apps', 'services']
+
+        for subsys_dir in subsystem_dirs:
+            subsys_path = self.project_path / subsys_dir
+            if subsys_path.exists() and subsys_path.is_dir():
+                # Detect language in this subsystem
+                lang = self._detect_subsystem_language(subsys_path)
+                subsystems.append({
+                    'name': subsys_dir,
+                    'path': subsys_dir,
+                    'language': lang
+                })
+
+        return subsystems
+
+    def _detect_subsystem_language(self, path):
+        """Detect primary language in a directory."""
+        lang_counts = defaultdict(int)
+        for ext, langs in self.LANGUAGE_EXTENSIONS.items():
+            for lang_ext in langs:
+                count = len(list(path.rglob(f'*{lang_ext}')))
+                if count > 0:
+                    lang_counts[ext] += count
+
+        return max(lang_counts.items(), key=lambda x: x[1])[0] if lang_counts else 'unknown'
+
+    def generate_hierarchical_contexts(self):
+        """Generate hierarchical AGENTS.md for monorepos."""
+        monorepo_type = self.detect_monorepo_type()
+
+        if not monorepo_type:
+            # Single package - return None to use default generate_agents_md()
+            return None
+
+        subsystems = self.get_monorepo_subsystems()
+
+        # Generate root AGENTS.md
+        root_content = self._generate_root_agents_md(monorepo_type, subsystems)
+
+        # Generate scoped AGENTS.md for each subsystem
+        scoped_contents = {}
+        for subsystem in subsystems:
+            scoped_content = self._generate_scoped_agents_md(subsystem)
+            scoped_contents[f"{subsystem['path']}/AGENTS.md"] = scoped_content
+
+        return {
+            'AGENTS.md': root_content,
+            **scoped_contents
+        }
+
+    def _generate_root_agents_md(self, monorepo_type, subsystems):
+        """Generate root AGENTS.md for monorepo."""
+        subsystem_list = '\n'.join([
+            f"- `{s['name']}/` → See {s['name']}/AGENTS.md ({s['language']} {s['name']})"
+            for s in subsystems
+        ])
+
+        return f"""# {self.project_path.name} - Agent Context
+
+{self.project_path.name} is a {monorepo_type} monorepo with {len(subsystems)} major subsystems.
+
+## Critical Instruction
+
+When modifying files, **follow the nearest scoped AGENTS.md** for that subsystem.
+
+This file contains global patterns and monorepo gotchas.
+Scoped files contain subsystem-specific rules and conventions.
+
+### Hierarchy
+- **Root AGENTS.md**: General patterns, monorepo gotchas, architecture overview
+- **Subsystem AGENTS.md**: Backend, frontend, CLI, etc. - specific rules per subsystem
+- **Feature AGENTS.md**: Deep dives for complex features (if present)
+
+## Subsystems
+
+{subsystem_list}
+
+## Monorepo Gotchas
+
+### Build & Test
+- Use `{monorepo_type}` for dependency management
+- Run tests per subsystem or globally depending on configuration
+- Keep monorepo-wide versions in {self._get_lock_file(monorepo_type)}
+
+### Development
+- Install dependencies: `{self._get_install_cmd(monorepo_type)}`
+- Format all code: `{self._get_format_cmd(monorepo_type)}`
+- Run tests: `{self._get_test_cmd(monorepo_type)}`
+
+## Architecture Overview
+
+This monorepo uses a subsystem-based organization:
+
+{self._generate_arch_overview(subsystems)}
+
+## What to Work On
+
+When contributing:
+1. Identify which subsystem your changes affect
+2. Read the nearest scoped AGENTS.md
+3. Follow those subsystem-specific rules
+4. Cross-subsystem changes? Document the interaction in your PR
+
+## What We Value
+
+✅ Following subsystem boundaries
+✅ Keeping subsystems loosely coupled
+✅ Comprehensive tests per subsystem
+✅ Clear documentation of subsystem contracts
+✅ Minimizing cross-subsystem dependencies
+
+---
+
+*Generated by Braxis v1.1 - Hierarchical Agent Context for Monorepos*
+"""
+
+    def _generate_scoped_agents_md(self, subsystem):
+        """Generate scoped AGENTS.md for a subsystem."""
+        lang = subsystem.get('language', 'unknown').capitalize()
+
+        return f"""# {subsystem['name'].capitalize()} Subsystem Agent Guide
+
+Read this file when working in `{subsystem['path']}/`.
+Then refer to root AGENTS.md for repo-wide patterns.
+
+## Subsystem Overview
+
+This subsystem is the **{subsystem['name']}** layer of the project.
+
+Primary Language: **{lang}**
+
+## Architecture
+
+{self._generate_subsystem_arch(subsystem)}
+
+## Code Style
+
+Follow root AGENTS.md conventions, with these subsystem-specific rules:
+
+- Keep {subsystem['name']} concerns isolated
+- Use clear interfaces with other subsystems
+- Document public APIs for cross-subsystem use
+
+## Testing
+
+- Write tests alongside code changes
+- Tests live in `{subsystem['path']}/__tests__` or `{subsystem['path']}/tests/`
+- Run with: `pytest {subsystem['path']}/`
+
+## Common Patterns
+
+When working in this subsystem:
+1. Read existing code in the area you're modifying
+2. Follow the established patterns
+3. Write tests for new functionality
+4. Use clear, descriptive names
+
+## Integration Points
+
+Document any dependencies on other subsystems:
+- Clearly name imported types/functions
+- Keep interfaces minimal
+- Add comments explaining why the dependency exists
+
+---
+
+*Generated by Braxis v1.1*
+"""
+
+    def _get_lock_file(self, monorepo_type):
+        """Get lock file name for monorepo type."""
+        lock_files = {
+            'pnpm': 'pnpm-lock.yaml',
+            'uv': 'uv.lock',
+            'yarn': 'yarn.lock',
+            'npm': 'package-lock.json',
+            'lerna': 'package-lock.json'
+        }
+        return lock_files.get(monorepo_type, 'lock file')
+
+    def _get_install_cmd(self, monorepo_type):
+        """Get install command for monorepo type."""
+        cmds = {
+            'pnpm': 'pnpm install',
+            'uv': 'uv sync --all-groups',
+            'yarn': 'yarn install',
+            'npm': 'npm install',
+            'lerna': 'lerna bootstrap'
+        }
+        return cmds.get(monorepo_type, 'npm install')
+
+    def _get_format_cmd(self, monorepo_type):
+        """Get format command for monorepo type."""
+        # Most modern projects use ruff or prettier
+        return 'ruff format . && prettier --write .' if self.build_system else 'ruff format .'
+
+    def _get_test_cmd(self, monorepo_type):
+        """Get test command for monorepo type."""
+        return 'pytest' if 'python' in self.languages else 'npm test'
+
+    def _generate_arch_overview(self, subsystems):
+        """Generate architecture overview section."""
+        overview = "```\n"
+        overview += f"{self.project_path.name}/\n"
+        for i, subsys in enumerate(subsystems):
+            is_last = i == len(subsystems) - 1
+            prefix = "└── " if is_last else "├── "
+            overview += f"{prefix}{subsys['name']}/ ({subsys['language'].upper()})\n"
+        overview += "```"
+        return overview
+
+    def _generate_subsystem_arch(self, subsystem):
+        """Generate subsystem-specific architecture."""
+        return f"""The **{subsystem['name']}** subsystem is primarily {subsystem['language'].capitalize()}.
+
+Key responsibilities:
+- Implement {subsystem['name']}-specific business logic
+- Expose clean interfaces to other subsystems
+- Maintain {subsystem['name']}-specific configuration
+"""
+
+    def detect_mcp_servers(self):
+        """Detect MCP server configuration in repo."""
+        mcp_servers = []
+
+        # Check for Claude Desktop config
+        claude_config = self.project_path / '.claude' / 'claude_desktop_config.json'
+        if claude_config.exists():
+            try:
+                config = json.loads(claude_config.read_text())
+                if 'mcpServers' in config:
+                    for server_name, server_config in config['mcpServers'].items():
+                        mcp_servers.append({
+                            'name': server_name,
+                            'type': 'claude_desktop',
+                            'config': server_config
+                        })
+            except (json.JSONDecodeError, IOError):
+                pass
+
+        # Check for MCP entry points in pyproject.toml
+        if 'python' in self.languages:
+            pyproject = self.project_path / 'pyproject.toml'
+            if pyproject.exists():
+                content = pyproject.read_text()
+                if '[project.entry-points.mcp]' in content or '[project.entry-points."mcp"]' in content:
+                    # This is an MCP server project
+                    mcp_servers.append({
+                        'name': self.project_path.name,
+                        'type': 'python_entry_point',
+                        'location': 'pyproject.toml'
+                    })
+
+        # Check for mcp.json or similar config
+        for config_file in self.project_path.glob('*mcp*.json'):
+            try:
+                config = json.loads(config_file.read_text())
+                mcp_servers.append({
+                    'name': config_file.stem,
+                    'type': 'config_file',
+                    'config': config
+                })
+            except (json.JSONDecodeError, IOError):
+                pass
+
+        return mcp_servers
+
+    def generate_mcp_context(self):
+        """Generate MCP documentation section."""
+        mcp_servers = self.detect_mcp_servers()
+
+        if not mcp_servers:
+            return None
+
+        server_docs = '\n'.join([
+            f"- **{s['name']}** ({s['type']})" for s in mcp_servers
+        ])
+
+        return f"""## MCP Integration
+
+This repository includes {{len(mcp_servers)}} MCP server(s).
+
+### Servers
+{server_docs}
+
+### Development
+```bash
+# For Python MCP servers
+python -m your_module
+
+# Or use the entry point
+mcp run your_server
+```
+
+### Tool Documentation
+
+Document your MCP tools:
+- Tool specs: See `mcp_servers/` directory
+- Examples: See examples/ or docs/ for usage
+- Discovery: Tools auto-discovered from MCP config
+
+### Testing MCP Tools
+
+```bash
+# Test MCP tool discovery
+mcp list-resources
+
+# Test tool execution
+mcp call <tool_name> <args>
+```
+
+---
+"""
+
+    def analyze_project_scale(self):
+        """Suggest contribution boundaries based on project scale."""
+        num_files = len(self.files)
+
+        if num_files < 50:
+            return "micro"
+        elif num_files < 200:
+            return "small"
+        elif num_files < 500:
+            return "medium"
+        else:
+            return "large"
+
+    def suggest_contribution_boundaries(self):
+        """Generate contribution boundaries template."""
+        scale = self.analyze_project_scale()
+
+        suggestions = {
+            "micro": "This micro-project is early-stage. Accept most contributions.",
+            "small": "This small project can accept most contributions. Consider boundaries as it grows.",
+            "medium": "This project is growing. Consider defining clear contribution scope.",
+            "large": "This large project should define clear contribution boundaries. Consider LlamaIndex model: 'no new X' policy.",
+        }
+
+        return suggestions.get(scale, "")
+
+
+__version__ = "1.1.0"
 
 
 def main():
@@ -927,14 +1325,36 @@ def main():
     elif args.command == 'generate':
         print("Generating context files...")
         try:
-            analyzer._write_file_safely('AGENTS.md', analyzer.generate_agents_md())
-            print("* AGENTS.md")
+            # v1.1: Check for monorepo and generate hierarchically
+            hierarchical_contexts = analyzer.generate_hierarchical_contexts()
+            if hierarchical_contexts:
+                print("Detected monorepo! Generating hierarchical AGENTS.md...")
+                for file_path, content in hierarchical_contexts.items():
+                    analyzer._write_file_safely(file_path, content)
+                    print(f"* {file_path}")
+            else:
+                analyzer._write_file_safely('AGENTS.md', analyzer.generate_agents_md())
+                print("* AGENTS.md")
+
             analyzer._write_file_safely('CLAUDE.md', analyzer.generate_claude_md())
             print("* CLAUDE.md")
             analyzer._write_file_safely('.cursorrules', analyzer.generate_cursorrules())
             print("* .cursorrules")
             analyzer._write_file_safely('.agentic-config.json', analyzer.generate_agentic_config())
             print("* .agentic-config.json")
+
+            # v1.1: Report MCP and monorepo info
+            if analyzer.monorepo_type:
+                print(f"\n✓ Monorepo detected: {analyzer.monorepo_type.upper()} with {len(analyzer.monorepo_subsystems)} subsystems")
+            if analyzer.mcp_servers:
+                print(f"✓ MCP servers detected: {len(analyzer.mcp_servers)} server(s)")
+
+            scale = analyzer.analyze_project_scale()
+            if scale in ('large', 'medium'):
+                suggestion = analyzer.suggest_contribution_boundaries()
+                if suggestion:
+                    print(f"\n💡 Project Scale ({scale}): {suggestion}")
+
             print(f"\nAgent Readiness: {analyzer.total_score}/100 ({analyzer.tier})")
             print("\nFiles created successfully!")
         except IOError as e:
@@ -948,6 +1368,16 @@ def main():
         print(f" Files: {len(analyzer.files)}")
         print(f" Test Files: {len(analyzer.test_files)}")
         print(f" Critical Files: {len(analyzer.critical_files)}")
+        # v1.1
+        if analyzer.monorepo_type:
+            print(f" Monorepo Type: {analyzer.monorepo_type.upper()}")
+            print(f" Subsystems: {len(analyzer.monorepo_subsystems)}")
+            for subsys in analyzer.monorepo_subsystems:
+                print(f"   - {subsys['name']} ({subsys['language']})")
+        if analyzer.mcp_servers:
+            print(f" MCP Servers: {len(analyzer.mcp_servers)}")
+            for server in analyzer.mcp_servers:
+                print(f"   - {server['name']} ({server['type']})")
     elif args.command == 'validate':
         required_files = ['AGENTS.md', 'CLAUDE.md', '.cursorrules', '.agentic-config.json']
         missing = [f for f in required_files if not Path(f).exists()]
