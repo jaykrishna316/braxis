@@ -334,50 +334,442 @@ class BraxisAnalyzer:
         print(f"\n{'='*60}\n")
 
     def generate_agents_md(self):
-        """Generate AGENTS.md file."""
+        """Generate comprehensive AGENTS.md file."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
-        content = f"""# AGENTS.md
-AI agents read this file to understand your project.
-## Project Identity
-This is a {primary_lang.capitalize()} project. It uses {self.build_system}.
-## Tech Stack
-- Language: {primary_lang.capitalize()}
-- Build: {self.build_system}
-- Testing: {', '.join(self.test_frameworks)}
-- Total Files: {len(self.files)}
-## Quick Start
+        
+        # Build vars for the template
+        structure = self.project_path.name + "/"
+        if self.build_files:
+            for f in self.build_files[:3]:
+                structure += "\n├── " + f.name
+        structure += "\n├── src/                  # Source code"
+        if self.test_files:
+            structure += "\n├── tests/                # Test suite (" + str(len(self.test_files)) + " files)"
+        structure += "\n└── README.md             # Project documentation"
+        
+        test_frameworks_str = ', '.join(sorted(self.test_frameworks)) if self.test_frameworks else 'pytest'
+        critical_files_info = ', '.join(f.name for f in self.critical_files[:5]) if self.critical_files else 'Standard layout'
+        build_config = ', '.join(f.name for f in self.build_files[:3]) if self.build_files else "Standard"
+        
+        type_hints_status = 'Yes' if 'type_hints' in self.conventions else 'No'
+        error_handling_status = 'Yes' if 'error_handling' in self.conventions else 'No'
+        logging_status = 'Yes' if 'logging' in self.conventions else 'No'
+        testing_status = 'Yes' if self.test_files else 'No'
+        
+        arch_score = self.score_breakdown.get('Architecture', 0)
+        test_score = self.score_breakdown.get('Testing', 0)
+        dep_score = self.score_breakdown.get('Dependencies', 0)
+        conv_score = self.score_breakdown.get('Conventions', 0)
+        entry_score = self.score_breakdown.get('Entry Points', 0)
+        sec_score = self.score_breakdown.get('Security', 0)
+        build_score = self.score_breakdown.get('Build', 0)
+        doc_score = self.score_breakdown.get('Documentation', 0)
+        
+        return f"""# AGENTS.md
+
+Context file for AI agents working on {self.project_path.name}.
+
+## Project Overview
+
+{self.project_path.name} is a {primary_lang.capitalize()} project using {self.build_system}.
+
+**Key Info:**
+- **Primary Language:** {primary_lang.capitalize()}
+- **Build System:** {self.build_system}
+- **Test Framework:** {test_frameworks_str}
+- **Total Files:** {len(self.files)}
+- **Test Files:** {len(self.test_files)}
+- **AI Readiness Score:** {self.total_score}/100 ({self.tier})
+
+## Prerequisites
+
+- **{primary_lang.capitalize()}:** 3.9+ (or applicable language version)
+- **Package Manager:** pip or uv (recommended)
+- **Test Runner:** {test_frameworks_str}
+
+## Project Structure
+
+```
+{structure}
+```
+
+## Architecture Overview
+
+### Key Components
+- **Main Entry:** {critical_files_info}
+- **Test Suite:** {len(self.test_files)} test files
+- **Build Configuration:** {build_config}
+
+### Design Principles
+
+1. **Modularity** - Code organized by functionality with clear separation of concerns
+2. **Testability** - Comprehensive test coverage across critical paths
+3. **Clarity** - Explicit naming and structure for AI agent understanding
+4. **Consistency** - Uniform patterns and conventions throughout codebase
+5. **Maintainability** - Well-documented code with clear intent
+
+## Development Workflow
+
+### Initial Setup
+
+```bash
+git clone https://github.com/<owner>/{self.project_path.name}.git
+cd {self.project_path.name}
+pip install -e .              # Install in development mode
+# or
+uv sync --all-groups          # Using uv (recommended)
+```
+
+### Development Commands
+
+#### Running Tests
+```bash
+pytest                        # Run all tests
+pytest tests/                 # Run specific test directory
+pytest -v                     # Verbose output with test names
+pytest -x                     # Stop on first failure
+pytest --cov                  # With coverage report
+```
+
+#### Code Quality
+```bash
+ruff check .                  # Lint with ruff
+ruff format .                 # Format code
+mypy .                        # Type checking (if configured)
+```
+
+## Code Style & Conventions
+
+- **Naming:** Use {primary_lang.capitalize()} conventions (snake_case for functions, PascalCase for classes)
+- **Type Hints:** {type_hints_status} (strongly encouraged)
+- **Error Handling:** {error_handling_status}
+- **Logging:** {logging_status}
+- **Testing:** {testing_status} - write tests alongside code changes
+
+## Testing Strategy
+
+**Framework:** {test_frameworks_str}
+**Test Files:** {len(self.test_files)} found
+
+Before committing:
+1. Run the full test suite: `pytest`
+2. Ensure all tests pass
+3. Check type hints: `mypy .`
+4. Format code: `ruff format .`
+
+## Common Patterns
+
+When contributing to this project:
+1. Read existing code in the area you're modifying
+2. Follow the established patterns and style
+3. Write tests for new functionality
+4. Use clear, descriptive variable and function names
+5. Add docstrings for public APIs
+6. Update tests when changing behavior
+
+## What We Value
+
+✅ Well-tested code with clear intent
+✅ Consistent code style and naming conventions
+✅ Code that is easy for AI agents to understand
+✅ Clear, descriptive commit messages
+✅ Modular, reusable components
+✅ Comprehensive documentation
+
+## What We Avoid
+
+❌ Large functions doing multiple things
+❌ Commented-out dead code
+❌ Inconsistent naming or patterns
+❌ Unclear error messages
+❌ Unexplained magic numbers or strings
+❌ Skipped tests or test TODOs
+
+## AI Readiness Dimensions (Scoring)
+
+This project is evaluated across 8 dimensions:
+
+1. **Architecture** ({arch_score}/100) - Code organization and modularity
+2. **Testing** ({test_score}/100) - Test coverage and quality
+3. **Dependencies** ({dep_score}/100) - Dependency management
+4. **Conventions** ({conv_score}/100) - Consistent patterns
+5. **Entry Points** ({entry_score}/100) - Clear main/start locations
+6. **Security** ({sec_score}/100) - Input validation and error handling
+7. **Build** ({build_score}/100) - Clear build/setup instructions
+8. **Documentation** ({doc_score}/100) - Code and project documentation
+
+## Next Steps
+
+Before making changes:
+1. Read relevant source files to understand the existing code
+2. Look at existing tests for similar functionality
+3. Follow the patterns you see in the codebase
+4. Write tests for your changes
+5. Run `pytest` to verify nothing breaks
+6. Run code quality checks: `ruff check . && mypy .`
+7. Format your code: `ruff format .`
+
+---
+
+*Generated by Braxis - keeping AI agents in sync with your code*
 """
-        return content
 
     def generate_claude_md(self):
-        """Generate CLAUDE.md file."""
-        primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
-        content = f"""# CLAUDE.md
-Quick context for Claude Code working in this project.
-## Project
-{primary_lang.capitalize()} project using {self.build_system}.
+        """Generate CLAUDE.md as a router to AGENTS.md."""
+        return """# CLAUDE.md
+
+@AGENTS.md
+
+This project uses AGENTS.md as the standard agent context. Claude Code loads it automatically via the @AGENTS.md import above.
+
+## Claude Code Setup
+
+1. **Read AGENTS.md first** for full project context
+2. **Use the provided commands** in AGENTS.md for development workflow
+3. **Follow the code style** outlined in AGENTS.md Conventions section
+4. **Run tests locally** before asking for code suggestions
+5. **Reference the scoring dimensions** when optimizing code
+
+## Quick Commands
+
+Generate updated context: `braxis generate`
+View your AI readiness score: `braxis score`
+See score trends: `braxis history --trends`
+
+See AGENTS.md for full documentation and the complete list of available commands.
+
+---
+
+*Generated by Braxis*
 """
-        return content
 
     def generate_cursorrules(self):
-        """Generate .cursorrules file."""
+        """Generate .cursorrules file with project-specific rules."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
-        rules = f"""# Cursor Rules
-This is a {primary_lang.capitalize()} project using {self.build_system}.
+        test_frameworks_str = ', '.join(sorted(self.test_frameworks)) if self.test_frameworks else 'pytest'
+        code_formatter = "ruff" if primary_lang == "python" else "prettier" if primary_lang in ["javascript", "typescript"] else "default"
+        type_checking = "mypy" if primary_lang == "python" else "TypeScript" if primary_lang == "typescript" else "available"
+        
+        arch_score = self.score_breakdown.get('Architecture', 0)
+        test_score = self.score_breakdown.get('Testing', 0)
+        dep_score = self.score_breakdown.get('Dependencies', 0)
+        conv_score = self.score_breakdown.get('Conventions', 0)
+        entry_score = self.score_breakdown.get('Entry Points', 0)
+        sec_score = self.score_breakdown.get('Security', 0)
+        build_score = self.score_breakdown.get('Build', 0)
+        doc_score = self.score_breakdown.get('Documentation', 0)
+        
+        return f"""# Cursor Rules for {self.project_path.name}
+
+## What This Project Does
+
+{self.project_path.name} is a {primary_lang.capitalize()} project using {self.build_system}.
+
+**AI Readiness Score:** {self.total_score}/100 ({self.tier})
+
+## Architecture Overview
+
+- **Pattern:** Single-package project
+- **Primary Language:** {primary_lang.capitalize()}
+- **Build System:** {self.build_system}
+- **Test Framework:** {test_frameworks_str}
+- **Test Files:** {len(self.test_files)}
+
+## Must-Follow Rules
+
+### Code Style
+
+1. Use {code_formatter} for code formatting
+2. Follow {primary_lang.capitalize()} naming conventions (snake_case for functions/variables, PascalCase for classes)
+3. Add type hints where applicable ({type_checking} checking enabled)
+4. No commented-out code or dead code
+5. Keep functions focused and single-purpose
+
+### Testing
+
+1. Write tests alongside code changes
+2. Run full test suite before commit: `pytest`
+3. Maintain test coverage for critical paths
+4. Use descriptive test names that explain what's being tested
+5. Test both success and error cases
+
+### Project Structure
+
+- Don't create new top-level directories without understanding existing patterns
+- Follow existing file organization in src/ and tests/
+- Keep related code colocated
+- Use clear module names that indicate their purpose
+
+## Scoring Dimensions (What Matters)
+
+These 8 areas drive AI readiness. Focus on these when making changes:
+
+1. **Architecture** ({arch_score}/100) - Keep code organized and modular
+2. **Testing** ({test_score}/100) - Write comprehensive tests
+3. **Dependencies** ({dep_score}/100) - Minimize external dependencies
+4. **Conventions** ({conv_score}/100) - Be consistent
+5. **Entry Points** ({entry_score}/100) - Make main/start clear
+6. **Security** ({sec_score}/100) - Validate inputs, handle errors
+7. **Build** ({build_score}/100) - Clear build/setup instructions
+8. **Documentation** ({doc_score}/100) - Document patterns and decisions
+
+## Core Principles
+
+- **Modularity** - Organize code by functionality with clear separation of concerns
+- **Testability** - Every feature should be independently testable
+- **Clarity** - Write code that's easy for AI agents (and humans) to understand
+- **Consistency** - Follow established patterns throughout the codebase
+
+## Before You Commit
+
+```bash
+ruff format .                 # Format code
+ruff check .                  # Lint check
+pytest                        # Run all tests
+```
+
+All checks must pass before committing.
+
+## Questions?
+
+See AGENTS.md for detailed documentation on architecture, development workflow, and testing strategy.
+
+---
+
+*Generated by Braxis*
 """
-        return rules
 
     def generate_agentic_config(self):
-        """Generate .agentic-config.json file."""
+        """Generate comprehensive .agentic-config.json file."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
+        
+        # Determine setup and commands based on language
+        if primary_lang == "python":
+            setup_cmd = "pip install -e . && uv sync --all-groups"
+            test_cmd = "pytest"
+            lint_cmd = "ruff check ."
+            format_cmd = "ruff format ."
+            py_version = "3.9+"
+        else:
+            setup_cmd = "npm install"
+            test_cmd = "npm test"
+            lint_cmd = "npm run lint"
+            format_cmd = "npm run format"
+            py_version = "N/A"
+        
+        test_frameworks_str = ', '.join(sorted(self.test_frameworks)) if self.test_frameworks else 'pytest'
+        build_config = ', '.join(f.name for f in self.build_files[:3]) if self.build_files else "Standard"
+        
         config = {
-            "name": self.project_path.name,
-            "description": f"A {primary_lang.capitalize()} project",
-            "language": primary_lang,
-            "build_system": self.build_system,
-            "agent_readiness_score": self.total_score,
-            "tier": self.tier,
+            "metadata": {
+                "project_name": self.project_path.name,
+                "description": f"A {primary_lang.capitalize()} project with {self.build_system}",
+                "generated_by": "Braxis",
+                "generated_at": datetime.now().isoformat(),
+                "schema_version": "1.0"
+            },
+            "project": {
+                "languages": list(self.languages.keys()),
+                "primary_language": primary_lang,
+                "build_system": self.build_system,
+                "architecture": "single-package",
+                "is_monorepo": False
+            },
+            "ai_readiness": {
+                "overall_score": self.total_score,
+                "tier": self.tier,
+                "dimensions": {
+                    "architecture": {
+                        "score": self.score_breakdown.get('Architecture', 0),
+                        "reason": "Code organization and modularity"
+                    },
+                    "testing": {
+                        "score": self.score_breakdown.get('Testing', 0),
+                        "reason": f"{len(self.test_files)} test files found"
+                    },
+                    "dependencies": {
+                        "score": self.score_breakdown.get('Dependencies', 0),
+                        "reason": "Dependency management and version pinning"
+                    },
+                    "conventions": {
+                        "score": self.score_breakdown.get('Conventions', 0),
+                        "reason": "Consistency in naming and patterns"
+                    },
+                    "entry_points": {
+                        "score": self.score_breakdown.get('Entry Points', 0),
+                        "reason": f"{len(self.critical_files)} critical files identified"
+                    },
+                    "security": {
+                        "score": self.score_breakdown.get('Security', 0),
+                        "reason": "Input validation and error handling"
+                    },
+                    "build": {
+                        "score": self.score_breakdown.get('Build', 0),
+                        "reason": "Build system clarity and configuration"
+                    },
+                    "documentation": {
+                        "score": self.score_breakdown.get('Documentation', 0),
+                        "reason": "README and code documentation"
+                    }
+                }
+            },
+            "development": {
+                "setup_command": setup_cmd,
+                "test_command": test_cmd,
+                "lint_command": lint_cmd,
+                "format_command": format_cmd,
+                "dev_server_command": None,
+                "prerequisites": {
+                    "language_version": py_version,
+                    "package_manager": "pip or uv" if primary_lang == "python" else "npm",
+                    "key_tools": list(self.test_frameworks) + (["ruff", "mypy"] if primary_lang == "python" else [])
+                }
+            },
+            "architecture": {
+                "pattern": "single-package project",
+                "main_entry": ', '.join(f.name for f in self.critical_files[:3]) if self.critical_files else "Standard layout",
+                "key_modules": [
+                    {"name": f.stem, "path": str(f.relative_to(self.project_path)), "purpose": "Source module"}
+                    for f in self.critical_files[:5]
+                ] if self.critical_files else [],
+                "layers": ["CLI interface (if applicable)", "Business logic", "Utilities and helpers"]
+            },
+            "mcp_servers": [],
+            "core_principles": [
+                "Modularity - Code organized by functionality",
+                "Testability - Comprehensive test coverage",
+                "Clarity - Code easy for AI agents to understand",
+                "Consistency - Uniform patterns throughout"
+            ],
+            "contribution_criteria": {
+                "what_we_want": [
+                    "Bug fixes with test coverage",
+                    "Code quality improvements",
+                    "Test coverage increases",
+                    "Documentation improvements",
+                    "Performance optimizations"
+                ],
+                "what_we_dont_want": [
+                    "New dependencies without justification",
+                    "Code that reduces test coverage",
+                    "Inconsistent naming or style",
+                    "Dead code or commented code"
+                ]
+            },
+            "commands": {
+                "setup": {"command": setup_cmd, "description": "Install dependencies and set up development environment"},
+                "test": {"command": test_cmd, "description": "Run all tests"},
+                "lint": {"command": lint_cmd, "description": "Check code style and quality"},
+                "format": {"command": format_cmd, "description": "Format code to project standards"}
+            },
+            "testing": {
+                "framework": test_frameworks_str,
+                "total_tests": len(self.test_files),
+                "pass_rate": 100,
+                "run_command": test_cmd
+            }
         }
+        
         return json.dumps(config, indent=2)
 
 
