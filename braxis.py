@@ -813,6 +813,95 @@ mypy .                    # Type checking (if configured)
 
         return gotchas[:10]  # Limit to top 10 gotchas
 
+    def _extract_category_a_content(self):
+        """v1.4: Extract Category A (Operations Manual) content from CONTRIBUTING.md."""
+        if not self.contributing_guide['exists']:
+            return {}
+
+        content = self.contributing_guide['content']
+        category_a = {
+            'procedures': [],
+            'requirements': [],
+            'workarounds': [],
+            'policy_notes': []
+        }
+
+        lines = content.split('\n')
+
+        # Extract procedures (lines with verbs like "must", "should", "run", "follow")
+        procedure_keywords = ['must ', 'should ', 'run ', 'follow ', 'execute', 'install', 'build', 'test', 'commit']
+        requirement_keywords = ['require', 'required', 'prerequisite', 'need', 'dependency']
+        workaround_keywords = ['workaround', 'caveat', 'limitation', 'known issue', 'gotcha', 'exception']
+        policy_keywords = ['policy', 'rule', 'guideline', 'standard', 'convention', 'forbidden', 'banned', 'cannot', 'must not', 'agent']
+
+        for line in lines:
+            # Skip markdown headers and empty lines
+            if line.strip().startswith('#') or not line.strip():
+                continue
+
+            clean_line = line.strip().lstrip('-').lstrip('*').lstrip('>').strip()
+            if not clean_line or len(clean_line) < 10:
+                continue
+
+            # Strip bold markdown
+            if clean_line.startswith('**') and clean_line.endswith('**'):
+                clean_line = clean_line.strip('**').strip()
+
+            if not clean_line or len(clean_line) < 10:
+                continue
+
+            line_lower = clean_line.lower()
+
+            # Classify based on keywords - check policy first
+            if any(kw in line_lower for kw in policy_keywords):
+                if clean_line not in category_a['policy_notes']:
+                    category_a['policy_notes'].append(clean_line)
+            elif any(kw in line_lower for kw in procedure_keywords):
+                if clean_line not in category_a['procedures']:
+                    category_a['procedures'].append(clean_line)
+            elif any(kw in line_lower for kw in requirement_keywords):
+                if clean_line not in category_a['requirements']:
+                    category_a['requirements'].append(clean_line)
+            elif any(kw in line_lower for kw in workaround_keywords):
+                if clean_line not in category_a['workarounds']:
+                    category_a['workarounds'].append(clean_line)
+
+        return category_a
+
+    def _format_category_a_section(self, category_a_content):
+        """Format Category A content into markdown section."""
+        if not any(category_a_content.values()):
+            return ""
+
+        section = "## 🚨 AI Policy & Operations\n\n"
+        section += "Extracted from CONTRIBUTING.md - operational constraints and procedures.\n\n"
+
+        if category_a_content['policy_notes']:
+            section += "### AI Policy\n\n"
+            for note in category_a_content['policy_notes'][:5]:
+                section += f"- {note}\n"
+            section += "\n"
+
+        if category_a_content['requirements']:
+            section += "### Key Requirements\n\n"
+            for req in category_a_content['requirements'][:5]:
+                section += f"- {req}\n"
+            section += "\n"
+
+        if category_a_content['procedures']:
+            section += "### Development Procedures\n\n"
+            for proc in category_a_content['procedures'][:5]:
+                section += f"- {proc}\n"
+            section += "\n"
+
+        if category_a_content['workarounds']:
+            section += "### Known Workarounds & Caveats\n\n"
+            for wka in category_a_content['workarounds'][:3]:
+                section += f"- {wka}\n"
+            section += "\n"
+
+        return section
+
     def _generate_architecture_tables(self):
         """v1.3.1: Auto-generate directory-to-purpose mapping tables."""
         primary_lang = self._get_primary_language()
@@ -925,7 +1014,7 @@ Refer to the scoped file when working in that directory."""
         return env_section if env_info else ""
 
     def generate_agents_md(self):
-        """Generate comprehensive AGENTS.md file."""
+        """v1.4: Generate dual-format AGENTS.md with Category A (Operations) + Category B (Context)."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
 
         # Build vars for the template - detect actual structure
@@ -955,16 +1044,16 @@ Refer to the scoped file when working in that directory."""
         if self.test_files:
             structure += "\n├── tests/                # Test suite (" + str(len(self.test_files)) + " files)"
         structure += "\n└── README.md             # Project documentation"
-        
+
         test_frameworks_str = ', '.join(sorted(self.test_frameworks)) if self.test_frameworks else 'pytest'
         critical_files_info = ', '.join(f.name for f in self.critical_files[:5]) if self.critical_files else 'Standard layout'
         build_config = ', '.join(f.name for f in self.build_files[:3]) if self.build_files else "Standard"
-        
+
         type_hints_status = 'Yes' if 'type_hints' in self.conventions else 'No'
         error_handling_status = 'Yes' if 'error_handling' in self.conventions else 'No'
         logging_status = 'Yes' if 'logging' in self.conventions else 'No'
         testing_status = 'Yes' if self.test_files else 'No'
-        
+
         arch_score = self.score_breakdown.get('Architecture', 0)
         test_score = self.score_breakdown.get('Testing', 0)
         dep_score = self.score_breakdown.get('Dependencies', 0)
@@ -974,7 +1063,11 @@ Refer to the scoped file when working in that directory."""
         build_score = self.score_breakdown.get('Build', 0)
         doc_score = self.score_breakdown.get('Documentation', 0)
 
-        # v1.3.1: Generate new sections
+        # v1.4: Extract both Category A and Category B content
+        category_a_content = self._extract_category_a_content()
+        category_a_section = self._format_category_a_section(category_a_content)
+
+        # v1.3.1: Generate new sections for Category B
         arch_tables = self._generate_architecture_tables()
         env_requirements = self._detect_environment_requirements()
         gotchas = self._extract_gotchas_from_contributing()
@@ -983,6 +1076,7 @@ Refer to the scoped file when working in that directory."""
         dev_commands = self._get_development_commands(primary_lang)
         init_commands = self._get_initial_setup_commands(primary_lang)
         testing_strategy = self._get_testing_strategy_commands(primary_lang)
+
         gotchas_section = ""
         if gotchas:
             gotchas_list = '\n'.join([f"- {g}" for g in gotchas])
@@ -996,6 +1090,8 @@ Refer to the scoped file when working in that directory."""
 
 Context file for AI agents working on {self.project_path.name}.
 
+**Dual Format**: This file combines Category A (Operations Manual) and Category B (Context Guide) for comprehensive agent guidance.
+
 ## Project Overview
 
 {self.project_path.name} is a {primary_lang.capitalize()} project using {self.build_system}.
@@ -1008,7 +1104,15 @@ Context file for AI agents working on {self.project_path.name}.
 - **Test Files:** {len(self.test_files)}
 - **AI Readiness Score:** {self.total_score}/100 ({self.tier})
 
-## Prerequisites
+---
+
+{category_a_section}
+
+## 🏗️ Architecture & Context Guide
+
+This section provides architectural context and agent-understanding for the codebase.
+
+### Prerequisites
 
 - **{primary_lang.capitalize()}:** {self._get_language_version_requirement()} (or applicable language version)
 - **Package Manager:** {self._get_package_manager_recommendation()}
@@ -1016,20 +1120,20 @@ Context file for AI agents working on {self.project_path.name}.
 
 {env_requirements}
 
-## Project Structure
+### Project Structure
 
 ```
 {structure}
 ```
 
-## Architecture Overview
+### Architecture Overview
 
-### Key Components
+#### Key Components
 - **Main Entry:** {critical_files_info}
 - **Test Suite:** {len(self.test_files)} test files
 - **Build Configuration:** {build_config}
 
-### Design Principles
+#### Design Principles
 
 1. **Modularity** - Code organized by functionality with clear separation of concerns
 2. **Testability** - Comprehensive test coverage across critical paths
@@ -1039,9 +1143,9 @@ Context file for AI agents working on {self.project_path.name}.
 
 {arch_tables}
 
-## Development Workflow
+### Development Workflow
 
-### Initial Setup
+#### Initial Setup
 
 ```bash
 git clone {self.repository_url}
@@ -1049,12 +1153,12 @@ cd {self.project_path.name}
 {init_commands}
 ```
 
-### Development Commands
+#### Development Commands
 
-#### Running Tests
+**Running Tests:**
 {dev_commands}
 
-## Code Style & Conventions
+### Code Style & Conventions
 
 - **Naming:** Use {primary_lang.capitalize()} conventions (snake_case for functions, PascalCase for classes)
 - **Type Hints:** {type_hints_status} (strongly encouraged)
@@ -1062,14 +1166,14 @@ cd {self.project_path.name}
 - **Logging:** {logging_status}
 - **Testing:** {testing_status} - write tests alongside code changes
 
-## Testing Strategy
+### Testing Strategy
 
 **Framework:** {test_frameworks_str}
 **Test Files:** {len(self.test_files)} found
 
 {testing_strategy}
 
-## Writing Documentation
+### Writing Documentation
 
 When updating docs:
 1. Always include explanatory text before code snippets
@@ -1077,11 +1181,11 @@ When updating docs:
 3. Keep sections focused on a single concept
 4. Use clear, concrete examples
 
-{gotchas_section}## Contributing Guidelines
+{gotchas_section}### Contributing Guidelines
 
 {self._contribution_section_text()}
 
-## Common Patterns
+### Common Patterns
 
 When contributing to this project:
 1. Read existing code in the area you're modifying
@@ -1091,7 +1195,7 @@ When contributing to this project:
 5. Add docstrings for public APIs
 6. Update tests when changing behavior
 
-## What We Value
+### What We Value
 
 ✅ Well-tested code with clear intent
 ✅ Consistent code style and naming conventions
@@ -1100,7 +1204,7 @@ When contributing to this project:
 ✅ Modular, reusable components
 ✅ Comprehensive documentation
 
-## What We Avoid
+### What We Avoid
 
 ❌ Large functions doing multiple things
 ❌ Commented-out dead code
@@ -1109,7 +1213,7 @@ When contributing to this project:
 ❌ Unexplained magic numbers or strings
 ❌ Skipped tests or test TODOs
 
-## AI Readiness Dimensions (Scoring)
+### AI Readiness Dimensions (Scoring)
 
 This project is evaluated across 8 dimensions:
 
@@ -1122,7 +1226,7 @@ This project is evaluated across 8 dimensions:
 7. **Build** ({build_score}/100) - Clear build/setup instructions
 8. **Documentation** ({doc_score}/100) - Code and project documentation
 
-## Next Steps
+### Next Steps
 
 Before making changes:
 1. Read relevant source files to understand the existing code
