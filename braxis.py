@@ -12,592 +12,6 @@ from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
 import hashlib
-import re
-import xml.etree.ElementTree as ET
-
-__version__ = "1.3.0"
-
-
-class LocalPreferencesManager:
-    """Manages .agents.local.md for team customizations."""
-
-    def __init__(self, project_path):
-        self.project_path = Path(project_path)
-        self.local_prefs_file = self.project_path / ".agents.local.md"
-
-    def load_preferences(self):
-        """Load local preferences if they exist."""
-        if self.local_prefs_file.exists():
-            return self.local_prefs_file.read_text()
-        return None
-
-    def merge_with_generated(self, generated_content):
-        """Merge local preferences into generated content."""
-        preferences = self.load_preferences()
-        if not preferences:
-            return generated_content
-
-        lines = generated_content.split('\n')
-        pref_lines = preferences.split('\n')
-
-        result = []
-        i = 0
-        while i < len(lines):
-            line = lines[i]
-
-            # Look for @override markers in preferences
-            override_section = self._find_override_section(line, pref_lines)
-            if override_section:
-                # Replace section with override
-                section_end = self._find_section_end(i, lines)
-                result.extend(override_section)
-                i = section_end
-            else:
-                result.append(line)
-                i += 1
-
-        return '\n'.join(result)
-
-    def _find_override_section(self, header, pref_lines):
-        """Find override section for a header."""
-        # Extract header text
-        if header.startswith('## '):
-            header_text = header[3:].strip()
-
-            # Search for @override in preferences
-            for i, line in enumerate(pref_lines):
-                if f"@override: {header_text}" in line:
-                    # Get content until next override or end
-                    result = []
-                    j = i + 1
-                    while j < len(pref_lines) and not pref_lines[j].startswith('@override:'):
-                        result.append(pref_lines[j])
-                        j += 1
-                    return [header] + [l for l in result if l.strip()]
-
-        return None
-
-    def _find_section_end(self, start_idx, lines):
-        """Find end of current section."""
-        for i in range(start_idx + 1, len(lines)):
-            if lines[i].startswith('## '):
-                return i
-        return len(lines)
-
-    def create_template(self):
-        """Create a template .agents.local.md file."""
-        template = """# .agents.local.md
-
-This file contains team-specific overrides for generated AGENTS.md.
-Sections marked with @override: will replace the generated content.
-
-@override: Code Style
-Our team uses:
-- 4-space indents
-- No semicolons (JavaScript)
-- PEP 8 for Python
-
-@override: Testing Strategy
-All functions must have:
-- Unit tests with >80% coverage
-- Integration tests for APIs
-- E2E tests for critical paths
-
-@override: Error Handling
-- Always log errors with context
-- Use structured logging (JSON)
-- Include stack traces in development
-
-Note: This file is generated as a template and can be customized.
-Changes persist across `braxis generate` runs.
-"""
-        return template
-
-
-class MonorepoDetectorEnhanced:
-    """Enhanced monorepo detection for v1.3 - supports 8 technologies."""
-
-    def __init__(self, project_path):
-        self.project_path = Path(project_path)
-
-    def detect_gradle_multi_module(self):
-        """Detect Gradle multi-module projects."""
-        settings_gradle = self.project_path / "settings.gradle"
-        settings_gradle_kts = self.project_path / "settings.gradle.kts"
-
-        content = None
-        if settings_gradle.exists():
-            content = settings_gradle.read_text()
-        elif settings_gradle_kts.exists():
-            content = settings_gradle_kts.read_text()
-        else:
-            return None
-
-        modules = []
-        for line in content.split('\n'):
-            match = re.search(r"include\s+['\"]([^'\"]+)['\"]", line)
-            if match:
-                modules.append(match.group(1))
-
-        if modules:
-            return {
-                "type": "gradle",
-                "modules": modules,
-                "count": len(modules)
-            }
-        return None
-
-    def detect_rust_workspaces(self):
-        """Detect Rust workspaces."""
-        cargo_toml = self.project_path / "Cargo.toml"
-        if not cargo_toml.exists():
-            return None
-
-        content = cargo_toml.read_text()
-        if "[workspace]" not in content:
-            return None
-
-        # Parse members
-        members = []
-        in_workspace = False
-        for line in content.split('\n'):
-            if '[workspace]' in line:
-                in_workspace = True
-            elif line.startswith('['):
-                in_workspace = False
-            elif in_workspace and 'members' in line:
-                # Extract from members = ["pkg1", "pkg2"]
-                match = re.search(r'members\s*=\s*\[(.*?)\]', content, re.DOTALL)
-                if match:
-                    member_str = match.group(1)
-                    members = [m.strip().strip('"') for m in member_str.split(',') if m.strip()]
-                break
-
-        if members:
-            return {
-                "type": "rust-workspace",
-                "members": members,
-                "count": len(members)
-            }
-        return None
-
-    def detect_maven_multi_module(self):
-        """Detect Maven multi-module projects."""
-        pom_xml = self.project_path / "pom.xml"
-        if not pom_xml.exists():
-            return None
-
-        try:
-            content = pom_xml.read_text()
-            if "<modules>" not in content:
-                return None
-
-            root = ET.fromstring(content)
-            ns = {'m': 'http://maven.apache.org/POM/4.0.0'}
-
-            # Try with namespace first
-            modules = root.findall('.//m:module', ns)
-            if not modules:
-                # Try without namespace
-                modules = root.findall('.//module')
-
-            module_names = [m.text.strip() for m in modules if m.text]
-
-            if module_names:
-                return {
-                    "type": "maven-multi-module",
-                    "modules": module_names,
-                    "count": len(module_names)
-                }
-        except Exception:
-            pass
-
-        return None
-
-    def detect_go_modules(self):
-        """Detect Go module structure."""
-        go_mod = self.project_path / "go.mod"
-        if not go_mod.exists():
-            return None
-
-        # Detect subdirectories with go.mod files
-        subdirs = []
-        for subdir in self.project_path.iterdir():
-            if subdir.is_dir() and not subdir.name.startswith('.'):
-                if (subdir / "go.mod").exists():
-                    subdirs.append(subdir.name)
-
-        if subdirs:
-            return {
-                "type": "go-modules",
-                "modules": subdirs,
-                "count": len(subdirs)
-            }
-
-        # Single module
-        return {
-            "type": "go-modules",
-            "modules": ["root"],
-            "count": 1
-        }
-
-    def detect_all(self):
-        """Try all detectors in order."""
-        detectors = [
-            self.detect_go_modules,
-            self.detect_gradle_multi_module,
-            self.detect_rust_workspaces,
-            self.detect_maven_multi_module,
-        ]
-
-        for detector in detectors:
-            result = detector()
-            if result:
-                return result
-
-        return None
-
-
-class GitHubActionsGenerator:
-    """Generate GitHub Actions workflow for braxis auto-sync."""
-
-    def __init__(self, project_path):
-        self.project_path = Path(project_path)
-
-    def generate_workflow(self):
-        """Create .github/workflows/braxis-sync.yml."""
-        workflow = """name: Braxis Context Auto-Sync
-
-on:
-  push:
-    branches: [main, develop, master]
-    paths:
-      - '**.py'
-      - '**.js'
-      - '**.ts'
-      - '**.tsx'
-      - '**.jsx'
-      - '**.java'
-      - '**.rs'
-      - '**.go'
-      - 'package.json'
-      - 'pyproject.toml'
-      - 'setup.py'
-      - 'Cargo.toml'
-      - 'go.mod'
-      - 'pom.xml'
-      - 'build.gradle'
-      - '.github/workflows/braxis-sync.yml'
-
-jobs:
-  braxis-sync:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - run: pip install -q braxis
-
-      - run: braxis generate
-
-      - name: Check for changes
-        id: changes
-        run: |
-          if git diff --quiet; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            git diff --stat
-          fi
-
-      - name: Create Pull Request
-        if: steps.changes.outputs.has_changes == 'true'
-        uses: peter-evans/create-pull-request@v5
-        with:
-          commit-message: 'chore: regenerate braxis context files'
-          title: 'chore: update AI agent context files'
-          body: |
-            Automated context file regeneration triggered by code changes.
-
-            Generated files:
-            - AGENTS.md - Universal agent instructions
-            - CLAUDE.md - Claude Code optimized
-            - .cursorrules - Cursor IDE rules
-            - .agentic-config.json - Machine-readable metadata
-
-            Run `braxis score` locally to see the readiness analysis.
-          branch: braxis/auto-update
-          delete-branch: true
-          labels: 'chore,automated'
-"""
-        return workflow
-
-    def write_workflow(self):
-        """Write workflow file to disk."""
-        workflow_dir = self.project_path / ".github" / "workflows"
-        workflow_dir.mkdir(parents=True, exist_ok=True)
-
-        workflow_file = workflow_dir / "braxis-sync.yml"
-        workflow_file.write_text(self.generate_workflow())
-
-        return workflow_file
-
-
-class ReadinessBadgeGenerator:
-    """Generate agent readiness badge for README."""
-
-    @staticmethod
-    def generate_badge_markdown(score, tier):
-        """Generate badge markdown with color based on tier."""
-        color_map = {
-            "Agent-Optimized": "brightgreen",
-            "AI-Native-Plus": "green",
-            "AI-Native": "yellowgreen",
-            "Agent-Aware": "yellow",
-            "Not Ready": "red"
-        }
-
-        color = color_map.get(tier, "blue")
-
-        badge = f"""[![Braxis Agent Readiness](https://img.shields.io/badge/braxis-{score}%2F100-{color})](https://github.com/jaykrishna316/braxis)"""
-
-        return badge
-
-
-class TestingPatternDetector:
-    """Detect and categorize testing patterns - Phase 2."""
-
-    def __init__(self, project_path, files):
-        self.project_path = Path(project_path)
-        self.files = files
-
-    TEST_CATEGORIES = {
-        "unit": ["test_unit_", "*_unit.py", "*.unit.js", "*_test.rs", "*_unit.go"],
-        "integration": ["test_integration_", "*_integration.py", "*.integration.js", "*_integration.rs"],
-        "e2e": ["cypress/", "playwright/", "e2e/", "test_e2e_", "tests/e2e"],
-        "performance": ["asv_bench/", "benchmarks/", "*_bench.go", "criterion/", "*_benchmark.rs"],
-        "visual": ["visual_regression/", "screenshot_tests/", "percy/"],
-        "fuzz": ["fuzz_", "quickcheck", "proptest", "cargo-fuzz/"]
-    }
-
-    def detect_test_types(self):
-        """Categorize tests in codebase."""
-        detected = defaultdict(list)
-
-        for test_type, patterns in self.TEST_CATEGORIES.items():
-            for pattern in patterns:
-                for file_path in self.files:
-                    if pattern in str(file_path):
-                        detected[test_type].append(str(file_path))
-
-        return dict(detected)
-
-    def recommend_testing_strategy(self, project_category="general"):
-        """Recommend coverage targets based on project type."""
-        strategies = {
-            "backend": {
-                "unit_target": "70%",
-                "integration_target": "40%",
-                "e2e_target": "20%",
-                "emphasis": "Database and API testing"
-            },
-            "frontend": {
-                "unit_target": "60%",
-                "integration_target": "30%",
-                "e2e_target": "40%",
-                "visual_target": "Important",
-                "emphasis": "Component and user flow testing"
-            },
-            "data_science": {
-                "unit_target": "50%",
-                "performance_target": "Essential",
-                "emphasis": "Benchmark and data validation testing"
-            },
-            "general": {
-                "unit_target": "60%",
-                "integration_target": "30%",
-                "e2e_target": "20%",
-                "emphasis": "Core functionality testing"
-            }
-        }
-
-        return strategies.get(project_category, strategies["general"])
-
-
-class ConventionDetector:
-    """Detect language-specific code conventions - Phase 2."""
-
-    LANGUAGE_CONVENTIONS = {
-        "python": {
-            "functions": "snake_case",
-            "classes": "PascalCase",
-            "constants": "SCREAMING_SNAKE_CASE",
-            "modules": "lowercase_with_underscores",
-            "error_handling": "try/except",
-            "async": "asyncio",
-            "validation": "pydantic or custom validators"
-        },
-        "javascript": {
-            "functions": "camelCase",
-            "classes": "PascalCase",
-            "constants": "SCREAMING_SNAKE_CASE",
-            "variables": "camelCase",
-            "error_handling": "throw Error or try/catch",
-            "async": "async/await",
-            "validation": "schemas or custom validators"
-        },
-        "typescript": {
-            "functions": "camelCase",
-            "classes": "PascalCase",
-            "constants": "SCREAMING_SNAKE_CASE",
-            "interfaces": "IPascalCase",
-            "error_handling": "throw Error or try/catch",
-            "async": "async/await with types",
-            "validation": "zod, ts-guard, or similar"
-        },
-        "rust": {
-            "functions": "snake_case",
-            "structs": "PascalCase",
-            "constants": "SCREAMING_SNAKE_CASE",
-            "traits": "PascalCase",
-            "error_handling": "Result<T, E>",
-            "async": "async/await with tokio",
-            "validation": "custom validators or crates"
-        },
-        "go": {
-            "functions": "CamelCase (exported) or camelCase (private)",
-            "interfaces": "rInterface pattern (Reader, Writer)",
-            "constants": "CamelCase",
-            "error_handling": "explicit err != nil checks",
-            "async": "goroutines and channels",
-            "validation": "explicit checks or libraries"
-        }
-    }
-
-    def __init__(self, language):
-        self.language = language
-
-    def get_conventions(self):
-        """Get conventions for detected language."""
-        return self.LANGUAGE_CONVENTIONS.get(self.language, {})
-
-    def generate_convention_guide(self):
-        """Generate convention guide for language."""
-        conventions = self.get_conventions()
-        if not conventions:
-            return None
-
-        guide = f"""## {self.language.title()} Conventions
-
-### Naming
-- **Functions**: {conventions.get('functions', 'N/A')}
-- **Classes/Types**: {conventions.get('classes', 'N/A')}
-- **Constants**: {conventions.get('constants', 'N/A')}
-
-### Error Handling
-{conventions.get('error_handling', 'N/A')}
-
-### Async Patterns
-{conventions.get('async', 'N/A')}
-
-### Validation
-{conventions.get('validation', 'N/A')}
-"""
-        return guide
-
-
-class SecurityPatternDetector:
-    """Detect security practices and patterns - Phase 2."""
-
-    def __init__(self, project_path, files):
-        self.project_path = Path(project_path)
-        self.files = files
-
-    def detect_security_tooling(self):
-        """Find security scanning tools."""
-        tooling = {
-            "dependency_scanning": self._find_dependency_scanner(),
-            "secrets_scanning": self._find_secrets_scanner(),
-            "sbom_generation": self._find_sbom_tool(),
-            "sast": self._find_sast_tool(),
-            "container_scanning": self._find_container_scanner()
-        }
-        return {k: v for k, v in tooling.items() if v}
-
-    def _find_dependency_scanner(self):
-        """Detect dependency scanning tools."""
-        for file_path in self.files:
-            fname = file_path.name
-            if 'dependabot' in str(file_path):
-                return "Dependabot"
-            if fname == 'renovate.json':
-                return "Renovate"
-            if 'safety' in str(file_path).lower():
-                return "Safety"
-        return None
-
-    def _find_secrets_scanner(self):
-        """Detect secrets scanning."""
-        for file_path in self.files:
-            if 'git-secrets' in str(file_path) or 'truffleHog' in str(file_path):
-                return "Git-Secrets/TruffleHog"
-        return None
-
-    def _find_sbom_tool(self):
-        """Detect SBOM generation."""
-        for file_path in self.files:
-            if 'cyclonedx' in str(file_path).lower() or 'syft' in str(file_path).lower():
-                return "CycloneDX/Syft"
-        return None
-
-    def _find_sast_tool(self):
-        """Detect SAST tools."""
-        for file_path in self.files:
-            fname = file_path.name.lower()
-            if 'codeql' in fname:
-                return "CodeQL"
-            if 'snyk' in fname:
-                return "Snyk"
-        return None
-
-    def _find_container_scanner(self):
-        """Detect container scanning."""
-        for file_path in self.files:
-            if 'trivy' in str(file_path) or 'grype' in str(file_path):
-                return "Trivy/Grype"
-        return None
-
-    def generate_security_recommendations(self):
-        """Generate security recommendations based on detected patterns."""
-        tooling = self.detect_security_tooling()
-
-        recommendations = []
-
-        if not tooling.get('dependency_scanning'):
-            recommendations.append("✗ Add dependency scanning (Dependabot or Renovate)")
-        else:
-            recommendations.append(f"✓ Dependency scanning: {tooling['dependency_scanning']}")
-
-        if not tooling.get('secrets_scanning'):
-            recommendations.append("✗ Add secrets scanning (git-secrets or TruffleHog)")
-        else:
-            recommendations.append(f"✓ Secrets scanning: {tooling['secrets_scanning']}")
-
-        if not tooling.get('sast'):
-            recommendations.append("✗ Add SAST scanning (CodeQL or Snyk)")
-        else:
-            recommendations.append(f"✓ SAST scanning: {tooling['sast']}")
-
-        return recommendations
 
 
 class BraxisAnalyzer:
@@ -642,15 +56,6 @@ class BraxisAnalyzer:
         self.monorepo_type = None
         self.monorepo_subsystems = []
         self.mcp_servers = []
-        # v1.3 features
-        self.local_preferences_manager = LocalPreferencesManager(project_path)
-        self.local_preferences = None
-        self.testing_patterns = {}
-        self.convention_guides = {}
-        self.security_tooling = {}
-        self.security_recommendations = []
-        # v1.3 enhanced monorepo detection
-        self.enhanced_monorepo_info = None
 
     def _validate_project_path(self, project_path):
         """Validate and normalize project path."""
@@ -752,12 +157,6 @@ class BraxisAnalyzer:
         if self.monorepo_type:
             self.monorepo_subsystems = self.get_monorepo_subsystems()
         self.mcp_servers = self.detect_mcp_servers()
-        # v1.3: Phase 1 & 2 features
-        self._detect_enhanced_monorepo()
-        self._detect_testing_patterns()
-        self._detect_conventions_per_language()
-        self._detect_security_patterns()
-        self.local_preferences = self.local_preferences_manager.load_preferences()
         self._calculate_score()
 
     def _scan_files(self):
@@ -1210,6 +609,52 @@ ruff format .             # Format code
 mypy .                    # Type checking (if configured)
 ```"""
 
+    def _get_initial_setup_commands(self, primary_lang):
+        """Get language-appropriate initial setup commands."""
+        if primary_lang == "go":
+            return "go mod download"
+        elif primary_lang == "rust":
+            return "cargo build"
+        elif primary_lang == "ruby":
+            return "bundle install"
+        elif primary_lang in ["javascript", "typescript"]:
+            return "npm install\n# or\nyarn install"
+        else:  # Python and others
+            return "pip install -e .\n# or\nuv sync --all-groups"
+
+    def _get_testing_strategy_commands(self, primary_lang):
+        """Get language-appropriate testing strategy commands."""
+        if primary_lang == "go":
+            return """Before committing:
+1. Run the full test suite: `go test ./...`
+2. Ensure all tests pass: `go test -v ./...`
+3. Run linter: `golangci-lint run`
+4. Format code: `gofmt -w .`"""
+        elif primary_lang == "rust":
+            return """Before committing:
+1. Run the full test suite: `cargo test`
+2. Run clippy: `cargo clippy --all-targets`
+3. Format code: `cargo fmt`
+4. Check documentation: `cargo doc --no-deps`"""
+        elif primary_lang == "ruby":
+            return """Before committing:
+1. Run the full test suite: `bundle exec rspec`
+2. Run specific test directory: `bundle exec rspec spec/`
+3. Lint with RuboCop: `bundle exec rubocop`
+4. Auto-fix issues: `bundle exec rubocop -a`"""
+        elif primary_lang in ["javascript", "typescript"]:
+            return """Before committing:
+1. Run the full test suite: `npm test` or `yarn test`
+2. Run linter: `npm run lint` or `yarn lint`
+3. Format code: `npm run format` or `yarn format`
+4. Type check (if TypeScript): `npm run type-check`"""
+        else:  # Python and others
+            return """Before committing:
+1. Run the full test suite: `pytest`
+2. Ensure all tests pass
+3. Check type hints: `mypy .`
+4. Format code: `ruff format .`"""
+
     def _contribution_section_text(self):
         """Generate contribution guidelines section with smart pattern extraction."""
         if self.contributing_guide['exists']:
@@ -1257,34 +702,6 @@ mypy .                    # Type checking (if configured)
 2. Follow the patterns established in the codebase
 3. Ensure your contribution aligns with the project's design principles above"""
 
-    def _detect_enhanced_monorepo(self):
-        """v1.3: Detect enhanced monorepo types (Gradle, Rust, Maven, Go)."""
-        detector = MonorepoDetectorEnhanced(self.project_path)
-        self.enhanced_monorepo_info = detector.detect_all()
-
-    def _detect_testing_patterns(self):
-        """v1.3: Detect and categorize testing patterns."""
-        detector = TestingPatternDetector(self.project_path, self.files)
-        self.testing_patterns = detector.detect_test_types()
-
-    def _detect_conventions_per_language(self):
-        """v1.3: Detect language-specific code conventions."""
-        # Get primary language
-        if self.languages:
-            primary_lang = max(self.languages.items(), key=lambda x: x[1])[0]
-            detector = ConventionDetector(primary_lang)
-            self.convention_guides = {
-                "language": primary_lang,
-                "conventions": detector.get_conventions(),
-                "guide": detector.generate_convention_guide()
-            }
-
-    def _detect_security_patterns(self):
-        """v1.3: Detect security tooling and practices."""
-        detector = SecurityPatternDetector(self.project_path, self.files)
-        self.security_tooling = detector.detect_security_tooling()
-        self.security_recommendations = detector.generate_security_recommendations()
-
     def _calculate_score(self):
         """Calculate agent readiness score."""
         scores = {}
@@ -1321,27 +738,6 @@ mypy .                    # Type checking (if configured)
         else:
             self.tier = "Not Ready"
         self._save_score_to_history()
-
-    def generate_github_workflow(self, setup_ci=True):
-        """v1.3: Generate GitHub Actions workflow for braxis auto-sync."""
-        if not setup_ci:
-            return None
-
-        generator = GitHubActionsGenerator(self.project_path)
-        workflow_file = generator.write_workflow()
-        return workflow_file
-
-    def generate_readiness_badge_markdown(self):
-        """v1.3: Generate readiness badge markdown."""
-        return ReadinessBadgeGenerator.generate_badge_markdown(self.total_score, self.tier)
-
-    def create_local_preferences_template(self):
-        """v1.3: Create .agents.local.md template if it doesn't exist."""
-        if not self.local_preferences_manager.local_prefs_file.exists():
-            template = self.local_preferences_manager.create_template()
-            self.local_preferences_manager.local_prefs_file.write_text(template)
-            return Path(self.local_preferences_manager.local_prefs_file).resolve()
-        return None
 
     def _write_file_safely(self, filepath, content):
         """Write file safely using atomic operation with temp file."""
@@ -1397,56 +793,136 @@ mypy .                    # Type checking (if configured)
         print(f" braxis generate")
         print(f"\n{'='*60}\n")
 
-    def _get_testing_strategy_section(self):
-        """v1.3: Generate testing strategy section."""
-        if not self.testing_patterns:
-            return "No specific testing patterns detected. Consider adding unit and integration tests."
+    def _extract_gotchas_from_contributing(self):
+        """v1.3.1: Extract warnings and gotchas from CONTRIBUTING.md."""
+        if not self.contributing_guide['exists']:
+            return []
 
-        patterns = self.testing_patterns
-        section = "Detected testing patterns:\n\n"
+        content = self.contributing_guide['content']
+        gotchas = []
+        warning_keywords = ['gotcha', 'warning:', 'caution:', 'note:', "don't", 'avoid', 'issue:', 'important:']
 
-        if patterns.get('unit'):
-            section += f"- **Unit Tests:** {len(patterns['unit'])} files\n"
-        if patterns.get('integration'):
-            section += f"- **Integration Tests:** {len(patterns['integration'])} files\n"
-        if patterns.get('e2e'):
-            section += f"- **E2E Tests:** {len(patterns['e2e'])} files\n"
-        if patterns.get('performance'):
-            section += f"- **Performance Tests:** {len(patterns['performance'])} files\n"
+        lines = content.split('\n')
+        for i, line in enumerate(lines):
+            line_lower = line.lower()
+            if any(kw in line_lower for kw in warning_keywords):
+                # Clean up markdown formatting
+                clean_line = line.strip().lstrip('-').lstrip('*').lstrip('>').strip()
+                if clean_line and len(clean_line) > 10:
+                    gotchas.append(clean_line)
 
-        return section if section != "Detected testing patterns:\n\n" else "No specific testing patterns detected."
+        return gotchas[:10]  # Limit to top 10 gotchas
 
-    def _get_conventions_section(self):
-        """v1.3: Generate conventions section."""
-        if not self.convention_guides.get('guide'):
-            return "Follow existing code style and patterns in the codebase."
+    def _generate_architecture_tables(self):
+        """v1.3.1: Auto-generate directory-to-purpose mapping tables."""
+        primary_lang = self._get_primary_language()
 
-        return self.convention_guides['guide']
+        # For monorepos, reference subsystem-scoped AGENTS.md files
+        if self.monorepo_type:
+            subsystems = self.get_monorepo_subsystems()
+            if subsystems:
+                subsystem_refs = '\n'.join([
+                    f"- `{s['name']}/AGENTS.md` — {s['name'].capitalize()} subsystem ({s['language']})"
+                    for s in subsystems
+                ])
+                return f"""### Directory-Scoped Agent Files
 
-    def _get_security_section(self):
-        """v1.3: Generate security recommendations section."""
-        if not self.security_recommendations:
-            return "Add security scanning tools (Dependabot, CodeQL, etc.) for production readiness."
+Each subsystem has its own specialized AGENTS.md file:
 
-        return "\n".join(self.security_recommendations)
+{subsystem_refs}
 
-    def _get_test_command(self):
-        """v1.3: Get appropriate test command for detected framework."""
-        if not self.test_frameworks:
-            return "pytest"
+Refer to the scoped file when working in that directory."""
 
-        framework = list(self.test_frameworks)[0] if self.test_frameworks else "pytest"
-        commands = {
-            "pytest": "pytest",
-            "unittest": "python -m unittest discover",
-            "Jest": "npm test",
-            "Mocha": "npm test",
-            "RSpec": "rspec",
-            "cargo": "cargo test",
-            "go": "go test ./..."
+        # For single-language projects, generate directory map
+        arch_table = "### Directory Map\n\n| Directory | Purpose |\n|-----------|----------|\n"
+
+        common_dirs = {
+            'src': 'Source code',
+            'lib': 'Library code',
+            'tests': 'Test suite',
+            'test': 'Test suite',
+            'spec': 'Test specifications',
+            'docs': 'Documentation',
+            'examples': 'Usage examples',
+            'scripts': 'Build and utility scripts',
+            'pkg': 'Package definitions',
+            'cmd': 'Command-line tools',
+            'api': 'API handlers',
+            'config': 'Configuration files',
+            'migrations': 'Database migrations',
+            'public': 'Public assets',
+            'vendor': 'Dependencies',
         }
 
-        return commands.get(framework, "pytest")
+        found_dirs = set()
+        for item in self.project_path.iterdir():
+            if item.is_dir() and item.name in common_dirs and not item.name.startswith('.'):
+                found_dirs.add(item.name)
+
+        # Add found directories
+        for dir_name in sorted(found_dirs):
+            arch_table += f"| `{dir_name}/` | {common_dirs[dir_name]} |\n"
+
+        # If no standard directories found, use basic structure
+        if not found_dirs:
+            arch_table += f"| `src/` or project root | Main source code |\n"
+            arch_table += "| `tests/` or `test/` | Test suite |\n"
+
+        return arch_table
+
+    def _detect_environment_requirements(self):
+        """v1.3.1: Extract environment setup requirements and gotchas."""
+        env_info = {}
+        env_section = "### Environment Requirements\n\n"
+
+        # Check .nvmrc for Node.js version
+        nvmrc = self.project_path / '.nvmrc'
+        if nvmrc.exists():
+            try:
+                node_version = nvmrc.read_text().strip()
+                env_info['node'] = node_version
+                env_section += f"- **Node.js:** {node_version} (pinned in `.nvmrc`)\n"
+                env_section += "  ⚠️ **PATH Gotcha:** Run `yarn`/`npm` via login shell (`tmux` or `bash -lc`) to use pinned version\n"
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # Check go.mod for Go version
+        go_mod = self.project_path / 'go.mod'
+        if go_mod.exists():
+            try:
+                for line in go_mod.read_text().split('\n'):
+                    if line.startswith('go '):
+                        go_version = line.split()[1]
+                        env_info['go'] = go_version
+                        env_section += f"- **Go:** {go_version}+ (from `go.mod`)\n"
+                        env_section += "  - GCC required for CGo/SQLite compilation\n"
+                        break
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # Check .ruby-version for Ruby
+        ruby_version_file = self.project_path / '.ruby-version'
+        if ruby_version_file.exists():
+            try:
+                ruby_version = ruby_version_file.read_text().strip()
+                env_info['ruby'] = ruby_version
+                env_section += f"- **Ruby:** {ruby_version} (from `.ruby-version`)\n"
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # Check for Python requirements
+        if 'python' in self.languages:
+            version = self._get_language_version_requirement()
+            env_section += f"- **Python:** {version}\n"
+
+        # Add package manager info
+        primary_lang = self._get_primary_language()
+        if primary_lang in ["javascript", "typescript"]:
+            env_section += "- **Package Manager:** npm or yarn\n"
+        elif primary_lang == "go":
+            env_section += "- **Package Manager:** go modules\n"
+
+        return env_section if env_info else ""
 
     def generate_agents_md(self):
         """Generate comprehensive AGENTS.md file."""
@@ -1497,7 +973,25 @@ mypy .                    # Type checking (if configured)
         sec_score = self.score_breakdown.get('Security', 0)
         build_score = self.score_breakdown.get('Build', 0)
         doc_score = self.score_breakdown.get('Documentation', 0)
-        
+
+        # v1.3.1: Generate new sections
+        arch_tables = self._generate_architecture_tables()
+        env_requirements = self._detect_environment_requirements()
+        gotchas = self._extract_gotchas_from_contributing()
+
+        # v1.3.2: Language-specific commands
+        dev_commands = self._get_development_commands(primary_lang)
+        init_commands = self._get_initial_setup_commands(primary_lang)
+        testing_strategy = self._get_testing_strategy_commands(primary_lang)
+        gotchas_section = ""
+        if gotchas:
+            gotchas_list = '\n'.join([f"- {g}" for g in gotchas])
+            gotchas_section = f"""## Known Gotchas & Warnings
+
+{gotchas_list}
+
+"""
+
         return f"""# AGENTS.md
 
 Context file for AI agents working on {self.project_path.name}.
@@ -1520,6 +1014,8 @@ Context file for AI agents working on {self.project_path.name}.
 - **Package Manager:** {self._get_package_manager_recommendation()}
 - **Test Runner:** {test_frameworks_str}
 
+{env_requirements}
+
 ## Project Structure
 
 ```
@@ -1541,6 +1037,8 @@ Context file for AI agents working on {self.project_path.name}.
 4. **Consistency** - Uniform patterns and conventions throughout codebase
 5. **Maintainability** - Well-documented code with clear intent
 
+{arch_tables}
+
 ## Development Workflow
 
 ### Initial Setup
@@ -1548,22 +1046,13 @@ Context file for AI agents working on {self.project_path.name}.
 ```bash
 git clone {self.repository_url}
 cd {self.project_path.name}
-go mod download
+{init_commands}
 ```
 
 ### Development Commands
 
 #### Running Tests
-```bash
-go test ./...
-go test -v ./...
-```
-
-#### Code Quality
-```bash
-gofmt -w .
-go vet ./...
-```
+{dev_commands}
 
 ## Code Style & Conventions
 
@@ -1578,11 +1067,7 @@ go vet ./...
 **Framework:** {test_frameworks_str}
 **Test Files:** {len(self.test_files)} found
 
-Before committing:
-1. Run the full test suite: `pytest`
-2. Ensure all tests pass
-3. Check type hints: `mypy .`
-4. Format code: `ruff format .`
+{testing_strategy}
 
 ## Writing Documentation
 
@@ -1592,7 +1077,7 @@ When updating docs:
 3. Keep sections focused on a single concept
 4. Use clear, concrete examples
 
-## Contributing Guidelines
+{gotchas_section}## Contributing Guidelines
 
 {self._contribution_section_text()}
 
@@ -1637,29 +1122,6 @@ This project is evaluated across 8 dimensions:
 7. **Build** ({build_score}/100) - Clear build/setup instructions
 8. **Documentation** ({doc_score}/100) - Code and project documentation
 
-## Testing Strategy (v1.3)
-
-{self._get_testing_strategy_section()}
-
-## Code Conventions (v1.3)
-
-{self._get_conventions_section()}
-
-## Security Status (v1.3)
-
-{self._get_security_section()}
-
-## Local Team Preferences (v1.3)
-
-Your team can customize this guidance by editing `.agents.local.md`.
-Sections marked with `@override:` will replace the generated content.
-
-Example:
-```
-@override: Code Style
-Our team uses 4-space indents and PEP 8 conventions.
-```
-
 ## Next Steps
 
 Before making changes:
@@ -1667,38 +1129,18 @@ Before making changes:
 2. Look at existing tests for similar functionality
 3. Follow the patterns you see in the codebase
 4. Write tests for your changes
-5. Run tests locally: {self._get_test_command()}
-6. Run code quality checks
-7. Format your code
+5. Run `pytest` to verify nothing breaks
+6. Run code quality checks: `ruff check . && mypy .`
+7. Format your code: `ruff format .`
 
 ---
 
-*Generated by Braxis v{__version__} - keeping AI agents in sync with your code*
+*Generated by Braxis - keeping AI agents in sync with your code*
 """
 
     def generate_claude_md(self):
-        """Generate CLAUDE.md as a router to AGENTS.md - v1.3 with badge and features."""
-        badge = self.generate_readiness_badge_markdown()
-
-        local_prefs_section = ""
-        if self.local_preferences_manager.local_prefs_file.exists():
-            local_prefs_section = """
-## Local Preferences
-
-Your team can customize this guidance by editing `.agents.local.md`.
-Sections marked with `@override:` will replace the generated content.
-"""
-
-        security_section = ""
-        if self.security_recommendations:
-            security_section = """
-## Security Status
-
-""" + "\n".join(self.security_recommendations) + "\n"
-
-        return f"""# CLAUDE.md
-
-{badge}
+        """Generate CLAUDE.md as a router to AGENTS.md."""
+        return """# CLAUDE.md
 
 @AGENTS.md
 
@@ -1717,13 +1159,12 @@ This project uses AGENTS.md as the standard agent context. Claude Code loads it 
 Generate updated context: `braxis generate`
 View your AI readiness score: `braxis score`
 See score trends: `braxis history --trends`
-{security_section}{local_prefs_section}
 
 See AGENTS.md for full documentation and the complete list of available commands.
 
 ---
 
-*Generated by Braxis v{__version__}*
+*Generated by Braxis*
 """
 
     def generate_cursorrules(self):
@@ -2412,32 +1853,11 @@ def main():
             analyzer._write_file_safely('.agentic-config.json', analyzer.generate_agentic_config())
             print("* .agentic-config.json")
 
-            # v1.3: Generate GitHub Actions workflow
-            workflow_file = analyzer.generate_github_workflow(setup_ci=True)
-            if workflow_file:
-                print(f"* {workflow_file.relative_to(analyzer.project_path)}")
-
-            # v1.3: Create local preferences template
-            local_prefs_file = analyzer.create_local_preferences_template()
-            if local_prefs_file:
-                print(f"* {local_prefs_file.relative_to(analyzer.project_path)}")
-
             # v1.1: Report MCP and monorepo info
             if analyzer.monorepo_type:
                 print(f"\n✓ Monorepo detected: {analyzer.monorepo_type.upper()} with {len(analyzer.monorepo_subsystems)} subsystems")
-            if analyzer.enhanced_monorepo_info:
-                print(f"✓ Enhanced detection: {analyzer.enhanced_monorepo_info['type']} with {analyzer.enhanced_monorepo_info['count']} modules")
             if analyzer.mcp_servers:
                 print(f"✓ MCP servers detected: {len(analyzer.mcp_servers)} server(s)")
-
-            # v1.3: Report v1.3 features
-            if analyzer.testing_patterns:
-                test_types = len(analyzer.testing_patterns)
-                print(f"✓ Testing patterns detected: {test_types} type(s)")
-            if analyzer.convention_guides:
-                print(f"✓ Conventions documented for: {analyzer.convention_guides.get('language', 'unknown')}")
-            if analyzer.security_tooling:
-                print(f"✓ Security tooling found: {len(analyzer.security_tooling)}")
 
             scale = analyzer.analyze_project_scale()
             if scale in ('large', 'medium'):
@@ -2446,12 +1866,7 @@ def main():
                     print(f"\n💡 Project Scale ({scale}): {suggestion}")
 
             print(f"\nAgent Readiness: {analyzer.total_score}/100 ({analyzer.tier})")
-            print("\n✅ All files created successfully!")
-            print("\n📝 Next steps:")
-            print("  1. Review AGENTS.md and CLAUDE.md")
-            print("  2. Customize .agents.local.md for your team")
-            print("  3. Commit context files to git")
-            print("  4. Run: braxis score (to see detailed breakdown)")
+            print("\nFiles created successfully!")
         except IOError as e:
             print(f"Error writing files: {e}", file=sys.stderr)
             sys.exit(1)
