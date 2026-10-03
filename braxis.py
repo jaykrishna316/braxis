@@ -50,6 +50,8 @@ class BraxisAnalyzer:
         self.critical_files = []
         self.score_breakdown = {}
         self.tier = "Not Ready"
+        # Contributing guide detection
+        self.contributing_guide = {'exists': False, 'path': None, 'content': None}
         # v1.1 features
         self.monorepo_type = None
         self.monorepo_subsystems = []
@@ -148,6 +150,8 @@ class BraxisAnalyzer:
         self.project_structure = self._detect_project_structure()
         self.python_version = self._detect_python_version()
         self.repository_url = self._detect_repository_url()
+        # Detect contributing guide
+        self.contributing_guide = self._detect_contributing_guide()
         # v1.1: Detect monorepo and MCP
         self.monorepo_type = self.detect_monorepo_type()
         if self.monorepo_type:
@@ -389,6 +393,58 @@ class BraxisAnalyzer:
 
         return "3.9+"  # Default fallback
 
+    def _detect_contributing_guide(self):
+        """Detect and summarize contributing guide if present."""
+        guide_candidates = [
+            self.project_path / 'CONTRIBUTING.md',
+            self.project_path / 'CONTRIBUTING.rst',
+            self.project_path / 'docs' / 'CONTRIBUTING.md',
+            self.project_path / 'docs' / 'CONTRIBUTING.rst',
+            self.project_path / '.github' / 'CONTRIBUTING.md',
+        ]
+
+        for guide_path in guide_candidates:
+            if guide_path.exists():
+                try:
+                    content = guide_path.read_text()
+                    return {
+                        'exists': True,
+                        'path': str(guide_path.relative_to(self.project_path)),
+                        'content': content
+                    }
+                except (IOError, UnicodeDecodeError):
+                    pass
+
+        return {'exists': False, 'path': None, 'content': None}
+
+    def _contribution_section_text(self):
+        """Generate contribution guidelines section text."""
+        if self.contributing_guide['exists']:
+            guide_path = self.contributing_guide['path']
+            content = self.contributing_guide['content']
+
+            # Extract key patterns from the contributing guide
+            key_patterns = []
+            lines = content.split('\n')
+            for i, line in enumerate(lines[:100]):  # First 100 lines
+                line_lower = line.lower()
+                if any(keyword in line_lower for keyword in ['pr title', 'commit', 'test', 'release', 'style', 'dco']):
+                    key_patterns.append(line.strip())
+
+            # Format key patterns
+            pattern_text = '\n'.join(f"- {p}" for p in key_patterns[:5] if p)
+
+            return f"""This project has a detailed contribution guide at **`{guide_path}`**. Before submitting PRs, read it to understand:
+
+{pattern_text if pattern_text else "- Contribution patterns and expectations"}
+
+**Important:** Follow the project's specific contribution guidelines for best results."""
+        else:
+            return """This project doesn't have a separate CONTRIBUTING.md yet. When contributing:
+1. Review recent merged PRs to understand maintainer preferences
+2. Follow the patterns established in the codebase
+3. Ensure your contribution aligns with the project's design principles above"""
+
     def _calculate_score(self):
         """Calculate agent readiness score."""
         scores = {}
@@ -629,6 +685,10 @@ When updating docs:
 2. Describe *why* and *what* before showing *how*
 3. Keep sections focused on a single concept
 4. Use clear, concrete examples
+
+## Contributing Guidelines
+
+{self._contribution_section_text()}
 
 ## Common Patterns
 
