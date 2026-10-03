@@ -747,6 +747,137 @@ mypy .                    # Type checking (if configured)
         print(f" braxis generate")
         print(f"\n{'='*60}\n")
 
+    def _extract_gotchas_from_contributing(self):
+        """v1.3.1: Extract warnings and gotchas from CONTRIBUTING.md."""
+        if not self.contributing_guide['exists']:
+            return []
+
+        content = self.contributing_guide['content']
+        gotchas = []
+        warning_keywords = ['gotcha', 'warning:', 'caution:', 'note:', "don't", 'avoid', 'issue:', 'important:']
+
+        lines = content.split('\n')
+        for i, line in enumerate(lines):
+            line_lower = line.lower()
+            if any(kw in line_lower for kw in warning_keywords):
+                # Clean up markdown formatting
+                clean_line = line.strip().lstrip('-').lstrip('*').lstrip('>').strip()
+                if clean_line and len(clean_line) > 10:
+                    gotchas.append(clean_line)
+
+        return gotchas[:10]  # Limit to top 10 gotchas
+
+    def _generate_architecture_tables(self):
+        """v1.3.1: Auto-generate directory-to-purpose mapping tables."""
+        primary_lang = self._get_primary_language()
+
+        # For monorepos, reference subsystem-scoped AGENTS.md files
+        if self.monorepo_type:
+            subsystems = self.get_monorepo_subsystems()
+            if subsystems:
+                subsystem_refs = '\n'.join([
+                    f"- `{s['name']}/AGENTS.md` — {s['name'].capitalize()} subsystem ({s['language']})"
+                    for s in subsystems
+                ])
+                return f"""### Directory-Scoped Agent Files
+
+Each subsystem has its own specialized AGENTS.md file:
+
+{subsystem_refs}
+
+Refer to the scoped file when working in that directory."""
+
+        # For single-language projects, generate directory map
+        arch_table = "### Directory Map\n\n| Directory | Purpose |\n|-----------|----------|\n"
+
+        common_dirs = {
+            'src': 'Source code',
+            'lib': 'Library code',
+            'tests': 'Test suite',
+            'test': 'Test suite',
+            'spec': 'Test specifications',
+            'docs': 'Documentation',
+            'examples': 'Usage examples',
+            'scripts': 'Build and utility scripts',
+            'pkg': 'Package definitions',
+            'cmd': 'Command-line tools',
+            'api': 'API handlers',
+            'config': 'Configuration files',
+            'migrations': 'Database migrations',
+            'public': 'Public assets',
+            'vendor': 'Dependencies',
+        }
+
+        found_dirs = set()
+        for item in self.project_path.iterdir():
+            if item.is_dir() and item.name in common_dirs and not item.name.startswith('.'):
+                found_dirs.add(item.name)
+
+        # Add found directories
+        for dir_name in sorted(found_dirs):
+            arch_table += f"| `{dir_name}/` | {common_dirs[dir_name]} |\n"
+
+        # If no standard directories found, use basic structure
+        if not found_dirs:
+            arch_table += f"| `src/` or project root | Main source code |\n"
+            arch_table += "| `tests/` or `test/` | Test suite |\n"
+
+        return arch_table
+
+    def _detect_environment_requirements(self):
+        """v1.3.1: Extract environment setup requirements and gotchas."""
+        env_info = {}
+        env_section = "### Environment Requirements\n\n"
+
+        # Check .nvmrc for Node.js version
+        nvmrc = self.project_path / '.nvmrc'
+        if nvmrc.exists():
+            try:
+                node_version = nvmrc.read_text().strip()
+                env_info['node'] = node_version
+                env_section += f"- **Node.js:** {node_version} (pinned in `.nvmrc`)\n"
+                env_section += "  ⚠️ **PATH Gotcha:** Run `yarn`/`npm` via login shell (`tmux` or `bash -lc`) to use pinned version\n"
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # Check go.mod for Go version
+        go_mod = self.project_path / 'go.mod'
+        if go_mod.exists():
+            try:
+                for line in go_mod.read_text().split('\n'):
+                    if line.startswith('go '):
+                        go_version = line.split()[1]
+                        env_info['go'] = go_version
+                        env_section += f"- **Go:** {go_version}+ (from `go.mod`)\n"
+                        env_section += "  - GCC required for CGo/SQLite compilation\n"
+                        break
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # Check .ruby-version for Ruby
+        ruby_version_file = self.project_path / '.ruby-version'
+        if ruby_version_file.exists():
+            try:
+                ruby_version = ruby_version_file.read_text().strip()
+                env_info['ruby'] = ruby_version
+                env_section += f"- **Ruby:** {ruby_version} (from `.ruby-version`)\n"
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # Check for Python requirements
+        if 'python' in self.languages:
+            version = self._get_language_version_requirement()
+            env_section += f"- **Python:** {version}\n"
+
+        # Add package manager info
+        primary_lang = self._get_primary_language()
+        if primary_lang in ["javascript", "typescript"]:
+            env_section += "- **Package Manager:** npm or yarn\n"
+        elif primary_lang == "go":
+            env_section += "- **Package Manager:** go modules\n"
+
+        return env_section if env_info else ""
+
     def generate_agents_md(self):
         """Generate comprehensive AGENTS.md file."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
@@ -796,7 +927,20 @@ mypy .                    # Type checking (if configured)
         sec_score = self.score_breakdown.get('Security', 0)
         build_score = self.score_breakdown.get('Build', 0)
         doc_score = self.score_breakdown.get('Documentation', 0)
-        
+
+        # v1.3.1: Generate new sections
+        arch_tables = self._generate_architecture_tables()
+        env_requirements = self._detect_environment_requirements()
+        gotchas = self._extract_gotchas_from_contributing()
+        gotchas_section = ""
+        if gotchas:
+            gotchas_list = '\n'.join([f"- {g}" for g in gotchas])
+            gotchas_section = f"""## Known Gotchas & Warnings
+
+{gotchas_list}
+
+"""
+
         return f"""# AGENTS.md
 
 Context file for AI agents working on {self.project_path.name}.
@@ -819,6 +963,8 @@ Context file for AI agents working on {self.project_path.name}.
 - **Package Manager:** {self._get_package_manager_recommendation()}
 - **Test Runner:** {test_frameworks_str}
 
+{env_requirements}
+
 ## Project Structure
 
 ```
@@ -839,6 +985,8 @@ Context file for AI agents working on {self.project_path.name}.
 3. **Clarity** - Explicit naming and structure for AI agent understanding
 4. **Consistency** - Uniform patterns and conventions throughout codebase
 5. **Maintainability** - Well-documented code with clear intent
+
+{arch_tables}
 
 ## Development Workflow
 
@@ -891,7 +1039,7 @@ When updating docs:
 3. Keep sections focused on a single concept
 4. Use clear, concrete examples
 
-## Contributing Guidelines
+{gotchas_section}## Contributing Guidelines
 
 {self._contribution_section_text()}
 
