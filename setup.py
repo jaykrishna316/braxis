@@ -7,7 +7,7 @@ long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="braxis",
-    version="1.0.0",
+    version="1.3.0",
     author="Jayakrishna Ichapurapu",
     author_email="jayichapurapu@example.com",
     description="Auto-generate AI agent context files. Keep AGENTS.md, CLAUDE.md, .cursorrules, and .agentic-config.json in sync with your codebase.",
