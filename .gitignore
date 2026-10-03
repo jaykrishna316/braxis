@@ -7,6 +7,5 @@ build/
 
 # Generated context files (for Braxis output during testing)
 AGENTS.md
-CLAUDE.md
 .cursorrules
 .agentic-config.json
