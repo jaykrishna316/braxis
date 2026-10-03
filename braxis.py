@@ -136,92 +136,6 @@ class BraxisAnalyzer:
 
         print(f"\n{'='*60}\n")
 
-    def get_llm_recommendations(self):
-        """Get intelligent recommendations using Claude API."""
-        try:
-            import anthropic
-        except ImportError:
-            print("Claude API not available. Install with: pip install braxis[llm]")
-            return None
-
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            print("ANTHROPIC_API_KEY not set. Skipping LLM recommendations.")
-            print("Set your API key: export ANTHROPIC_API_KEY='sk-ant-...'")
-            return None
-
-        try:
-            client = anthropic.Anthropic(api_key=api_key)
-
-            # Build project analysis summary
-            analysis_summary = f"""
-Project: {self.project_path.name}
-Agent Readiness Score: {self.total_score}/100 ({self.tier})
-
-Score Breakdown:
-{self._format_score_breakdown()}
-
-Project Details:
-- Languages: {', '.join(self.languages.keys()) if self.languages else 'None detected'}
-- Build System: {self.build_system}
-- Test Frameworks: {', '.join(self.test_frameworks)}
-- Test Files: {len(self.test_files)}
-- Total Files: {len(self.files)}
-- Critical Files: {len(self.critical_files)}
-- Config Files: {len(self.config_files)}
-
-Detected Conventions:
-- Error Handling: {'Yes' if 'error_handling' in self.conventions else 'No'}
-- Type Hints: {'Yes' if 'type_hints' in self.conventions else 'No'}
-- Logging: {'Yes' if 'logging' in self.conventions else 'No'}
-- Validation: {'Yes' if 'validation' in self.conventions else 'No'}
-- Async Patterns: {'Yes' if 'async' in self.conventions else 'No'}
-"""
-
-            prompt = f"""Based on this project analysis, provide 5-7 specific, actionable recommendations to improve AI agent readiness and code quality:
-
-{analysis_summary}
-
-Format your response as a numbered list with:
-1. A clear title for each recommendation
-2. Why it matters (1-2 sentences)
-3. How to implement it (concrete steps)
-
-Focus on high-impact improvements that would increase the Agent Readiness Score."""
-
-            response = client.messages.create(
-                model="claude-opus-5-5",
-                max_tokens=2000,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-
-            # Extract text from response
-            recommendations = ""
-            for block in response.content:
-                if block.type == "text":
-                    recommendations += block.text
-
-            return recommendations
-
-        except anthropic.APIError as e:
-            print(f"API Error: {e.message}")
-            return None
-        except Exception as e:
-            print(f"Error getting recommendations: {e}")
-            return None
-
-    def _format_score_breakdown(self):
-        """Format score breakdown for display."""
-        lines = []
-        for category, score in self.score_breakdown.items():
-            lines.append(f"  {category}: {score}/100")
-        return "\n".join(lines)
-
     def analyze(self):
         """Analyze the project."""
         self._scan_files()
@@ -230,6 +144,10 @@ Focus on high-impact improvements that would increase the Agent Readiness Score.
         self._detect_test_framework()
         self._detect_conventions()
         self._identify_critical_files()
+        # Detect project structure, Python version, and repository URL
+        self.project_structure = self._detect_project_structure()
+        self.python_version = self._detect_python_version()
+        self.repository_url = self._detect_repository_url()
         # v1.1: Detect monorepo and MCP
         self.monorepo_type = self.detect_monorepo_type()
         if self.monorepo_type:
@@ -266,8 +184,31 @@ Focus on high-impact improvements that would increase the Agent Readiness Score.
         build_system = "Unknown"
         if any('package.json' in str(f) for f in self.build_files):
             build_system = "npm/Node.js"
-        elif any('pyproject.toml' in str(f) or 'setup.py' in str(f) for f in self.build_files):
-            build_system = "Python (pip/setuptools)"
+        elif any('pyproject.toml' in str(f) for f in self.build_files):
+            # Check [build-system] table in pyproject.toml for actual backend
+            pyproject = self.project_path / 'pyproject.toml'
+            if pyproject.exists():
+                try:
+                    content = pyproject.read_text()
+                    if 'build-system' in content:
+                        if 'hatchling' in content.lower():
+                            build_system = "Python (hatchling)"
+                        elif 'pdm' in content.lower():
+                            build_system = "Python (pdm)"
+                        elif 'flit' in content.lower():
+                            build_system = "Python (flit)"
+                        elif 'poetry' in content.lower():
+                            build_system = "Python (poetry)"
+                        else:
+                            build_system = "Python (setuptools)"
+                    elif any('setup.py' in str(f) for f in self.build_files):
+                        build_system = "Python (setuptools)"
+                    else:
+                        build_system = "Python (pip)"
+                except (IOError, UnicodeDecodeError):
+                    build_system = "Python (pip/setuptools)"
+            elif any('setup.py' in str(f) for f in self.build_files):
+                build_system = "Python (setuptools)"
         elif any('Cargo.toml' in str(f) for f in self.build_files):
             build_system = "Rust (cargo)"
         elif any('go.mod' in str(f) for f in self.build_files):
@@ -279,6 +220,20 @@ Focus on high-impact improvements that would increase the Agent Readiness Score.
     def _detect_test_framework(self):
         """Detect test framework."""
         test_frameworks = set()
+
+        # First check pyproject.toml for explicit configuration
+        pyproject = self.project_path / 'pyproject.toml'
+        if pyproject.exists():
+            try:
+                content = pyproject.read_text()
+                if '[tool.pytest' in content:
+                    test_frameworks.add('pytest')
+                if 'pytest' in content and ('requires' in content or 'dependencies' in content or 'dev-dependencies' in content):
+                    test_frameworks.add('pytest')
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # Then check file contents
         content_samples = self._sample_file_contents(limit=20)
         for content in content_samples:
             if 'pytest' in content or 'from pytest' in content:
@@ -293,6 +248,12 @@ Focus on high-impact improvements that would increase the Agent Readiness Score.
                 test_frameworks.add('RSpec')
             if 'junit' in content.lower():
                 test_frameworks.add('JUnit')
+
+        # If tests exist but no framework detected, check test directory structure
+        if not test_frameworks and self.test_files:
+            if any('.py' in f.suffix for f in self.test_files):
+                test_frameworks.add('pytest')
+
         self.test_frameworks = test_frameworks if test_frameworks else {"None detected"}
 
     def _detect_conventions(self):
@@ -318,6 +279,32 @@ Focus on high-impact improvements that would increase the Agent Readiness Score.
             if 'validate' in content.lower() or 'schema' in content.lower():
                 self.conventions['validation'] += 1
 
+    def _detect_project_structure(self):
+        """Detect project layout: src/ vs top-level package."""
+        src_dir = self.project_path / 'src'
+        if src_dir.exists() and src_dir.is_dir():
+            # Has src/ directory
+            src_contents = list(src_dir.iterdir())
+            if src_contents:
+                return 'src'
+
+        # Check for top-level package directories (match primary language)
+        primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else None
+        if primary_lang == 'python':
+            # Look for Python packages at root
+            for item in self.project_path.iterdir():
+                if item.is_dir() and not item.name.startswith('.') and item.name not in ['tests', 'docs', 'build', 'dist', '__pycache__']:
+                    if (item / '__init__.py').exists():
+                        return 'top-level'
+        elif primary_lang in ['javascript', 'typescript']:
+            # Check for lib/ or src/ in JS projects
+            if (self.project_path / 'lib').exists():
+                return 'lib'
+            if (self.project_path / 'src').exists():
+                return 'src'
+
+        return 'standard'
+
     def _identify_critical_files(self):
         """Identify critical files (main, entry points, etc)."""
         critical_names = ['main.py', 'app.py', 'server.py', 'index.js', 'main.js', 'app.js', 'main.rs', 'main.go', 'main.ts']
@@ -336,6 +323,71 @@ Focus on high-impact improvements that would increase the Agent Readiness Score.
             except Exception:
                 pass
         return samples
+
+    def _detect_repository_url(self):
+        """Detect repository URL from pyproject.toml or README."""
+        pyproject = self.project_path / 'pyproject.toml'
+        if pyproject.exists():
+            try:
+                content = pyproject.read_text()
+                for line in content.split('\n'):
+                    if 'homepage' in line.lower() or 'repository' in line.lower():
+                        if 'github.com' in line:
+                            # Extract URL
+                            if '"' in line:
+                                url = line.split('"')[1]
+                            elif "'" in line:
+                                url = line.split("'")[1]
+                            else:
+                                continue
+                            if url.startswith('http'):
+                                return url
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # If not found, use project name as fallback
+        return f"https://github.com/YOUR_ORG/{self.project_path.name}.git"
+
+    def _detect_python_version(self):
+        """Detect Python version requirement from pyproject.toml or setup.py."""
+        pyproject = self.project_path / 'pyproject.toml'
+        if pyproject.exists():
+            try:
+                content = pyproject.read_text()
+                if 'requires-python' in content:
+                    for line in content.split('\n'):
+                        if 'requires-python' in line and '=' in line:
+                            try:
+                                version_part = line.split('=', 1)[1].strip()
+                                # Remove trailing comma first, then quotes
+                                version_part = version_part.rstrip(',').strip().strip('"').strip("'")
+                                if version_part:
+                                    return version_part
+                            except IndexError:
+                                pass
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # Check setup.py
+        setup_py = self.project_path / 'setup.py'
+        if setup_py.exists():
+            try:
+                content = setup_py.read_text()
+                if 'python_requires' in content:
+                    for line in content.split('\n'):
+                        if 'python_requires' in line and '=' in line:
+                            try:
+                                version_part = line.split('=', 1)[1].strip()
+                                # Remove trailing comma first, then quotes
+                                version_part = version_part.rstrip(',').strip().strip('"').strip("'")
+                                if version_part:
+                                    return version_part
+                            except IndexError:
+                                pass
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        return "3.9+"  # Default fallback
 
     def _calculate_score(self):
         """Calculate agent readiness score."""
@@ -432,25 +484,43 @@ Focus on high-impact improvements that would increase the Agent Readiness Score.
         """Generate comprehensive AGENTS.md file."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
 
-        # Build vars for the template
+        # Build vars for the template - detect actual structure
         structure = self.project_path.name + "/"
         if self.build_files:
             for f in self.build_files[:3]:
                 structure += "\n├── " + f.name
-        structure += "\n├── src/                  # Source code"
+
+        # Use detected project structure
+        if self.project_structure == 'src':
+            structure += "\n├── src/                  # Source code"
+        elif self.project_structure == 'top-level':
+            # Find actual package directory
+            primary_package = None
+            for item in self.project_path.iterdir():
+                if item.is_dir() and not item.name.startswith('.') and item.name not in ['tests', 'docs', 'build', 'dist']:
+                    if primary_lang == 'python' and (item / '__init__.py').exists():
+                        primary_package = item.name
+                        break
+            if primary_package:
+                structure += f"\n├── {primary_package}/             # Source code"
+            else:
+                structure += "\n├── src/                  # Source code"
+        else:
+            structure += "\n├── src/                  # Source code"
+
         if self.test_files:
             structure += "\n├── tests/                # Test suite (" + str(len(self.test_files)) + " files)"
         structure += "\n└── README.md             # Project documentation"
-
+        
         test_frameworks_str = ', '.join(sorted(self.test_frameworks)) if self.test_frameworks else 'pytest'
         critical_files_info = ', '.join(f.name for f in self.critical_files[:5]) if self.critical_files else 'Standard layout'
         build_config = ', '.join(f.name for f in self.build_files[:3]) if self.build_files else "Standard"
-
+        
         type_hints_status = 'Yes' if 'type_hints' in self.conventions else 'No'
         error_handling_status = 'Yes' if 'error_handling' in self.conventions else 'No'
         logging_status = 'Yes' if 'logging' in self.conventions else 'No'
         testing_status = 'Yes' if self.test_files else 'No'
-
+        
         arch_score = self.score_breakdown.get('Architecture', 0)
         test_score = self.score_breakdown.get('Testing', 0)
         dep_score = self.score_breakdown.get('Dependencies', 0)
@@ -459,31 +529,6 @@ Focus on high-impact improvements that would increase the Agent Readiness Score.
         sec_score = self.score_breakdown.get('Security', 0)
         build_score = self.score_breakdown.get('Build', 0)
         doc_score = self.score_breakdown.get('Documentation', 0)
-
-        # v1.2: Pattern detection
-        gotchas = self.detect_repository_gotchas()
-        gotchas_section = ""
-        if gotchas:
-            gotchas_section = "\n## Repository Gotchas (Common Pitfalls)\n\n"
-            for gotcha in gotchas[:3]:
-                gotchas_section += f"- **{gotcha['title']}**: {gotcha['symptom']} → {gotcha['impact']}\n"
-
-        ownership = self.extract_ownership()
-        ownership_section = ""
-        if ownership:
-            ownership_section = "\n## Subsystem Ownership\n\n"
-            ownership_section += "| Subsystem | Files | Language | Owns | Consumes |\n"
-            ownership_section += "|-----------|-------|----------|------|----------|\n"
-            for subsys, info in sorted(ownership.items())[:5]:
-                consumes = ', '.join(info['consumes'][:2]) if info['consumes'] else 'none'
-                ownership_section += f"| `{info['path']}/` | {info['files']} | {info['language']} | {info['owns'][:30]}... | {consumes} |\n"
-
-        testing_patterns = self.analyze_testing_patterns()
-        testing_section = f"\n## Testing Patterns\n\n"
-        testing_section += f"- **Frameworks**: {', '.join(testing_patterns['frameworks']) if testing_patterns['frameworks'] else 'None detected'}\n"
-        testing_section += f"- **Test Files**: {testing_patterns['files']}\n"
-        testing_section += f"- **Structure**: {testing_patterns['structure']}\n"
-        testing_section += f"- **Coverage Tools**: {'Yes' if testing_patterns['coverage_capable'] else 'Configure coverage with pytest-cov or similar'}\n"
         
         return f"""# AGENTS.md
 
@@ -503,7 +548,7 @@ Context file for AI agents working on {self.project_path.name}.
 
 ## Prerequisites
 
-- **{primary_lang.capitalize()}:** 3.9+ (or applicable language version)
+- **{primary_lang.capitalize()}:** {self.python_version} (or applicable language version)
 - **Package Manager:** pip or uv (recommended)
 - **Test Runner:** {test_frameworks_str}
 
@@ -527,14 +572,13 @@ Context file for AI agents working on {self.project_path.name}.
 3. **Clarity** - Explicit naming and structure for AI agent understanding
 4. **Consistency** - Uniform patterns and conventions throughout codebase
 5. **Maintainability** - Well-documented code with clear intent
-{gotchas_section}{ownership_section}{testing_section}
 
 ## Development Workflow
 
 ### Initial Setup
 
 ```bash
-git clone https://github.com/<owner>/{self.project_path.name}.git
+git clone {self.repository_url}
 cd {self.project_path.name}
 pip install -e .              # Install in development mode
 # or
@@ -549,7 +593,7 @@ pytest                        # Run all tests
 pytest tests/                 # Run specific test directory
 pytest -v                     # Verbose output with test names
 pytest -x                     # Stop on first failure
-pytest --cov                  # With coverage report
+coverage run -m pytest && coverage report  # With coverage report
 ```
 
 #### Code Quality
@@ -563,7 +607,7 @@ mypy .                        # Type checking (if configured)
 
 - **Naming:** Use {primary_lang.capitalize()} conventions (snake_case for functions, PascalCase for classes)
 - **Type Hints:** {type_hints_status} (strongly encouraged)
-- **Error Handling:** {error_handling_status}
+- **Error Handling:** {error_handling_status} - handle errors at boundaries; let exceptions propagate when another layer owns recovery
 - **Logging:** {logging_status}
 - **Testing:** {testing_status} - write tests alongside code changes
 
@@ -577,6 +621,14 @@ Before committing:
 2. Ensure all tests pass
 3. Check type hints: `mypy .`
 4. Format code: `ruff format .`
+
+## Writing Documentation
+
+When updating docs:
+1. Always include explanatory text before code snippets
+2. Describe *why* and *what* before showing *how*
+3. Keep sections focused on a single concept
+4. Use clear, concrete examples
 
 ## Common Patterns
 
@@ -1282,222 +1334,20 @@ mcp call <tool_name> <args>
 
         return suggestions.get(scale, "")
 
-    # v1.2 Pattern Detection Features
-    def detect_repository_gotchas(self):
-        """Detect common repository pitfalls based on code analysis."""
-        gotchas = []
 
-        # Check for transaction patterns (async I/O inside sync blocks)
-        for file_path in self.files:
-            if file_path.suffix not in ['.py', '.js', '.ts']:
-                continue
-            try:
-                content = file_path.read_text(encoding='utf-8', errors='ignore')
-
-                # Gotcha 1: I/O in transaction blocks
-                if 'transaction()' in content and ('requests.' in content or 'http' in content.lower()):
-                    gotchas.append({
-                        'title': 'I/O Operations Inside Transactions',
-                        'symptom': 'External API calls or I/O within transaction blocks',
-                        'impact': 'Deadlocks, inconsistent state, performance issues',
-                        'file': str(file_path)
-                    })
-                    break
-
-                # Gotcha 2: State mutations without events
-                if 'self.' in content and '= ' in content and 'event' not in content.lower():
-                    if 'immutable' not in content.lower() and 'frozen' not in content.lower():
-                        pass  # Common pattern, not necessarily a gotcha
-
-                # Gotcha 3: Missing error handling in async code
-                if 'async def' in content and 'try:' not in content and 'except' not in content:
-                    gotchas.append({
-                        'title': 'Async Code Without Error Handling',
-                        'symptom': 'Async functions lack try/except blocks',
-                        'impact': 'Unhandled exceptions can crash the process',
-                        'file': str(file_path)
-                    })
-                    break
-            except (UnicodeDecodeError, FileNotFoundError):
-                continue
-
-        return gotchas[:5]  # Return top 5
-
-    def detect_common_mistakes(self):
-        """Detect common anti-patterns and suggest fixes."""
-        mistakes = []
-
-        for file_path in self.files:
-            if file_path.suffix == '.py':
-                try:
-                    content = file_path.read_text(encoding='utf-8', errors='ignore')
-
-                    # Mistake 1: Using str() on complex objects
-                    if 'str(self.' in content or 'str(obj.' in content:
-                        mistakes.append({
-                            'type': 'String Conversion Abuse',
-                            'pattern': 'str(complex_object)',
-                            'issue': 'Loses type information and produces unsafe representations',
-                            'fix': 'Use serialize() or explicit field mapping instead'
-                        })
-
-                    # Mistake 2: Global mutable state
-                    if content.count('global ') > 2:
-                        mistakes.append({
-                            'type': 'Global Mutable State',
-                            'pattern': 'Multiple global variables',
-                            'issue': 'Hard to test, causes hidden dependencies',
-                            'fix': 'Use dependency injection or class attributes'
-                        })
-
-                    # Mistake 3: Catching all exceptions
-                    if 'except Exception:' in content or 'except:' in content:
-                        mistakes.append({
-                            'type': 'Overly Broad Exception Handling',
-                            'pattern': 'except Exception or bare except',
-                            'issue': 'Masks real errors, makes debugging difficult',
-                            'fix': 'Catch specific exceptions only'
-                        })
-                except (UnicodeDecodeError, FileNotFoundError):
-                    continue
-
-        return mistakes[:10]
-
-    def extract_ownership(self):
-        """Extract ownership information from directory structure."""
-        ownership = {}
-
-        # Check for common subsystem directories
-        subsystems = ['api', 'web', 'cli', 'backend', 'frontend', 'packages', 'libs', 'services', 'core']
-
-        for subsys in subsystems:
-            subsys_path = self.project_path / subsys
-            if subsys_path.exists() and subsys_path.is_dir():
-                # Count files in subsystem
-                subsys_files = list(subsys_path.rglob('*'))
-                subsys_files = [f for f in subsys_files if f.is_file()]
-
-                if subsys_files:
-                    primary_ext = defaultdict(int)
-                    for f in subsys_files:
-                        primary_ext[f.suffix] += 1
-
-                    top_lang = max(primary_ext.items(), key=lambda x: x[1])[0] if primary_ext else 'unknown'
-
-                    ownership[subsys] = {
-                        'path': subsys,
-                        'files': len(subsys_files),
-                        'language': top_lang,
-                        'owns': self._infer_ownership(subsys),
-                        'consumes': self._infer_dependencies(subsys)
-                    }
-
-        return ownership
-
-    def _infer_ownership(self, subsystem):
-        """Infer what a subsystem owns based on its name and content."""
-        ownership_map = {
-            'api': 'API endpoints, business logic, database operations',
-            'backend': 'Server logic, API contracts, database schema',
-            'web': 'UI components, pages, user interactions, styling',
-            'frontend': 'Client-side rendering, state management, components',
-            'cli': 'Command-line interface, CLI commands, argument parsing',
-            'packages': 'Shared utilities, types, reusable components',
-            'libs': 'Shared libraries, core utilities, abstractions',
-            'services': 'Business services, domain logic, orchestration',
-            'core': 'Core domain logic, business rules, data models'
-        }
-
-        return ownership_map.get(subsystem, 'Core functionality and utilities')
-
-    def _infer_dependencies(self, subsystem):
-        """Infer what a subsystem depends on."""
-        dependency_map = {
-            'api': ['packages', 'libs', 'core'],
-            'backend': ['packages', 'libs'],
-            'web': ['api', 'packages', 'libs'],
-            'frontend': ['packages', 'libs'],
-            'cli': ['api', 'packages', 'libs'],
-            'services': ['packages', 'libs', 'core'],
-            'core': []
-        }
-
-        return dependency_map.get(subsystem, [])
-
-    def map_cross_subsystem_contracts(self):
-        """Map data flow and contracts between subsystems."""
-        ownership = self.extract_ownership()
-        contracts = []
-
-        # Build dependency graph
-        for subsys, info in ownership.items():
-            if info['consumes']:
-                for dependency in info['consumes']:
-                    if dependency in ownership:
-                        contracts.append({
-                            'from': subsys,
-                            'to': dependency,
-                            'type': 'imports',
-                            'boundary': f'{subsys}/ → {dependency}/'
-                        })
-
-        return contracts
-
-    def analyze_testing_patterns(self):
-        """Analyze testing patterns and structure."""
-        patterns = {
-            'frameworks': list(self.test_frameworks),
-            'files': len(self.test_files),
-            'structure': self._analyze_test_structure(),
-            'coverage_capable': self._check_coverage_tools()
-        }
-
-        return patterns
-
-    def _analyze_test_structure(self):
-        """Analyze how tests are organized."""
-        test_dirs = set()
-
-        for file_path in self.test_files:
-            parent = file_path.parent
-            if 'test' in parent.name.lower() or 'spec' in parent.name.lower():
-                test_dirs.add(parent.name)
-
-        if test_dirs:
-            return f"Tests organized in: {', '.join(sorted(test_dirs))}"
-        else:
-            return "Tests colocated with source files"
-
-    def _check_coverage_tools(self):
-        """Check if project has coverage tools configured."""
-        coverage_tools = ['pytest-cov', 'coverage', 'nyc', 'istanbul', 'jacoco']
-
-        for file_path in self.files:
-            if file_path.name in ['setup.py', 'pyproject.toml', 'package.json']:
-                try:
-                    content = file_path.read_text(encoding='utf-8', errors='ignore')
-                    for tool in coverage_tools:
-                        if tool in content:
-                            return True
-                except (UnicodeDecodeError, FileNotFoundError):
-                    continue
-
-        return False
-
-
-__version__ = "1.2.0"
+__version__ = "1.1.0"
 
 
 def main():
     parser = argparse.ArgumentParser(description='Braxis - AI agent context generator')
     parser.add_argument('--version', action='version', version=f'Braxis {__version__}')
-    parser.add_argument('command', choices=['generate', 'score', 'inspect', 'validate', 'history', 'recommendations'],
+    parser.add_argument('command', choices=['generate', 'score', 'inspect', 'validate', 'history'],
                         help='Command to run')
     parser.add_argument('--path', default='.', help='Project path')
     parser.add_argument('--trends', action='store_true', help='Show score trends')
     args = parser.parse_args()
 
-    if not args.command or args.command not in ['generate', 'score', 'inspect', 'validate', 'history', 'recommendations']:
+    if not args.command or args.command not in ['generate', 'score', 'inspect', 'validate', 'history']:
         parser.print_help()
         sys.exit(1)
 
@@ -1517,25 +1367,6 @@ def main():
                         score = entry['score']
                         tier = entry['tier']
                         print(f"{i}. {timestamp} - {score}/100 ({tier})")
-        except (ValueError, FileNotFoundError, NotADirectoryError) as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(1)
-        return
-
-    if args.command == 'recommendations':
-        try:
-            analyzer = BraxisAnalyzer(args.path)
-            analyzer.analyze()
-            print("\nGenerating AI-powered recommendations...")
-            recommendations = analyzer.get_llm_recommendations()
-            if recommendations:
-                print(f"\n{'='*60}")
-                print(f"LLM-Powered Recommendations for {analyzer.project_path.name}")
-                print(f"{'='*60}\n")
-                print(recommendations)
-                print(f"\n{'='*60}\n")
-            else:
-                print("Could not generate recommendations.")
         except (ValueError, FileNotFoundError, NotADirectoryError) as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
