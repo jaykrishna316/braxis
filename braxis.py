@@ -609,6 +609,52 @@ ruff format .             # Format code
 mypy .                    # Type checking (if configured)
 ```"""
 
+    def _get_initial_setup_commands(self, primary_lang):
+        """Get language-appropriate initial setup commands."""
+        if primary_lang == "go":
+            return "go mod download"
+        elif primary_lang == "rust":
+            return "cargo build"
+        elif primary_lang == "ruby":
+            return "bundle install"
+        elif primary_lang in ["javascript", "typescript"]:
+            return "npm install\n# or\nyarn install"
+        else:  # Python and others
+            return "pip install -e .\n# or\nuv sync --all-groups"
+
+    def _get_testing_strategy_commands(self, primary_lang):
+        """Get language-appropriate testing strategy commands."""
+        if primary_lang == "go":
+            return """Before committing:
+1. Run the full test suite: `go test ./...`
+2. Ensure all tests pass: `go test -v ./...`
+3. Run linter: `golangci-lint run`
+4. Format code: `gofmt -w .`"""
+        elif primary_lang == "rust":
+            return """Before committing:
+1. Run the full test suite: `cargo test`
+2. Run clippy: `cargo clippy --all-targets`
+3. Format code: `cargo fmt`
+4. Check documentation: `cargo doc --no-deps`"""
+        elif primary_lang == "ruby":
+            return """Before committing:
+1. Run the full test suite: `bundle exec rspec`
+2. Run specific test directory: `bundle exec rspec spec/`
+3. Lint with RuboCop: `bundle exec rubocop`
+4. Auto-fix issues: `bundle exec rubocop -a`"""
+        elif primary_lang in ["javascript", "typescript"]:
+            return """Before committing:
+1. Run the full test suite: `npm test` or `yarn test`
+2. Run linter: `npm run lint` or `yarn lint`
+3. Format code: `npm run format` or `yarn format`
+4. Type check (if TypeScript): `npm run type-check`"""
+        else:  # Python and others
+            return """Before committing:
+1. Run the full test suite: `pytest`
+2. Ensure all tests pass
+3. Check type hints: `mypy .`
+4. Format code: `ruff format .`"""
+
     def _contribution_section_text(self):
         """Generate contribution guidelines section with smart pattern extraction."""
         if self.contributing_guide['exists']:
@@ -932,6 +978,11 @@ Refer to the scoped file when working in that directory."""
         arch_tables = self._generate_architecture_tables()
         env_requirements = self._detect_environment_requirements()
         gotchas = self._extract_gotchas_from_contributing()
+
+        # v1.3.2: Language-specific commands
+        dev_commands = self._get_development_commands(primary_lang)
+        init_commands = self._get_initial_setup_commands(primary_lang)
+        testing_strategy = self._get_testing_strategy_commands(primary_lang)
         gotchas_section = ""
         if gotchas:
             gotchas_list = '\n'.join([f"- {g}" for g in gotchas])
@@ -995,22 +1046,13 @@ Context file for AI agents working on {self.project_path.name}.
 ```bash
 git clone {self.repository_url}
 cd {self.project_path.name}
-go mod download
+{init_commands}
 ```
 
 ### Development Commands
 
 #### Running Tests
-```bash
-go test ./...
-go test -v ./...
-```
-
-#### Code Quality
-```bash
-gofmt -w .
-go vet ./...
-```
+{dev_commands}
 
 ## Code Style & Conventions
 
@@ -1025,11 +1067,7 @@ go vet ./...
 **Framework:** {test_frameworks_str}
 **Test Files:** {len(self.test_files)} found
 
-Before committing:
-1. Run the full test suite: `pytest`
-2. Ensure all tests pass
-3. Check type hints: `mypy .`
-4. Format code: `ruff format .`
+{testing_strategy}
 
 ## Writing Documentation
 
