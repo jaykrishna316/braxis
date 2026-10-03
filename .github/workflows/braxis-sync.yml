@@ -1,0 +1,72 @@
+name: Braxis Context Auto-Sync
+
+on:
+  push:
+    branches: [main, develop, master]
+    paths:
+      - '**.py'
+      - '**.js'
+      - '**.ts'
+      - '**.tsx'
+      - '**.jsx'
+      - '**.java'
+      - '**.rs'
+      - '**.go'
+      - 'package.json'
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'Cargo.toml'
+      - 'go.mod'
+      - 'pom.xml'
+      - 'build.gradle'
+      - '.github/workflows/braxis-sync.yml'
+
+jobs:
+  braxis-sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - run: pip install -q braxis
+
+      - run: braxis generate
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            git diff --stat
+          fi
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: 'chore: regenerate braxis context files'
+          title: 'chore: update AI agent context files'
+          body: |
+            Automated context file regeneration triggered by code changes.
+
+            Generated files:
+            - AGENTS.md - Universal agent instructions
+            - CLAUDE.md - Claude Code optimized
+            - .cursorrules - Cursor IDE rules
+            - .agentic-config.json - Machine-readable metadata
+
+            Run `braxis score` locally to see the readiness analysis.
+          branch: braxis/auto-update
+          delete-branch: true
+          labels: 'chore,automated'
