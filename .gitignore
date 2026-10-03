@@ -4,3 +4,9 @@ dist/
 build/
 .venv/
 *.egg-info/
+
+# Generated context files (for Braxis output during testing)
+AGENTS.md
+CLAUDE.md
+.cursorrules
+.agentic-config.json
