@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Braxis Campaign Script - Generate and push AGENTS.md to a single repo
-# Usage: ./braxis_campaign_mac.sh owner/repo
-# Example: ./braxis_campaign_mac.sh elastic/kibana
+# Usage: ./braxis_campaign_mac.sh owner/repo [github-username]
+# Example: ./braxis_campaign_mac.sh elastic/kibana jaykrishna316
 
 set -e
 
@@ -15,18 +15,37 @@ NC='\033[0m' # No Color
 
 # Parse arguments
 if [[ -z "$1" ]]; then
-  echo -e "${RED}Usage: $0 owner/repo${NC}"
-  echo "Example: $0 elastic/kibana"
+  echo -e "${RED}Usage: $0 owner/repo [github-username]${NC}"
+  echo "Example: $0 elastic/kibana jaykrishna316"
   exit 1
 fi
 
 REPO="$1"
+GITHUB_USER="${2:-jaykrishna316}"
 IFS='/' read -r OWNER REPO_NAME <<< "$REPO"
 
 # Configuration
 CAMPAIGN_DIR="${HOME}/braxis_campaign"
-BRAXIS_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="${CAMPAIGN_DIR}/${REPO_NAME}"
+
+# Find braxis path
+if command -v python3 &> /dev/null; then
+  PYTHON_CMD="python3"
+else
+  PYTHON_CMD="python"
+fi
+
+# Try to find braxis
+if [ -f "braxis.py" ]; then
+  BRAXIS_PATH="$(pwd)"
+elif [ -f "${HOME}/Desktop/braxis/braxis.py" ]; then
+  BRAXIS_PATH="${HOME}/Desktop/braxis"
+elif [ -f "${HOME}/braxis/braxis.py" ]; then
+  BRAXIS_PATH="${HOME}/braxis"
+else
+  echo -e "${RED}✗ Cannot find braxis.py. Expected at ~/Desktop/braxis/ or ~/braxis/${NC}"
+  exit 1
+fi
 
 # Create campaign directory
 mkdir -p "${CAMPAIGN_DIR}"
@@ -58,7 +77,7 @@ fi
 
 # Generate AGENTS.md using braxis
 echo -e "${YELLOW}Generating AGENTS.md with braxis...${NC}"
-if python "${BRAXIS_PATH}/braxis.py" generate --output-file AGENTS.md . >/dev/null 2>&1; then
+if ${PYTHON_CMD} "${BRAXIS_PATH}/braxis.py" generate --path . >/dev/null 2>&1; then
 
   if [ ! -f "AGENTS.md" ]; then
     echo -e "${RED}✗ AGENTS.md generation failed${NC}"
@@ -102,17 +121,30 @@ Please review and adjust as needed for your project.
 
 Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>" 2>/dev/null
 
-  # Push to origin
-  echo -e "${YELLOW}Pushing branch ${FEATURE_BRANCH}...${NC}"
+  # Try push to origin (will fail if no write access)
+  echo -e "${YELLOW}Attempting push to origin...${NC}"
   if git push -u origin "${FEATURE_BRANCH}" 2>/dev/null; then
+    # Direct push worked
     echo -e "${GREEN}✓ Successfully pushed to ${REPO}${NC}"
     echo ""
     echo -e "${BLUE}Create PR at:${NC}"
     echo "https://github.com/${REPO}/compare/main...${FEATURE_BRANCH}?expand=1"
-    echo ""
   else
-    echo -e "${RED}✗ Push failed (likely no write access)${NC}"
-    echo "You may need to fork the repository first and push to your fork."
+    # No write access - need fork workflow
+    echo -e "${YELLOW}⚠ No direct access. Using fork workflow...${NC}"
+    echo ""
+    echo -e "${BLUE}STEP 1: Fork the repo${NC}"
+    echo "Go to: https://github.com/${OWNER}/${REPO_NAME}"
+    echo "Click the Fork button (top right)"
+    echo ""
+    echo -e "${BLUE}STEP 2: Wait for fork to complete, then run:${NC}"
+    echo "git remote set-url origin https://github.com/${GITHUB_USER}/${REPO_NAME}.git"
+    echo "git push -u origin ${FEATURE_BRANCH}"
+    echo ""
+    echo -e "${BLUE}STEP 3: Create PR:${NC}"
+    echo "https://github.com/${OWNER}/${REPO_NAME}/compare/main...${GITHUB_USER}:${FEATURE_BRANCH}?expand=1"
+    echo ""
+    echo -e "${YELLOW}Branch ready at: ${REPO_DIR}${NC}"
     exit 1
   fi
 else
