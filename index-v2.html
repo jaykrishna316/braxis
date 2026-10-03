@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Braxis – AI Agent Context Files</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700&display=swap">
+    <style>
+        :root {
+            --bg: #fafaf9;
+            --surface: #ffffff;
+            --surface-secondary: #f5f5f4;
+            --text: #1c1c1c;
+            --text-secondary: #636363;
+            --text-muted: #a1a1a1;
+            --accent: #0066ff;
+            --accent-light: #e6f0ff;
+            --success: #059669;
+            --warning: #dc2626;
+            --neutral: #e7e5e4;
+            --chart-1: #0066ff;
+            --chart-2: #059669;
+            --chart-3: #f59e0b;
+            --chart-4: #8b5cf6;
+            color-scheme: light;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg: #0a0a0a;
+                --surface: #1a1a1a;
+                --surface-secondary: #252525;
+                --text: #fafaf9;
+                --text-secondary: #a1a1a1;
+                --text-muted: #636363;
+                --accent: #4d9eff;
+                --accent-light: #1a3a52;
+                --success: #10b981;
+                --warning: #ef4444;
+                --neutral: #404040;
+                color-scheme: dark;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            --bg: #0a0a0a;
+            --surface: #1a1a1a;
+            --surface-secondary: #252525;
+            --text: #fafaf9;
+            --text-secondary: #a1a1a1;
+            --text-muted: #636363;
+            --accent: #4d9eff;
+            --accent-light: #1a3a52;
+            --success: #10b981;
+            --warning: #ef4444;
+            --neutral: #404040;
+            color-scheme: dark;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.6;
+            padding: 0 16px;
+        }
+
+        /* Typography */
+        h1, h2, h3 {
+            font-family: "Syne", sans-serif;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+        }
+
+        h2 {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+        }
+
+        h3 {
+            font-size: 1.25rem;
+        }
+
+        p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* Navigation */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 0;
+            position: sticky;
+            top: 0;
+            background: rgba(250, 250, 249, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--neutral);
+            z-index: 100;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            nav {
+                background: rgba(10, 10, 10, 0.95);
+            }
+        }
+
+        :root[data-theme="dark"] nav {
+            background: rgba(10, 10, 10, 0.95);
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            font-family: "Syne", sans-serif;
+            color: var(--accent);
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: var(--accent);
+        }
+
+        /* Sections */
+        section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 4rem 0;
+        }
+
+        .hero {
+            padding: 6rem 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .hero-content h1 {
+            margin-bottom: 1.5rem;
+            color: var(--text);
+        }
+
+        .hero-content p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            line-height: 1.8;
+        }
+
+        .hero-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .stat {
+            background: var(--surface);
+            border: 1px solid var(--neutral);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            font-family: "Syne", sans-serif;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .cta-primary {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        .cta-primary:hover {
+            background: #0052cc;
+            transform: translateY(-2px);
+        }
+
+        .chart-container {
+            background: var(--surface);
+            border: 1px solid var(--neutral);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Adoption Metrics Section */
+        .adoption-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .adoption-card {
+            background: var(--surface);
+            border: 1px solid var(--neutral);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .adoption-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .adoption-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            font-family: "Syne", sans-serif;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .adoption-label {
+            color: var(--text-secondary);
+        }
+
+        /* Comparison Table */
+        .comparison {
+            overflow-x: auto;
+            margin: 2rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface);
+            border: 1px solid var(--neutral);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th {
+            background: var(--surface-secondary);
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid var(--neutral);
+            color: var(--text);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--neutral);
+            color: var(--text-secondary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .check {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .cross {
+            color: var(--warning);
+            font-weight: 600;
+        }
+
+        /* Features */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .feature {
+            background: var(--surface);
+            border: 1px solid var(--neutral);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: all 0.3s;
+        }
+
+        .feature:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature h3 {
+            margin-bottom: 0.5rem;
+        }
+
+        .feature p {
+            font-size: 0.95rem;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            background: var(--accent);
+            color: white;
+            border-radius: 16px;
+            padding: 4rem;
+            text-align: center;
+            margin: 4rem 0;
+        }
+
+        .cta-section h2 {
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .cta-section p {
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 2rem;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--surface);
+            border-top: 1px solid var(--neutral);
+            padding: 2rem 0;
+            text-align: center;
+            color: var(--text-secondary);
+            margin-top: 4rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+                padding: 3rem 0;
+            }
+
+            .hero-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .adoption-grid {
+                grid-template-columns: 1fr;
+            }
+
+            nav {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            section {
+                padding: 2rem 0;
+            }
+
+            .cta-section {
+                padding: 2rem;
+            }
+        }
+
+        /* Chart Styles */
+        .chart-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 1rem;
+            height: 300px;
+            margin: 2rem 0;
+        }
+
+        .bar-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .bar {
+            width: 100%;
+            background: var(--chart-1);
+            border-radius: 4px 4px 0 0;
+            position: relative;
+            transition: opacity 0.3s;
+        }
+
+        .bar:hover {
+            opacity: 0.8;
+        }
+
+        .bar-label {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .bar-value {
+            position: absolute;
+            top: -1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: 600;
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="logo">✨ Braxis</div>
+        <div>
+            <a href="https://github.com/jaykrishna316/braxis" target="_blank">GitHub</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>The 90% Adoption Gap</h1>
+            <p>Only 10% of high-star open source repositories have AI agent context files. Braxis closes the gap with one command.</p>
+            <button class="cta-primary" onclick="window.location.href='https://github.com/jaykrishna316/braxis'">Install Braxis</button>
+            <div class="hero-stats">
+                <div class="stat">
+                    <div class="stat-number">90%</div>
+                    <div class="stat-label">Market Gap</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">20</div>
+                    <div class="stat-label">Repos Analyzed</div>
+                </div>
+            </div>
+        </div>
+        <div class="chart-container">
+            <h3>Adoption Tier Comparison</h3>
+            <p style="margin-bottom: 2rem;">Only 2 of 20 ultra-high-star repositories have context files</p>
+            <div class="chart-bars">
+                <div class="bar-group">
+                    <div class="bar" style="height: 0%; background: var(--warning);">
+                        <div class="bar-value">0%</div>
+                    </div>
+                    <div class="bar-label">Tier 1<br>(10K+ stars)</div>
+                </div>
+                <div class="bar-group">
+                    <div class="bar" style="height: 20%; background: var(--success);">
+                        <div class="bar-value">20%</div>
+                    </div>
+                    <div class="bar-label">Tier 2<br>(5K-10K stars)</div>
+                </div>
+                <div class="bar-group">
+                    <div class="bar" style="height: 10%; background: var(--accent);">
+                        <div class="bar-value">10%</div>
+                    </div>
+                    <div class="bar-label">Overall<br>Adoption</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Adoption Metrics -->
+    <section>
+        <h2 style="margin-bottom: 3rem;">The Current State</h2>
+        <div class="adoption-grid">
+            <div class="adoption-card">
+                <div class="adoption-icon">📊</div>
+                <div class="adoption-value">20</div>
+                <div class="adoption-label">Repositories Analyzed</div>
+            </div>
+            <div class="adoption-card">
+                <div class="adoption-icon">✅</div>
+                <div class="adoption-value">2</div>
+                <div class="adoption-label">With AGENTS.md</div>
+            </div>
+            <div class="adoption-card">
+                <div class="adoption-icon">🎯</div>
+                <div class="adoption-value">0%</div>
+                <div class="adoption-label">Tier 1 Coverage</div>
+            </div>
+            <div class="adoption-card">
+                <div class="adoption-icon">🚀</div>
+                <div class="adoption-value">20%</div>
+                <div class="adoption-label">Tier 2 Coverage</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Feature Comparison -->
+    <section>
+        <h2 style="margin-bottom: 2rem;">Braxis vs. Manual Approaches</h2>
+        <div class="comparison">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Manual</th>
+                        <th>Existing Tools</th>
+                        <th>Braxis</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Auto-Generated</strong></td>
+                        <td class="cross">❌</td>
+                        <td class="cross">❌</td>
+                        <td class="check">✅</td>
+                    </tr>
+                    <tr>
+                        <td><strong>0-100 Scoring</strong></td>
+                        <td class="cross">❌</td>
+                        <td class="cross">❌</td>
+                        <td class="check">✅</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Score History</strong></td>
+                        <td class="cross">❌</td>
+                        <td class="cross">❌</td>
+                        <td class="check">✅</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Multiple Formats</strong></td>
+                        <td class="cross">❌</td>
+                        <td class="cross">❌</td>
+                        <td class="check">✅ (4)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CI/CD Integration</strong></td>
+                        <td class="cross">❌</td>
+                        <td class="cross">❌</td>
+                        <td class="check">✅</td>
+                    </tr>
+                    <tr>
+                        <td><strong>LLM Recommendations</strong></td>
+                        <td class="cross">❌</td>
+                        <td class="cross">❌</td>
+                        <td class="check">✅</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Key Barriers -->
+    <section>
+        <h2 style="margin-bottom: 2rem;">Why Adoption is Low</h2>
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">👥</div>
+                <h3>No Awareness</h3>
+                <p>Most maintainers don't know this practice exists or why it matters.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">💪</div>
+                <h3>Manual Labor</h3>
+                <p>Existing approaches require significant manual creation and maintenance.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">❓</div>
+                <h3>No Standard</h3>
+                <p>No de facto standard format exists, causing confusion.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📉</div>
+                <h3>Perceived Value Gap</h3>
+                <p>Unclear ROI on time invested to create and maintain.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">⏰</div>
+                <h3>Content Decay</h3>
+                <p>Fear that documentation becomes stale and outdated.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔧</div>
+                <h3>Integration Friction</h3>
+                <p>Setting up and maintaining context files feels like extra work.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Braxis Solutions -->
+    <section>
+        <h2 style="margin-bottom: 2rem;">How Braxis Solves Each Barrier</h2>
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <h3>One Command</h3>
+                <p><code>braxis generate</code> removes all friction. Creates context files instantly.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔄</div>
+                <h3>Auto-Sync</h3>
+                <p>GitHub Actions workflow keeps files current. No manual updates needed.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📏</div>
+                <h3>Standard Format</h3>
+                <p>4 formats (AGENTS.md, CLAUDE.md, .cursorrules, config) fit any tool.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📊</div>
+                <h3>Measurable ROI</h3>
+                <p>0-100 readiness score shows impact. Track improvements over time.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🎯</div>
+                <h3>Always Fresh</h3>
+                <p>Auto-regenerates on every commit. Context always matches code.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🤖</div>
+                <h3>AI Insights</h3>
+                <p>Claude-powered recommendations for continuous improvement.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Data Breakdown -->
+    <section>
+        <h2 style="margin-bottom: 2rem;">Research Findings by Tier</h2>
+        <div class="chart-container">
+            <p style="margin-bottom: 1rem;"><strong>Tier 1 Repositories (10K+ stars)</strong></p>
+            <p style="margin-bottom: 2rem; color: var(--text-muted); font-size: 0.95rem;">react, flask, express, django, spring-boot, vue, angular, react-native, terraform – all without context files</p>
+            <div style="background: var(--surface-secondary); padding: 1.5rem; border-radius: 8px;">
+                <div style="font-size: 2rem; font-weight: 700; font-family: 'Syne', sans-serif; color: var(--warning);">0%</div>
+                <div style="color: var(--text-secondary);">Adoption Rate</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <p style="margin-bottom: 1rem;"><strong>Tier 2 Repositories (5K-10K stars)</strong></p>
+            <p style="margin-bottom: 2rem; color: var(--text-muted); font-size: 0.95rem;">pandas-dev/pandas (basic AGENTS.md) · dbt-labs/dbt-core (advanced AGENTS.md + CLAUDE.md)</p>
+            <div style="background: var(--surface-secondary); padding: 1.5rem; border-radius: 8px;">
+                <div style="font-size: 2rem; font-weight: 700; font-family: 'Syne', sans-serif; color: var(--success);">20%</div>
+                <div style="color: var(--text-secondary);">Adoption Rate (2 of 10)</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- The Opportunity -->
+    <section>
+        <h2 style="margin-bottom: 2rem;">The Market Opportunity</h2>
+        <div class="adoption-grid">
+            <div class="adoption-card">
+                <div class="adoption-icon">🌍</div>
+                <div class="adoption-value">20M</div>
+                <div class="adoption-label">Addressable Repositories</div>
+            </div>
+            <div class="adoption-card">
+                <div class="adoption-icon">📈</div>
+                <div class="adoption-value">90%</div>
+                <div class="adoption-label">Growth Potential</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section>
+        <div class="cta-section">
+            <h2>Ready to Close the Gap?</h2>
+            <p>Keep your AI agents aligned with current code. Auto-generate context files in 5 minutes.</p>
+            <button class="cta-primary" onclick="window.location.href='https://github.com/jaykrishna316/braxis'" style="background: white; color: var(--accent); margin-top: 1rem;">Get Started on GitHub</button>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>Braxis – Auto-generate and keep AI agent context files in sync with your code.</p>
+        <p style="margin-top: 1rem;">Made with ❤️ for AI-native development</p>
+    </footer>
+</body>
+</html>
