@@ -784,80 +784,143 @@ class BraxisAnalyzer:
                     self.languages[lang] += 1
                     break
 
+    def _get_primary_language(self):
+        """Get primary language for the project."""
+        if not self.languages:
+            return None
+        # Return language with most files
+        return max(self.languages.items(), key=lambda x: x[1])[0]
+
     def _detect_build_system(self):
-        """Detect build system."""
+        """Detect build system, prioritized by primary language."""
+        primary_lang = self._get_primary_language()
         build_system = "Unknown"
-        if any('package.json' in str(f) for f in self.build_files):
-            build_system = "npm/Node.js"
-        elif any('pyproject.toml' in str(f) for f in self.build_files):
-            # Check [build-system] table in pyproject.toml for actual backend
+
+        # Check build files by language priority
+        if primary_lang == "go":
+            if any('go.mod' in str(f) for f in self.build_files):
+                build_system = "Go (go modules)"
+            elif any('Makefile' in str(f) for f in self.build_files):
+                build_system = "Go (Makefile)"
+        elif primary_lang == "rust":
+            if any('Cargo.toml' in str(f) for f in self.build_files):
+                build_system = "Rust (cargo)"
+        elif primary_lang == "python":
+            if any('pyproject.toml' in str(f) for f in self.build_files):
+                pyproject = self.project_path / 'pyproject.toml'
+                if pyproject.exists():
+                    try:
+                        content = pyproject.read_text()
+                        if 'build-system' in content:
+                            if 'hatchling' in content.lower():
+                                build_system = "Python (hatchling)"
+                            elif 'pdm' in content.lower():
+                                build_system = "Python (pdm)"
+                            elif 'flit' in content.lower():
+                                build_system = "Python (flit)"
+                            elif 'poetry' in content.lower():
+                                build_system = "Python (poetry)"
+                            else:
+                                build_system = "Python (setuptools)"
+                        else:
+                            build_system = "Python (pip)"
+                    except (IOError, UnicodeDecodeError):
+                        build_system = "Python (pip/setuptools)"
+            elif any('setup.py' in str(f) for f in self.build_files):
+                build_system = "Python (setuptools)"
+        elif primary_lang in ["javascript", "typescript"]:
+            if any('package.json' in str(f) for f in self.build_files):
+                build_system = "npm/Node.js"
+        elif primary_lang == "java":
+            if any('pom.xml' in str(f) for f in self.build_files):
+                build_system = "Java (Maven)"
+            elif any('build.gradle' in str(f) for f in self.build_files):
+                build_system = "Java (Gradle)"
+
+        # Fallback: check any language-agnostic build files
+        if build_system == "Unknown":
+            if any('Makefile' in str(f) for f in self.build_files):
+                build_system = "Makefile"
+            elif any('go.mod' in str(f) for f in self.build_files):
+                build_system = "Go (go modules)"
+            elif any('package.json' in str(f) for f in self.build_files):
+                build_system = "npm/Node.js"
+            elif any('pyproject.toml' in str(f) for f in self.build_files):
+                build_system = "Python (pip/setuptools)"
+            elif any('Cargo.toml' in str(f) for f in self.build_files):
+                build_system = "Rust (cargo)"
+            elif any('pom.xml' in str(f) for f in self.build_files):
+                build_system = "Java (Maven)"
+
+        self.build_system = build_system
+
+    def _detect_test_framework(self):
+        """Detect test framework, language-aware."""
+        test_frameworks = set()
+        primary_lang = self._get_primary_language()
+
+        # Language-specific test framework detection
+        if primary_lang == "go":
+            # Go uses built-in testing package
+            test_frameworks.add("Go testing")
+        elif primary_lang == "python":
+            # Check pyproject.toml for pytest config
             pyproject = self.project_path / 'pyproject.toml'
             if pyproject.exists():
                 try:
                     content = pyproject.read_text()
-                    if 'build-system' in content:
-                        if 'hatchling' in content.lower():
-                            build_system = "Python (hatchling)"
-                        elif 'pdm' in content.lower():
-                            build_system = "Python (pdm)"
-                        elif 'flit' in content.lower():
-                            build_system = "Python (flit)"
-                        elif 'poetry' in content.lower():
-                            build_system = "Python (poetry)"
-                        else:
-                            build_system = "Python (setuptools)"
-                    elif any('setup.py' in str(f) for f in self.build_files):
-                        build_system = "Python (setuptools)"
-                    else:
-                        build_system = "Python (pip)"
+                    if '[tool.pytest' in content or 'pytest' in content:
+                        test_frameworks.add('pytest')
                 except (IOError, UnicodeDecodeError):
-                    build_system = "Python (pip/setuptools)"
-            elif any('setup.py' in str(f) for f in self.build_files):
-                build_system = "Python (setuptools)"
-        elif any('Cargo.toml' in str(f) for f in self.build_files):
-            build_system = "Rust (cargo)"
-        elif any('go.mod' in str(f) for f in self.build_files):
-            build_system = "Go (go modules)"
-        elif any('pom.xml' in str(f) for f in self.build_files):
-            build_system = "Java (Maven)"
-        self.build_system = build_system
-
-    def _detect_test_framework(self):
-        """Detect test framework."""
-        test_frameworks = set()
-
-        # First check pyproject.toml for explicit configuration
-        pyproject = self.project_path / 'pyproject.toml'
-        if pyproject.exists():
-            try:
-                content = pyproject.read_text()
-                if '[tool.pytest' in content:
+                    pass
+            # Check for pytest imports in Python files
+            content_samples = self._sample_file_contents(limit=20)
+            for content in content_samples:
+                if 'pytest' in content or 'from pytest' in content:
                     test_frameworks.add('pytest')
-                if 'pytest' in content and ('requires' in content or 'dependencies' in content or 'dev-dependencies' in content):
-                    test_frameworks.add('pytest')
-            except (IOError, UnicodeDecodeError):
-                pass
-
-        # Then check file contents
-        content_samples = self._sample_file_contents(limit=20)
-        for content in content_samples:
-            if 'pytest' in content or 'from pytest' in content:
+                    break
+            # Default to pytest for Python
+            if not test_frameworks and self.test_files:
                 test_frameworks.add('pytest')
-            if 'unittest' in content or 'import unittest' in content:
-                test_frameworks.add('unittest')
-            if 'jest' in content or 'describe(' in content:
-                test_frameworks.add('Jest')
-            if 'mocha' in content or 'describe(' in content:
-                test_frameworks.add('Mocha')
-            if 'rspec' in content or 'describe' in content:
+        elif primary_lang in ["javascript", "typescript"]:
+            content_samples = self._sample_file_contents(limit=20)
+            for content in content_samples:
+                if 'jest' in content:
+                    test_frameworks.add('Jest')
+                    break
+                elif 'mocha' in content or 'describe(' in content:
+                    test_frameworks.add('Mocha')
+                    break
+            if not test_frameworks and self.test_files:
+                test_frameworks.add('Jest')  # Default for JS/TS
+        elif primary_lang == "ruby":
+            content_samples = self._sample_file_contents(limit=20)
+            for content in content_samples:
+                if 'rspec' in content or 'describe' in content:
+                    test_frameworks.add('RSpec')
+                    break
+            if not test_frameworks and self.test_files:
                 test_frameworks.add('RSpec')
-            if 'junit' in content.lower():
+        elif primary_lang == "java":
+            if any('pom.xml' in str(f) for f in self.build_files):
                 test_frameworks.add('JUnit')
+            else:
+                test_frameworks.add('JUnit')  # Standard for Java
 
-        # If tests exist but no framework detected, check test directory structure
+        # Fallback to generic detection if nothing found
         if not test_frameworks and self.test_files:
-            if any('.py' in f.suffix for f in self.test_files):
-                test_frameworks.add('pytest')
+            content_samples = self._sample_file_contents(limit=20)
+            for content in content_samples:
+                if 'pytest' in content:
+                    test_frameworks.add('pytest')
+                elif 'jest' in content:
+                    test_frameworks.add('Jest')
+                elif 'mocha' in content:
+                    test_frameworks.add('Mocha')
+                elif 'rspec' in content:
+                    test_frameworks.add('RSpec')
+                elif 'junit' in content.lower():
+                    test_frameworks.add('JUnit')
 
         self.test_frameworks = test_frameworks if test_frameworks else {"None detected"}
 
@@ -1047,6 +1110,105 @@ class BraxisAnalyzer:
                     if '```' in lines[j] or lines[j].strip().startswith('-') or lines[j].strip().startswith('`'):
                         return lines[j].strip()
         return None
+
+    def _get_language_version_requirement(self):
+        """Get language-appropriate version requirement."""
+        primary_lang = self._get_primary_language()
+        if primary_lang == "go":
+            return "1.18+"
+        elif primary_lang == "rust":
+            return "1.56+"
+        elif primary_lang == "java":
+            return "11+"
+        elif primary_lang == "ruby":
+            return "2.7+"
+        elif primary_lang in ["javascript", "typescript"]:
+            return "16+"
+        else:
+            return self.python_version
+
+    def _get_package_manager_recommendation(self):
+        """Get language-appropriate package manager recommendation."""
+        primary_lang = self._get_primary_language()
+        if primary_lang == "go":
+            return "go modules"
+        elif primary_lang == "rust":
+            return "cargo"
+        elif primary_lang == "java":
+            return "Maven or Gradle"
+        elif primary_lang == "ruby":
+            return "Bundler"
+        elif primary_lang in ["javascript", "typescript"]:
+            return "npm or yarn"
+        else:
+            return "pip or uv"
+
+    def _get_development_commands(self, primary_lang):
+        """Get language-appropriate development commands."""
+        if primary_lang == "go":
+            return """```bash
+go build ./...            # Build project
+go test ./...             # Run all tests
+go test -v ./...          # Verbose test output
+golangci-lint run         # Lint (if installed)
+```
+
+#### Code Quality
+```bash
+gofmt -w .                # Format code
+go vet ./...              # Vet (static analysis)
+```"""
+        elif primary_lang == "rust":
+            return """```bash
+cargo build               # Build project
+cargo test                # Run all tests
+cargo test --verbose      # Verbose test output
+```
+
+#### Code Quality
+```bash
+cargo fmt                 # Format code
+cargo clippy              # Lint with clippy
+```"""
+        elif primary_lang == "ruby":
+            return """```bash
+bundle exec rspec         # Run RSpec tests
+bundle exec rspec spec/   # Run specific directory
+bundle exec rspec -v      # Verbose output
+```
+
+#### Code Quality
+```bash
+bundle exec rubocop       # Lint with RuboCop
+bundle exec rubocop -a    # Auto-fix issues
+```"""
+        elif primary_lang in ["javascript", "typescript"]:
+            return """```bash
+npm test                  # Run all tests
+npm run test -- --watch   # Watch mode
+npm run lint              # Lint code
+```
+
+#### Code Quality
+```bash
+npm run format            # Format code (prettier)
+npm run lint -- --fix     # Auto-fix lint issues
+```"""
+        else:
+            return """```bash
+pytest                    # Run all tests
+pytest tests/             # Run specific test directory
+pytest -v                 # Verbose output with test names
+pytest -x                 # Stop on first failure
+coverage run -m pytest && coverage report  # With coverage report
+```
+
+#### Code Quality
+```bash
+ruff check .              # Lint with ruff
+ruff format .             # Format code
+mypy .                    # Type checking (if configured)
+```"""
 
     def _contribution_section_text(self):
         """Generate contribution guidelines section with smart pattern extraction."""
@@ -1354,8 +1516,8 @@ Context file for AI agents working on {self.project_path.name}.
 
 ## Prerequisites
 
-- **{primary_lang.capitalize()}:** {self.python_version} (or applicable language version)
-- **Package Manager:** pip or uv (recommended)
+- **{primary_lang.capitalize()}:** {self._get_language_version_requirement()} (or applicable language version)
+- **Package Manager:** {self._get_package_manager_recommendation()}
 - **Test Runner:** {test_frameworks_str}
 
 ## Project Structure
@@ -1386,27 +1548,21 @@ Context file for AI agents working on {self.project_path.name}.
 ```bash
 git clone {self.repository_url}
 cd {self.project_path.name}
-pip install -e .              # Install in development mode
-# or
-uv sync --all-groups          # Using uv (recommended)
+go mod download
 ```
 
 ### Development Commands
 
 #### Running Tests
 ```bash
-pytest                        # Run all tests
-pytest tests/                 # Run specific test directory
-pytest -v                     # Verbose output with test names
-pytest -x                     # Stop on first failure
-coverage run -m pytest && coverage report  # With coverage report
+go test ./...
+go test -v ./...
 ```
 
 #### Code Quality
 ```bash
-ruff check .                  # Lint with ruff
-ruff format .                 # Format code
-mypy .                        # Type checking (if configured)
+gofmt -w .
+go vet ./...
 ```
 
 ## Code Style & Conventions
