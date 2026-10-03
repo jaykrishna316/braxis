@@ -1,9 +1,9 @@
 {
   "metadata": {
     "project_name": "braxis",
-    "description": "A Python project with Python (pip/setuptools)",
+    "description": "A Python project with Unknown",
     "generated_by": "Braxis",
-    "generated_at": "2026-10-02T09:07:23.854604",
+    "generated_at": "2026-10-03T14:52:48.424041",
     "schema_version": "1.0"
   },
   "project": {
@@ -11,14 +11,14 @@
       "python"
     ],
     "primary_language": "python",
-    "build_system": "Python (pip/setuptools)",
+    "build_system": "Unknown",
     "architecture": "single-package",
     "is_monorepo": false,
     "monorepo_type": null,
     "subsystems": []
   },
   "ai_readiness": {
-    "overall_score": 71,
+    "overall_score": 65,
     "tier": "AI-Native",
     "dimensions": {
       "architecture": {
@@ -30,7 +30,7 @@
         "reason": "1 test files found"
       },
       "dependencies": {
-        "score": 12,
+        "score": 6,
         "reason": "Dependency management and version pinning"
       },
       "conventions": {
@@ -65,12 +65,12 @@
       "language_version": "3.9+",
       "package_manager": "pip or uv",
       "key_tools": [
-        "pytest",
-        "RSpec",
-        "unittest",
-        "Mocha",
         "Jest",
+        "unittest",
+        "pytest",
         "JUnit",
+        "RSpec",
+        "Mocha",
         "ruff",
         "mypy"
       ]
