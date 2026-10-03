@@ -703,6 +703,27 @@ coverage report
 
 ---
 
+## 🌐 Interactive Website
+
+Check out the interactive Braxis website with amazing animations and visualizations:
+
+```bash
+# Open in your browser
+open index.html
+# or
+python3 -m http.server 8000  # Then visit http://localhost:8000
+```
+
+**Features:**
+- ✨ Smooth animations and transitions
+- 🎨 Modern glassmorphic design
+- 📱 Fully responsive layout
+- ⚡ Interactive hover effects
+- 🎯 Feature showcase with visual hierarchy
+- 📊 Score visualization with pulsing animations
+
+---
+
 ## Getting Help
 
 - **Report Issues** - [GitHub Issues](https://github.com/jaykrishna316/braxis/issues)
