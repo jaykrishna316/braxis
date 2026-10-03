@@ -417,28 +417,77 @@ class BraxisAnalyzer:
 
         return {'exists': False, 'path': None, 'content': None}
 
+    def _extract_dco_requirement(self, content):
+        """Check if project requires DCO sign-off."""
+        content_lower = content.lower()
+        return any(phrase in content_lower for phrase in ['signed-off-by', 'git commit -s', 'dco', 'developer certificate'])
+
+    def _extract_release_notes_requirement(self, content):
+        """Check if project requires release-notes blocks."""
+        content_lower = content.lower()
+        return any(phrase in content_lower for phrase in ['release-notes', 'release notes', 'changelog block'])
+
+    def _extract_table_driven_tests(self, content):
+        """Check if project uses table-driven tests."""
+        content_lower = content.lower()
+        return any(phrase in content_lower for phrase in ['table-driven test', 'table driven test', 'test cases in a table'])
+
+    def _extract_performance_requirements(self, content):
+        """Check if project has special performance work requirements."""
+        content_lower = content.lower()
+        return any(phrase in content_lower for phrase in ['benchmark', 'benchstat', 'performance work', 'perf'])
+
+    def _extract_pr_title_format(self, content):
+        """Extract PR title format if mentioned."""
+        lines = content.split('\n')
+        for i, line in enumerate(lines):
+            if 'title' in line.lower() and ('format' in line.lower() or 'prefix' in line.lower() or ':' in line):
+                for j in range(i+1, min(i+5, len(lines))):
+                    if '```' in lines[j] or lines[j].strip().startswith('-') or lines[j].strip().startswith('`'):
+                        return lines[j].strip()
+        return None
+
     def _contribution_section_text(self):
-        """Generate contribution guidelines section text."""
+        """Generate contribution guidelines section with smart pattern extraction."""
         if self.contributing_guide['exists']:
             guide_path = self.contributing_guide['path']
             content = self.contributing_guide['content']
 
-            # Extract key patterns from the contributing guide
-            key_patterns = []
-            lines = content.split('\n')
-            for i, line in enumerate(lines[:100]):  # First 100 lines
-                line_lower = line.lower()
-                if any(keyword in line_lower for keyword in ['pr title', 'commit', 'test', 'release', 'style', 'dco']):
-                    key_patterns.append(line.strip())
+            # Extract smart patterns
+            has_dco = self._extract_dco_requirement(content)
+            has_release_notes = self._extract_release_notes_requirement(content)
+            has_table_tests = self._extract_table_driven_tests(content)
+            has_perf_work = self._extract_performance_requirements(content)
+            pr_title_format = self._extract_pr_title_format(content)
 
-            # Format key patterns
-            pattern_text = '\n'.join(f"- {p}" for p in key_patterns[:5] if p)
+            # Build key requirements list
+            requirements = []
+            if has_dco:
+                requirements.append("**DCO Sign-off Required**: Every commit must be signed with `git commit -s`")
+            if has_release_notes:
+                requirements.append("**Release Notes Block**: Include `release-notes` block in every PR description")
+            if pr_title_format:
+                requirements.append(f"**PR Title Format**: {pr_title_format}")
+            if has_table_tests:
+                requirements.append("**Table-Driven Tests**: Prefer table-driven test patterns over individual test functions")
+            if has_perf_work:
+                requirements.append("**Performance Work**: Requires benchmarks and performance metrics in PR description")
 
-            return f"""This project has a detailed contribution guide at **`{guide_path}`**. Before submitting PRs, read it to understand:
+            # Build the section
+            section = f"""This project has a detailed contribution guide at **`{guide_path}`**.
 
-{pattern_text if pattern_text else "- Contribution patterns and expectations"}
+**Key Requirements:**
+"""
+            if requirements:
+                for req in requirements:
+                    section += f"- {req}\n"
+                section += f"\n**Before submitting:**\n1. Read `{guide_path}` in full\n2. Check recent merged PRs for patterns\n3. Follow the specific requirements above"
+            else:
+                section += """- Review the contribution guide for all requirements
+- Follow established patterns in the codebase
+- Ensure alignment with project's contribution policies"""
 
-**Important:** Follow the project's specific contribution guidelines for best results."""
+            return section
         else:
             return """This project doesn't have a separate CONTRIBUTING.md yet. When contributing:
 1. Review recent merged PRs to understand maintainer preferences
