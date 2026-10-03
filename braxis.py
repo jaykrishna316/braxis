@@ -144,6 +144,10 @@ class BraxisAnalyzer:
         self._detect_test_framework()
         self._detect_conventions()
         self._identify_critical_files()
+        # Detect project structure, Python version, and repository URL
+        self.project_structure = self._detect_project_structure()
+        self.python_version = self._detect_python_version()
+        self.repository_url = self._detect_repository_url()
         # v1.1: Detect monorepo and MCP
         self.monorepo_type = self.detect_monorepo_type()
         if self.monorepo_type:
@@ -180,8 +184,31 @@ class BraxisAnalyzer:
         build_system = "Unknown"
         if any('package.json' in str(f) for f in self.build_files):
             build_system = "npm/Node.js"
-        elif any('pyproject.toml' in str(f) or 'setup.py' in str(f) for f in self.build_files):
-            build_system = "Python (pip/setuptools)"
+        elif any('pyproject.toml' in str(f) for f in self.build_files):
+            # Check [build-system] table in pyproject.toml for actual backend
+            pyproject = self.project_path / 'pyproject.toml'
+            if pyproject.exists():
+                try:
+                    content = pyproject.read_text()
+                    if 'build-system' in content:
+                        if 'hatchling' in content.lower():
+                            build_system = "Python (hatchling)"
+                        elif 'pdm' in content.lower():
+                            build_system = "Python (pdm)"
+                        elif 'flit' in content.lower():
+                            build_system = "Python (flit)"
+                        elif 'poetry' in content.lower():
+                            build_system = "Python (poetry)"
+                        else:
+                            build_system = "Python (setuptools)"
+                    elif any('setup.py' in str(f) for f in self.build_files):
+                        build_system = "Python (setuptools)"
+                    else:
+                        build_system = "Python (pip)"
+                except (IOError, UnicodeDecodeError):
+                    build_system = "Python (pip/setuptools)"
+            elif any('setup.py' in str(f) for f in self.build_files):
+                build_system = "Python (setuptools)"
         elif any('Cargo.toml' in str(f) for f in self.build_files):
             build_system = "Rust (cargo)"
         elif any('go.mod' in str(f) for f in self.build_files):
@@ -193,6 +220,20 @@ class BraxisAnalyzer:
     def _detect_test_framework(self):
         """Detect test framework."""
         test_frameworks = set()
+
+        # First check pyproject.toml for explicit configuration
+        pyproject = self.project_path / 'pyproject.toml'
+        if pyproject.exists():
+            try:
+                content = pyproject.read_text()
+                if '[tool.pytest' in content:
+                    test_frameworks.add('pytest')
+                if 'pytest' in content and ('requires' in content or 'dependencies' in content or 'dev-dependencies' in content):
+                    test_frameworks.add('pytest')
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # Then check file contents
         content_samples = self._sample_file_contents(limit=20)
         for content in content_samples:
             if 'pytest' in content or 'from pytest' in content:
@@ -207,6 +248,12 @@ class BraxisAnalyzer:
                 test_frameworks.add('RSpec')
             if 'junit' in content.lower():
                 test_frameworks.add('JUnit')
+
+        # If tests exist but no framework detected, check test directory structure
+        if not test_frameworks and self.test_files:
+            if any('.py' in f.suffix for f in self.test_files):
+                test_frameworks.add('pytest')
+
         self.test_frameworks = test_frameworks if test_frameworks else {"None detected"}
 
     def _detect_conventions(self):
@@ -232,6 +279,32 @@ class BraxisAnalyzer:
             if 'validate' in content.lower() or 'schema' in content.lower():
                 self.conventions['validation'] += 1
 
+    def _detect_project_structure(self):
+        """Detect project layout: src/ vs top-level package."""
+        src_dir = self.project_path / 'src'
+        if src_dir.exists() and src_dir.is_dir():
+            # Has src/ directory
+            src_contents = list(src_dir.iterdir())
+            if src_contents:
+                return 'src'
+
+        # Check for top-level package directories (match primary language)
+        primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else None
+        if primary_lang == 'python':
+            # Look for Python packages at root
+            for item in self.project_path.iterdir():
+                if item.is_dir() and not item.name.startswith('.') and item.name not in ['tests', 'docs', 'build', 'dist', '__pycache__']:
+                    if (item / '__init__.py').exists():
+                        return 'top-level'
+        elif primary_lang in ['javascript', 'typescript']:
+            # Check for lib/ or src/ in JS projects
+            if (self.project_path / 'lib').exists():
+                return 'lib'
+            if (self.project_path / 'src').exists():
+                return 'src'
+
+        return 'standard'
+
     def _identify_critical_files(self):
         """Identify critical files (main, entry points, etc)."""
         critical_names = ['main.py', 'app.py', 'server.py', 'index.js', 'main.js', 'app.js', 'main.rs', 'main.go', 'main.ts']
@@ -250,6 +323,71 @@ class BraxisAnalyzer:
             except Exception:
                 pass
         return samples
+
+    def _detect_repository_url(self):
+        """Detect repository URL from pyproject.toml or README."""
+        pyproject = self.project_path / 'pyproject.toml'
+        if pyproject.exists():
+            try:
+                content = pyproject.read_text()
+                for line in content.split('\n'):
+                    if 'homepage' in line.lower() or 'repository' in line.lower():
+                        if 'github.com' in line:
+                            # Extract URL
+                            if '"' in line:
+                                url = line.split('"')[1]
+                            elif "'" in line:
+                                url = line.split("'")[1]
+                            else:
+                                continue
+                            if url.startswith('http'):
+                                return url
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # If not found, use project name as fallback
+        return f"https://github.com/YOUR_ORG/{self.project_path.name}.git"
+
+    def _detect_python_version(self):
+        """Detect Python version requirement from pyproject.toml or setup.py."""
+        pyproject = self.project_path / 'pyproject.toml'
+        if pyproject.exists():
+            try:
+                content = pyproject.read_text()
+                if 'requires-python' in content:
+                    for line in content.split('\n'):
+                        if 'requires-python' in line and '=' in line:
+                            try:
+                                version_part = line.split('=', 1)[1].strip()
+                                # Remove trailing comma first, then quotes
+                                version_part = version_part.rstrip(',').strip().strip('"').strip("'")
+                                if version_part:
+                                    return version_part
+                            except IndexError:
+                                pass
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # Check setup.py
+        setup_py = self.project_path / 'setup.py'
+        if setup_py.exists():
+            try:
+                content = setup_py.read_text()
+                if 'python_requires' in content:
+                    for line in content.split('\n'):
+                        if 'python_requires' in line and '=' in line:
+                            try:
+                                version_part = line.split('=', 1)[1].strip()
+                                # Remove trailing comma first, then quotes
+                                version_part = version_part.rstrip(',').strip().strip('"').strip("'")
+                                if version_part:
+                                    return version_part
+                            except IndexError:
+                                pass
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        return "3.9+"  # Default fallback
 
     def _calculate_score(self):
         """Calculate agent readiness score."""
@@ -345,13 +483,31 @@ class BraxisAnalyzer:
     def generate_agents_md(self):
         """Generate comprehensive AGENTS.md file."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
-        
-        # Build vars for the template
+
+        # Build vars for the template - detect actual structure
         structure = self.project_path.name + "/"
         if self.build_files:
             for f in self.build_files[:3]:
                 structure += "\n├── " + f.name
-        structure += "\n├── src/                  # Source code"
+
+        # Use detected project structure
+        if self.project_structure == 'src':
+            structure += "\n├── src/                  # Source code"
+        elif self.project_structure == 'top-level':
+            # Find actual package directory
+            primary_package = None
+            for item in self.project_path.iterdir():
+                if item.is_dir() and not item.name.startswith('.') and item.name not in ['tests', 'docs', 'build', 'dist']:
+                    if primary_lang == 'python' and (item / '__init__.py').exists():
+                        primary_package = item.name
+                        break
+            if primary_package:
+                structure += f"\n├── {primary_package}/             # Source code"
+            else:
+                structure += "\n├── src/                  # Source code"
+        else:
+            structure += "\n├── src/                  # Source code"
+
         if self.test_files:
             structure += "\n├── tests/                # Test suite (" + str(len(self.test_files)) + " files)"
         structure += "\n└── README.md             # Project documentation"
@@ -392,7 +548,7 @@ Context file for AI agents working on {self.project_path.name}.
 
 ## Prerequisites
 
-- **{primary_lang.capitalize()}:** 3.9+ (or applicable language version)
+- **{primary_lang.capitalize()}:** {self.python_version} (or applicable language version)
 - **Package Manager:** pip or uv (recommended)
 - **Test Runner:** {test_frameworks_str}
 
@@ -422,7 +578,7 @@ Context file for AI agents working on {self.project_path.name}.
 ### Initial Setup
 
 ```bash
-git clone https://github.com/<owner>/{self.project_path.name}.git
+git clone {self.repository_url}
 cd {self.project_path.name}
 pip install -e .              # Install in development mode
 # or
@@ -437,7 +593,7 @@ pytest                        # Run all tests
 pytest tests/                 # Run specific test directory
 pytest -v                     # Verbose output with test names
 pytest -x                     # Stop on first failure
-pytest --cov                  # With coverage report
+coverage run -m pytest && coverage report  # With coverage report
 ```
 
 #### Code Quality
@@ -451,7 +607,7 @@ mypy .                        # Type checking (if configured)
 
 - **Naming:** Use {primary_lang.capitalize()} conventions (snake_case for functions, PascalCase for classes)
 - **Type Hints:** {type_hints_status} (strongly encouraged)
-- **Error Handling:** {error_handling_status}
+- **Error Handling:** {error_handling_status} - handle errors at boundaries; let exceptions propagate when another layer owns recovery
 - **Logging:** {logging_status}
 - **Testing:** {testing_status} - write tests alongside code changes
 
@@ -465,6 +621,14 @@ Before committing:
 2. Ensure all tests pass
 3. Check type hints: `mypy .`
 4. Format code: `ruff format .`
+
+## Writing Documentation
+
+When updating docs:
+1. Always include explanatory text before code snippets
+2. Describe *why* and *what* before showing *how*
+3. Keep sections focused on a single concept
+4. Use clear, concrete examples
 
 ## Common Patterns
 

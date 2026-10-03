@@ -4,19 +4,19 @@ Context file for AI agents working on braxis.
 
 ## Project Overview
 
-braxis is a Python project using Python (pip/setuptools).
+braxis is a Python project using Unknown.
 
 **Key Info:**
 - **Primary Language:** Python
-- **Build System:** Python (pip/setuptools)
+- **Build System:** Unknown
 - **Test Framework:** JUnit, Jest, Mocha, RSpec, pytest, unittest
-- **Total Files:** 17
+- **Total Files:** 23
 - **Test Files:** 1
-- **AI Readiness Score:** 71/100 (AI-Native)
+- **AI Readiness Score:** 65/100 (AI-Native)
 
 ## Prerequisites
 
-- **Python:** 3.9+ (or applicable language version)
+- **Python:** >=3.8 (or applicable language version)
 - **Package Manager:** pip or uv (recommended)
 - **Test Runner:** JUnit, Jest, Mocha, RSpec, pytest, unittest
 
@@ -50,7 +50,7 @@ braxis/
 ### Initial Setup
 
 ```bash
-git clone https://github.com/<owner>/braxis.git
+git clone https://github.com/YOUR_ORG/braxis.git
 cd braxis
 pip install -e .              # Install in development mode
 # or
@@ -65,7 +65,7 @@ pytest                        # Run all tests
 pytest tests/                 # Run specific test directory
 pytest -v                     # Verbose output with test names
 pytest -x                     # Stop on first failure
-pytest --cov                  # With coverage report
+coverage run -m pytest && coverage report  # With coverage report
 ```
 
 #### Code Quality
@@ -79,7 +79,7 @@ mypy .                        # Type checking (if configured)
 
 - **Naming:** Use Python conventions (snake_case for functions, PascalCase for classes)
 - **Type Hints:** Yes (strongly encouraged)
-- **Error Handling:** Yes
+- **Error Handling:** Yes - handle errors at boundaries; let exceptions propagate when another layer owns recovery
 - **Logging:** Yes
 - **Testing:** Yes - write tests alongside code changes
 
@@ -93,6 +93,14 @@ Before committing:
 2. Ensure all tests pass
 3. Check type hints: `mypy .`
 4. Format code: `ruff format .`
+
+## Writing Documentation
+
+When updating docs:
+1. Always include explanatory text before code snippets
+2. Describe *why* and *what* before showing *how*
+3. Keep sections focused on a single concept
+4. Use clear, concrete examples
 
 ## Common Patterns
 
@@ -128,7 +136,7 @@ This project is evaluated across 8 dimensions:
 
 1. **Architecture** (10/100) - Code organization and modularity
 2. **Testing** (7/100) - Test coverage and quality
-3. **Dependencies** (12/100) - Dependency management
+3. **Dependencies** (6/100) - Dependency management
 4. **Conventions** (10/100) - Consistent patterns
 5. **Entry Points** (4/100) - Clear main/start locations
 6. **Security** (10/100) - Input validation and error handling
