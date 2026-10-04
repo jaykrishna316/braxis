@@ -704,7 +704,7 @@ class BraxisAnalyzer:
                         return lines[j].strip()
         return None
 
-    def _get_language_version_requirement(self) -> str:
+    def _get_language_version_requirement(self) -> str | None:
         """Get language-appropriate version requirement."""
         primary_lang = self._get_primary_language()
         if primary_lang == "go":
@@ -1920,7 +1920,7 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                 except (OSError, UnicodeDecodeError):
                     pass
             detected_version = self._detect_python_version()
-            py_version: str | None = detected_version
+            py_version = detected_version or "N/A"
         elif self.build_system == "Bun":
             setup_cmd = "bun install"
             test_cmd = "bun test"
