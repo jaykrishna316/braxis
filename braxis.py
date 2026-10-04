@@ -21,7 +21,7 @@ class BraxisAnalyzer:
 
     LANGUAGE_EXTENSIONS = {
         "python": [".py"],
-        "shell": [".sh"],
+        "shell": [".sh", ".bash", ".bats"],
         "javascript": [".js", ".jsx"],
         "typescript": [".ts", ".tsx"],
         "java": [".java"],
