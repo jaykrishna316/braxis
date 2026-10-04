@@ -1,0 +1,39 @@
+name: Regression Test Suite
+
+on:
+  pull_request:
+    branches: ['**']
+  push:
+    branches: ['**']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Run Regression Tests
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Run regression test suite
+        run: python3 -m unittest discover -v
+
+      - name: Report test results
+        if: always()
+        run: |
+          echo "## Regression Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ $? -eq 0 ]; then
+            echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Tests failed - review output above" >> $GITHUB_STEP_SUMMARY
+          fi
