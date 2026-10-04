@@ -1,0 +1,94 @@
+# Braxis Configuration File
+# Place this as .braxis.yml in your project root to customize Braxis behavior
+
+# Context file generation settings
+context:
+  # Output format for generated files
+  output_format: markdown  # Options: markdown, json, html
+
+  # Code block style for markdown
+  code_block_style: python-fenced  # Options: python-fenced, markdown, html
+
+  # Include different sections in generated files
+  include_architecture: true
+  include_testing: true
+  include_conventions: true
+
+  # Maximum code examples to include
+  max_code_examples: 3
+
+  # Maximum lines per code snippet
+  code_snippet_max_lines: 20
+
+# Code generation trigger settings
+generation:
+  # Include test metrics in generated context
+  include_test_metrics: true
+
+  # Minimum lines changed to trigger regeneration
+  # Set to 0 to disable threshold checking
+  min_change_threshold: 5
+
+  # Skip regeneration for trivial changes (whitespace, comments, docs)
+  skip_trivial_changes: true
+
+  # Automatically stage changed files for commit
+  auto_stage_changes: true
+
+  # Patterns to exclude from change detection
+  exclude_patterns:
+    - __pycache__
+    - .venv
+    - node_modules
+    - .env
+    - "*.pyc"
+
+# GitHub Actions and CI/CD automation settings
+automation:
+  # File paths that trigger regeneration (glob patterns)
+  github_paths:
+    - src/
+    - tests/
+    - setup.py
+    - pyproject.toml
+    - package.json
+    - Makefile
+
+  # Branches that trigger automation
+  github_branches:
+    - main
+    - develop
+    - master
+
+  # Patterns to exclude from automation triggers
+  exclude_patterns:
+    - __pycache__
+    - .venv
+    - node_modules
+
+  # Automatically commit generated changes
+  auto_commit: true
+
+  # Post comments on PRs about context updates
+  auto_comment_prs: true
+
+  # Commit message for auto-generated changes
+  commit_message: "chore: regenerate context files"
+
+# AI readiness scoring settings
+scoring:
+  # Enable AI readiness scoring
+  enable_scoring: true
+
+  # Dimension weights (higher = more important)
+  weight_architecture: 1.0
+  weight_testing: 1.0
+  weight_dependencies: 1.0
+  weight_conventions: 1.0
+  weight_entry_points: 1.0
+  weight_security: 1.0
+  weight_build: 1.0
+  weight_documentation: 1.0
+
+# Configuration version (do not change)
+version: "1.1"
