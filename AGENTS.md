@@ -2,8 +2,6 @@
 
 Context file for AI agents working on braxis.
 
-**Dual Format**: This file combines Category A (Operations Manual) and Category B (Context Guide) for comprehensive agent guidance.
-
 ## Project Overview
 
 braxis is a Python project using Python (setuptools).
@@ -11,47 +9,39 @@ braxis is a Python project using Python (setuptools).
 **Key Info:**
 - **Primary Language:** Python
 - **Build System:** Python (setuptools)
-- **Test Framework:** unittest
-- **Total Files:** 29
-- **Test Files:** 1
-- **AI Readiness Score:** 71/100 (AI-Native)
+- **Test Framework:** pytest
+- **Total Files:** 35
+- **Test Files:** 2
+- **AI Readiness Score:** 73/100 (AI-Native)
 
----
-
-
-
-## 🏗️ Architecture & Context Guide
-
-This section provides architectural context and agent-understanding for the codebase.
-
-### Prerequisites
+## Prerequisites
 
 - **Python:** >=3.8 (or applicable language version)
 - **Package Manager:** pip or uv
-- **Test Runner:** unittest
+- **Test Runner:** pytest
 
 
 
-### Project Structure
+## Project Structure
 
 ```
 braxis/
+├── pyproject.toml
 ├── Makefile
 ├── setup.py
-├── pyproject.toml
 ├── src/                  # Source code
-├── tests/                # Test suite (1 files)
+├── tests/                # Test suite (2 files)
 └── README.md             # Project documentation
 ```
 
-### Architecture Overview
+## Architecture Overview
 
-#### Key Components
+### Key Components
 - **Main Entry:** Standard layout
-- **Test Suite:** 1 test files
-- **Build Configuration:** Makefile, setup.py, pyproject.toml
+- **Test Suite:** 2 test files
+- **Build Configuration:** pyproject.toml, Makefile, setup.py
 
-#### Design Principles
+### Design Principles
 
 1. **Modularity** - Code organized by functionality with clear separation of concerns
 2. **Testability** - Comprehensive test coverage across critical paths
@@ -67,33 +57,37 @@ braxis/
 | `tests/` or `test/` | Test suite |
 
 
-### Development Workflow
+## Development Workflow
 
-#### Initial Setup
+### Initial Setup
 
 ```bash
-git clone https://github.com/jaykrishna316/braxis
+git clone https://github.com/YOUR_ORG/braxis.git
 cd braxis
 pip install -e .
+# or
+uv sync --all-groups
 ```
 
-#### Development Commands
+### Development Commands
 
-**Running Tests:**
+#### Running Tests
 ```bash
-python3 -m unittest discover  # Run all tests
-python3 -m unittest test_module.TestClass  # Run specific test
-python3 -m unittest -v        # Verbose output
+pytest                    # Run all tests
+pytest tests/             # Run specific test directory
+pytest -v                 # Verbose output with test names
+pytest -x                 # Stop on first failure
+coverage run -m pytest && coverage report  # With coverage report
 ```
 
 #### Code Quality
 ```bash
-# Format and lint tools (if configured)
-# ruff check .              # Check code style
-# ruff format .             # Format code
+ruff check .              # Lint with ruff
+ruff format .             # Format code
+mypy .                    # Type checking (if configured)
 ```
 
-### Code Style & Conventions
+## Code Style & Conventions
 
 - **Naming:** Use Python conventions (snake_case for functions, PascalCase for classes)
 - **Type Hints:** Yes (strongly encouraged)
@@ -101,10 +95,10 @@ python3 -m unittest -v        # Verbose output
 - **Logging:** Yes
 - **Testing:** Yes - write tests alongside code changes
 
-### Testing Strategy
+## Testing Strategy
 
-**Framework:** unittest
-**Test Files:** 1 found
+**Framework:** pytest
+**Test Files:** 2 found
 
 Before committing:
 1. Run the full test suite: `pytest`
@@ -112,7 +106,7 @@ Before committing:
 3. Check type hints: `mypy .`
 4. Format code: `ruff format .`
 
-### Writing Documentation
+## Writing Documentation
 
 When updating docs:
 1. Always include explanatory text before code snippets
@@ -120,14 +114,14 @@ When updating docs:
 3. Keep sections focused on a single concept
 4. Use clear, concrete examples
 
-### Contributing Guidelines
+## Contributing Guidelines
 
 This project doesn't have a separate CONTRIBUTING.md yet. When contributing:
 1. Review recent merged PRs to understand maintainer preferences
 2. Follow the patterns established in the codebase
 3. Ensure your contribution aligns with the project's design principles above
 
-### Common Patterns
+## Common Patterns
 
 When contributing to this project:
 1. Read existing code in the area you're modifying
@@ -137,7 +131,7 @@ When contributing to this project:
 5. Add docstrings for public APIs
 6. Update tests when changing behavior
 
-### What We Value
+## What We Value
 
 ✅ Well-tested code with clear intent
 ✅ Consistent code style and naming conventions
@@ -146,7 +140,7 @@ When contributing to this project:
 ✅ Modular, reusable components
 ✅ Comprehensive documentation
 
-### What We Avoid
+## What We Avoid
 
 ❌ Large functions doing multiple things
 ❌ Commented-out dead code
@@ -155,12 +149,12 @@ When contributing to this project:
 ❌ Unexplained magic numbers or strings
 ❌ Skipped tests or test TODOs
 
-### AI Readiness Dimensions (Scoring)
+## AI Readiness Dimensions (Scoring)
 
 This project is evaluated across 8 dimensions:
 
 1. **Architecture** (10/100) - Code organization and modularity
-2. **Testing** (7/100) - Test coverage and quality
+2. **Testing** (9/100) - Test coverage and quality
 3. **Dependencies** (12/100) - Dependency management
 4. **Conventions** (10/100) - Consistent patterns
 5. **Entry Points** (4/100) - Clear main/start locations
@@ -168,7 +162,7 @@ This project is evaluated across 8 dimensions:
 7. **Build** (10/100) - Clear build/setup instructions
 8. **Documentation** (8/100) - Code and project documentation
 
-### Next Steps
+## Next Steps
 
 Before making changes:
 1. Read relevant source files to understand the existing code
@@ -182,4 +176,3 @@ Before making changes:
 ---
 
 *Generated by Braxis - keeping AI agents in sync with your code*
-
