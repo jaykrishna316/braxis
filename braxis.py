@@ -3,44 +3,53 @@
 Braxis - Auto-generate AI agent context files.
 Keep AGENTS.md, CLAUDE.md, .cursorrules, and .agentic-config.json in sync with your codebase.
 """
+
+import argparse
+import hashlib
+import json
 import os
 import sys
-import json
-import argparse
 import tempfile
-from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
-import hashlib
-from typing import Any, cast, DefaultDict, Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import Any, DefaultDict, Dict, List, Optional, cast
 
 
 class BraxisAnalyzer:
     """Analyzes a codebase and generates agent context files."""
 
     LANGUAGE_EXTENSIONS = {
-        'python': ['.py'],
-        'javascript': ['.js', '.jsx'],
-        'typescript': ['.ts', '.tsx'],
-        'java': ['.java'],
-        'go': ['.go'],
-        'rust': ['.rs'],
-        'c': ['.c', '.h'],
-        'cpp': ['.cpp', '.cc', '.cxx', '.h', '.hpp'],
-        'csharp': ['.cs'],
-        'php': ['.php'],
-        'ruby': ['.rb'],
-        'swift': ['.swift'],
-        'kotlin': ['.kt'],
-        'scala': ['.scala'],
-        'r': ['.R', '.r'],
-        'sql': ['.sql'],
+        "python": [".py"],
+        "javascript": [".js", ".jsx"],
+        "typescript": [".ts", ".tsx"],
+        "java": [".java"],
+        "go": [".go"],
+        "rust": [".rs"],
+        "c": [".c", ".h"],
+        "cpp": [".cpp", ".cc", ".cxx", ".h", ".hpp"],
+        "csharp": [".cs"],
+        "php": [".php"],
+        "ruby": [".rb"],
+        "swift": [".swift"],
+        "kotlin": [".kt"],
+        "scala": [".scala"],
+        "r": [".R", ".r"],
+        "sql": [".sql"],
     }
-    TEST_PATTERNS = ['test_', '_test.', 'spec_', '.spec.', 'tests/', 'test/']
-    BUILD_FILES = ['package.json', 'pyproject.toml', 'setup.py', 'Makefile', 'build.gradle', 'pom.xml', 'Cargo.toml']
-    CONFIG_FILES = ['.env', '.env.example', 'config.json', 'settings.py', 'config.yaml']
+    TEST_PATTERNS = ["test_", "_test.", "spec_", ".spec.", "tests/", "test/"]
+    BUILD_FILES = [
+        "package.json",
+        "pyproject.toml",
+        "setup.py",
+        "Makefile",
+        "build.gradle",
+        "pom.xml",
+        "Cargo.toml",
+    ]
+    CONFIG_FILES = [".env", ".env.example", "config.json", "settings.py", "config.yaml"]
 
-    def __init__(self, project_path: str = '.') -> None:
+    def __init__(self, project_path: str = ".") -> None:
         self.project_path: Path = self._validate_project_path(project_path)
         self.files: List[Path] = []
         self.languages: DefaultDict[str, int] = defaultdict(int)
@@ -52,7 +61,7 @@ class BraxisAnalyzer:
         self.score_breakdown: Dict[str, Any] = {}
         self.tier: str = "Not Ready"
         # Contributing guide detection
-        self.contributing_guide: Dict[str, Any] = {'exists': False, 'path': None, 'content': None}
+        self.contributing_guide: Dict[str, Any] = {"exists": False, "path": None, "content": None}
         # v1.1 features
         self.monorepo_type: Optional[str] = None
         self.monorepo_subsystems: List[Dict[str, str]] = []
@@ -77,7 +86,7 @@ class BraxisAnalyzer:
     def _get_history_file(self) -> Path:
         """Get path to score history file."""
         home = Path.home()
-        history_dir = home / '.braxis' / 'history'
+        history_dir = home / ".braxis" / "history"
         history_dir.mkdir(parents=True, exist_ok=True)
         return history_dir / f"scores_{self._get_project_hash()}.json"
 
@@ -89,15 +98,17 @@ class BraxisAnalyzer:
         if history_file.exists():
             try:
                 history = json.loads(history_file.read_text())
-            except (json.JSONDecodeError, IOError):
+            except (OSError, json.JSONDecodeError):
                 history = []
 
-        history.append({
-            "timestamp": datetime.now().isoformat(),
-            "score": self.total_score,
-            "tier": self.tier,
-            "breakdown": self.score_breakdown
-        })
+        history.append(
+            {
+                "timestamp": datetime.now().isoformat(),
+                "score": self.total_score,
+                "tier": self.tier,
+                "breakdown": self.score_breakdown,
+            }
+        )
 
         history_file.write_text(json.dumps(history, indent=2))
 
@@ -110,7 +121,7 @@ class BraxisAnalyzer:
         try:
             history = cast(List[Dict[str, Any]], json.loads(history_file.read_text()))
             return history[-limit:] if limit else history
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return []
 
     def show_score_trends(self) -> None:
@@ -120,24 +131,24 @@ class BraxisAnalyzer:
             print("No score history available yet. Run 'braxis score' to start tracking.")
             return
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Score History for {self.project_path.name}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         for i, entry in enumerate(history, 1):
-            timestamp = entry['timestamp'][:10]  # Date only
-            score = entry['score']
-            tier = entry['tier']
+            timestamp = entry["timestamp"][:10]  # Date only
+            score = entry["score"]
+            tier = entry["tier"]
             print(f"{i}. {timestamp} - {score}/100 ({tier})")
 
         if len(history) > 1:
-            first_score = history[0]['score']
-            latest_score = history[-1]['score']
+            first_score = history[0]["score"]
+            latest_score = history[-1]["score"]
             change = latest_score - first_score
             direction = "📈" if change > 0 else "📉" if change < 0 else "➡️"
             print(f"\nTrend: {direction} {abs(change):+d} points")
 
-        print(f"\n{'='*60}\n")
+        print(f"\n{'=' * 60}\n")
 
     def analyze(self) -> None:
         """Analyze the project."""
@@ -162,7 +173,16 @@ class BraxisAnalyzer:
 
     def _scan_files(self) -> None:
         """Scan all files in project."""
-        ignore_dirs = {'.git', '.venv', 'node_modules', '__pycache__', 'dist', 'build', '.idea', '.vscode'}
+        ignore_dirs = {
+            ".git",
+            ".venv",
+            "node_modules",
+            "__pycache__",
+            "dist",
+            "build",
+            ".idea",
+            ".vscode",
+        }
         for root, dirs, files in os.walk(self.project_path):
             dirs[:] = [d for d in dirs if d not in ignore_dirs]
             for file in files:
@@ -198,60 +218,60 @@ class BraxisAnalyzer:
 
         # Check build files by language priority
         if primary_lang == "go":
-            if any('go.mod' in str(f) for f in self.build_files):
+            if any("go.mod" in str(f) for f in self.build_files):
                 build_system = "Go (go modules)"
-            elif any('Makefile' in str(f) for f in self.build_files):
+            elif any("Makefile" in str(f) for f in self.build_files):
                 build_system = "Go (Makefile)"
         elif primary_lang == "rust":
-            if any('Cargo.toml' in str(f) for f in self.build_files):
+            if any("Cargo.toml" in str(f) for f in self.build_files):
                 build_system = "Rust (cargo)"
         elif primary_lang == "python":
-            if any('pyproject.toml' in str(f) for f in self.build_files):
-                pyproject = self.project_path / 'pyproject.toml'
+            if any("pyproject.toml" in str(f) for f in self.build_files):
+                pyproject = self.project_path / "pyproject.toml"
                 if pyproject.exists():
                     try:
                         content = pyproject.read_text()
-                        if 'build-system' in content:
-                            if 'hatchling' in content.lower():
+                        if "build-system" in content:
+                            if "hatchling" in content.lower():
                                 build_system = "Python (hatchling)"
-                            elif 'pdm' in content.lower():
+                            elif "pdm" in content.lower():
                                 build_system = "Python (pdm)"
-                            elif 'flit' in content.lower():
+                            elif "flit" in content.lower():
                                 build_system = "Python (flit)"
-                            elif 'poetry' in content.lower():
+                            elif "poetry" in content.lower():
                                 build_system = "Python (poetry)"
                             else:
                                 build_system = "Python (setuptools)"
                         else:
                             build_system = "Python (pip)"
-                    except (IOError, UnicodeDecodeError):
+                    except (OSError, UnicodeDecodeError):
                         build_system = "Python (pip/setuptools)"
-            elif any('setup.py' in str(f) for f in self.build_files):
+            elif any("setup.py" in str(f) for f in self.build_files):
                 build_system = "Python (setuptools)"
         elif primary_lang in ["javascript", "typescript"]:
-            if any('bunfig.toml' in str(f) or 'bunfig.ts' in str(f) for f in self.build_files):
+            if any("bunfig.toml" in str(f) or "bunfig.ts" in str(f) for f in self.build_files):
                 build_system = "Bun"
-            elif any('package.json' in str(f) for f in self.build_files):
+            elif any("package.json" in str(f) for f in self.build_files):
                 build_system = "npm/Node.js"
         elif primary_lang == "java":
-            if any('pom.xml' in str(f) for f in self.build_files):
+            if any("pom.xml" in str(f) for f in self.build_files):
                 build_system = "Java (Maven)"
-            elif any('build.gradle' in str(f) for f in self.build_files):
+            elif any("build.gradle" in str(f) for f in self.build_files):
                 build_system = "Java (Gradle)"
 
         # Fallback: check any language-agnostic build files
         if build_system == "Unknown":
-            if any('Makefile' in str(f) for f in self.build_files):
+            if any("Makefile" in str(f) for f in self.build_files):
                 build_system = "Makefile"
-            elif any('go.mod' in str(f) for f in self.build_files):
+            elif any("go.mod" in str(f) for f in self.build_files):
                 build_system = "Go (go modules)"
-            elif any('package.json' in str(f) for f in self.build_files):
+            elif any("package.json" in str(f) for f in self.build_files):
                 build_system = "npm/Node.js"
-            elif any('pyproject.toml' in str(f) for f in self.build_files):
+            elif any("pyproject.toml" in str(f) for f in self.build_files):
                 build_system = "Python (pip/setuptools)"
-            elif any('Cargo.toml' in str(f) for f in self.build_files):
+            elif any("Cargo.toml" in str(f) for f in self.build_files):
                 build_system = "Rust (cargo)"
-            elif any('pom.xml' in str(f) for f in self.build_files):
+            elif any("pom.xml" in str(f) for f in self.build_files):
                 build_system = "Java (Maven)"
 
         self.build_system = build_system
@@ -267,66 +287,66 @@ class BraxisAnalyzer:
             test_frameworks.add("Go testing")
         elif primary_lang == "python":
             # Check pyproject.toml for pytest config
-            pyproject = self.project_path / 'pyproject.toml'
+            pyproject = self.project_path / "pyproject.toml"
             if pyproject.exists():
                 try:
                     content = pyproject.read_text()
-                    if '[tool.pytest' in content or 'pytest' in content:
-                        test_frameworks.add('pytest')
-                except (IOError, UnicodeDecodeError):
+                    if "[tool.pytest" in content or "pytest" in content:
+                        test_frameworks.add("pytest")
+                except (OSError, UnicodeDecodeError):
                     pass
             # Check for pytest imports in Python files
             content_samples = self._sample_file_contents(limit=20)
             for content in content_samples:
-                if 'pytest' in content or 'from pytest' in content:
-                    test_frameworks.add('pytest')
+                if "pytest" in content or "from pytest" in content:
+                    test_frameworks.add("pytest")
                     break
             # Default to pytest for Python
             if not test_frameworks and self.test_files:
-                test_frameworks.add('pytest')
+                test_frameworks.add("pytest")
         elif primary_lang in ["javascript", "typescript"]:
-            bunfig = self.project_path / 'bunfig.toml'
+            bunfig = self.project_path / "bunfig.toml"
             if bunfig.exists():
-                test_frameworks.add('Bun')
+                test_frameworks.add("Bun")
             else:
                 content_samples = self._sample_file_contents(limit=20)
                 for content in content_samples:
-                    if 'jest' in content:
-                        test_frameworks.add('Jest')
+                    if "jest" in content:
+                        test_frameworks.add("Jest")
                         break
-                    elif 'mocha' in content or 'describe(' in content:
-                        test_frameworks.add('Mocha')
+                    elif "mocha" in content or "describe(" in content:
+                        test_frameworks.add("Mocha")
                         break
                 if not test_frameworks and self.test_files:
-                    test_frameworks.add('Jest')  # Default for JS/TS
+                    test_frameworks.add("Jest")  # Default for JS/TS
         elif primary_lang == "ruby":
             content_samples = self._sample_file_contents(limit=20)
             for content in content_samples:
-                if 'rspec' in content or 'describe' in content:
-                    test_frameworks.add('RSpec')
+                if "rspec" in content or "describe" in content:
+                    test_frameworks.add("RSpec")
                     break
             if not test_frameworks and self.test_files:
-                test_frameworks.add('RSpec')
+                test_frameworks.add("RSpec")
         elif primary_lang == "java":
-            if any('pom.xml' in str(f) for f in self.build_files):
-                test_frameworks.add('JUnit')
+            if any("pom.xml" in str(f) for f in self.build_files):
+                test_frameworks.add("JUnit")
             else:
-                test_frameworks.add('JUnit')  # Standard for Java
+                test_frameworks.add("JUnit")  # Standard for Java
 
         # Fallback to generic detection if nothing found
         if not test_frameworks and self.test_files:
             content_samples = self._sample_file_contents(limit=20)
             for content in content_samples:
-                if 'pytest' in content:
-                    test_frameworks.add('pytest')
-                elif 'jest' in content:
-                    test_frameworks.add('Jest')
-                elif 'mocha' in content:
-                    test_frameworks.add('Mocha')
-                elif 'rspec' in content:
-                    test_frameworks.add('RSpec')
-                elif 'junit' in content.lower():
-                    test_frameworks.add('JUnit')
+                if "pytest" in content:
+                    test_frameworks.add("pytest")
+                elif "jest" in content:
+                    test_frameworks.add("Jest")
+                elif "mocha" in content:
+                    test_frameworks.add("Mocha")
+                elif "rspec" in content:
+                    test_frameworks.add("RSpec")
+                elif "junit" in content.lower():
+                    test_frameworks.add("JUnit")
 
         self.test_frameworks = test_frameworks if test_frameworks else {"None detected"}
 
@@ -334,65 +354,83 @@ class BraxisAnalyzer:
         """Detect code conventions."""
         content_samples = self._sample_file_contents(limit=20)
         for content in content_samples:
-            if 'async def' in content or 'await ' in content:
-                self.conventions['async'] += 1
-            if 'async function' in content or 'async (' in content:
-                self.conventions['async'] += 1
-            if 'try:' in content or 'except' in content:
-                self.conventions['error_handling'] += 1
-            if 'try {' in content or 'catch' in content:
-                self.conventions['error_handling'] += 1
-            if '->' in content or ': ' in content:
-                self.conventions['type_hints'] += 1
-            if 'interface ' in content or 'type ' in content:
-                self.conventions['type_hints'] += 1
-            if 'logger' in content or 'logging' in content:
-                self.conventions['logging'] += 1
-            if 'log.' in content or 'console.log' in content:
-                self.conventions['logging'] += 1
-            if 'validate' in content.lower() or 'schema' in content.lower():
-                self.conventions['validation'] += 1
+            if "async def" in content or "await " in content:
+                self.conventions["async"] += 1
+            if "async function" in content or "async (" in content:
+                self.conventions["async"] += 1
+            if "try:" in content or "except" in content:
+                self.conventions["error_handling"] += 1
+            if "try {" in content or "catch" in content:
+                self.conventions["error_handling"] += 1
+            if "->" in content or ": " in content:
+                self.conventions["type_hints"] += 1
+            if "interface " in content or "type " in content:
+                self.conventions["type_hints"] += 1
+            if "logger" in content or "logging" in content:
+                self.conventions["logging"] += 1
+            if "log." in content or "console.log" in content:
+                self.conventions["logging"] += 1
+            if "validate" in content.lower() or "schema" in content.lower():
+                self.conventions["validation"] += 1
 
     def _detect_project_structure(self) -> str:
         """Detect project layout: src/ vs top-level package."""
-        src_dir = self.project_path / 'src'
+        src_dir = self.project_path / "src"
         if src_dir.exists() and src_dir.is_dir():
             # Has src/ directory
             src_contents = list(src_dir.iterdir())
             if src_contents:
-                return 'src'
+                return "src"
 
         # Check for top-level package directories (match primary language)
-        primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else None
-        if primary_lang == 'python':
+        primary_lang = (
+            max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else None
+        )
+        if primary_lang == "python":
             # Look for Python packages at root
             for item in self.project_path.iterdir():
-                if item.is_dir() and not item.name.startswith('.') and item.name not in ['tests', 'docs', 'build', 'dist', '__pycache__']:
-                    if (item / '__init__.py').exists():
-                        return 'top-level'
-        elif primary_lang in ['javascript', 'typescript']:
+                if (
+                    item.is_dir()
+                    and not item.name.startswith(".")
+                    and item.name not in ["tests", "docs", "build", "dist", "__pycache__"]
+                ):
+                    if (item / "__init__.py").exists():
+                        return "top-level"
+        elif primary_lang in ["javascript", "typescript"]:
             # Check for lib/ or src/ in JS projects
-            if (self.project_path / 'lib').exists():
-                return 'lib'
-            if (self.project_path / 'src').exists():
-                return 'src'
+            if (self.project_path / "lib").exists():
+                return "lib"
+            if (self.project_path / "src").exists():
+                return "src"
 
-        return 'standard'
+        return "standard"
 
     def _identify_critical_files(self) -> None:
         """Identify critical files (main, entry points, etc)."""
-        critical_names = ['main.py', 'app.py', 'server.py', 'index.js', 'main.js', 'app.js', 'main.rs', 'main.go', 'main.ts']
+        critical_names = [
+            "main.py",
+            "app.py",
+            "server.py",
+            "index.js",
+            "main.js",
+            "app.js",
+            "main.rs",
+            "main.go",
+            "main.ts",
+        ]
         for file_path in self.files:
-            if file_path.name in critical_names or 'src/main' in str(file_path):
+            if file_path.name in critical_names or "src/main" in str(file_path):
                 self.critical_files.append(file_path)
 
     def _sample_file_contents(self, limit: int = 20) -> List[str]:
         """Sample file contents for convention detection."""
         samples = []
-        code_files = [f for f in self.files if f.suffix in ['.py', '.js', '.ts', '.go', '.rs', '.java']]
+        code_files = [
+            f for f in self.files if f.suffix in [".py", ".js", ".ts", ".go", ".rs", ".java"]
+        ]
         for file_path in code_files[:limit]:
             try:
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                with open(file_path, encoding="utf-8", errors="ignore") as f:
                     samples.append(f.read())
             except Exception:
                 pass
@@ -402,27 +440,27 @@ class BraxisAnalyzer:
         """Detect repository URL from git remote, pyproject.toml, or package.json."""
         # First check git remote origin
         try:
-            git_dir = self.project_path / '.git'
+            git_dir = self.project_path / ".git"
             if git_dir.exists():
-                config = git_dir / 'config'
+                config = git_dir / "config"
                 if config.exists():
                     content = config.read_text()
-                    for line in content.split('\n'):
-                        if 'url = ' in line:
-                            url = line.split('url = ', 1)[1].strip()
-                            if url.startswith('http') or url.startswith('git@'):
+                    for line in content.split("\n"):
+                        if "url = " in line:
+                            url = line.split("url = ", 1)[1].strip()
+                            if url.startswith("http") or url.startswith("git@"):
                                 return url
-        except (IOError, UnicodeDecodeError):
+        except (OSError, UnicodeDecodeError):
             pass
 
         # Check pyproject.toml
-        pyproject = self.project_path / 'pyproject.toml'
+        pyproject = self.project_path / "pyproject.toml"
         if pyproject.exists():
             try:
                 content = pyproject.read_text()
-                for line in content.split('\n'):
-                    if 'homepage' in line.lower() or 'repository' in line.lower():
-                        if 'github.com' in line:
+                for line in content.split("\n"):
+                    if "homepage" in line.lower() or "repository" in line.lower():
+                        if "github.com" in line:
                             # Extract URL
                             if '"' in line:
                                 url = line.split('"')[1]
@@ -430,28 +468,30 @@ class BraxisAnalyzer:
                                 url = line.split("'")[1]
                             else:
                                 continue
-                            if url.startswith('http'):
+                            if url.startswith("http"):
                                 return url
-            except (IOError, UnicodeDecodeError):
+            except (OSError, UnicodeDecodeError):
                 pass
 
         # Check package.json
-        package_json = self.project_path / 'package.json'
+        package_json = self.project_path / "package.json"
         if package_json.exists():
             try:
                 content = package_json.read_text()
                 if '"repository"' in content:
-                    for line in content.split('\n'):
-                        if '"url"' in line and 'github.com' in line:
+                    for line in content.split("\n"):
+                        if '"url"' in line and "github.com" in line:
                             if '"' in line:
                                 parts = line.split('"')
                                 for i, part in enumerate(parts):
-                                    if 'github.com' in part or (i > 0 and 'github.com' in parts[i-1]):
-                                        if part.startswith('http'):
+                                    if "github.com" in part or (
+                                        i > 0 and "github.com" in parts[i - 1]
+                                    ):
+                                        if part.startswith("http"):
                                             return part
-                                        elif i > 0 and 'github.com' in parts[i-1]:
+                                        elif i > 0 and "github.com" in parts[i - 1]:
                                             return part
-            except (IOError, UnicodeDecodeError):
+            except (OSError, UnicodeDecodeError):
                 pass
 
         # If not found, use project name as fallback
@@ -459,41 +499,45 @@ class BraxisAnalyzer:
 
     def _detect_python_version(self) -> str:
         """Detect Python version requirement from pyproject.toml or setup.py."""
-        pyproject = self.project_path / 'pyproject.toml'
+        pyproject = self.project_path / "pyproject.toml"
         if pyproject.exists():
             try:
                 content = pyproject.read_text()
-                if 'requires-python' in content:
-                    for line in content.split('\n'):
-                        if 'requires-python' in line and '=' in line:
+                if "requires-python" in content:
+                    for line in content.split("\n"):
+                        if "requires-python" in line and "=" in line:
                             try:
-                                version_part = line.split('=', 1)[1].strip()
+                                version_part = line.split("=", 1)[1].strip()
                                 # Remove trailing comma first, then quotes
-                                version_part = version_part.rstrip(',').strip().strip('"').strip("'")
+                                version_part = (
+                                    version_part.rstrip(",").strip().strip('"').strip("'")
+                                )
                                 if version_part:
                                     return version_part
                             except IndexError:
                                 pass
-            except (IOError, UnicodeDecodeError):
+            except (OSError, UnicodeDecodeError):
                 pass
 
         # Check setup.py
-        setup_py = self.project_path / 'setup.py'
+        setup_py = self.project_path / "setup.py"
         if setup_py.exists():
             try:
                 content = setup_py.read_text()
-                if 'python_requires' in content:
-                    for line in content.split('\n'):
-                        if 'python_requires' in line and '=' in line:
+                if "python_requires" in content:
+                    for line in content.split("\n"):
+                        if "python_requires" in line and "=" in line:
                             try:
-                                version_part = line.split('=', 1)[1].strip()
+                                version_part = line.split("=", 1)[1].strip()
                                 # Remove trailing comma first, then quotes
-                                version_part = version_part.rstrip(',').strip().strip('"').strip("'")
+                                version_part = (
+                                    version_part.rstrip(",").strip().strip('"').strip("'")
+                                )
                                 if version_part:
                                     return version_part
                             except IndexError:
                                 pass
-            except (IOError, UnicodeDecodeError):
+            except (OSError, UnicodeDecodeError):
                 pass
 
         return "3.9+"  # Default fallback
@@ -501,11 +545,11 @@ class BraxisAnalyzer:
     def _detect_contributing_guide(self) -> Dict[str, Any]:
         """Detect and summarize contributing guide if present."""
         guide_candidates = [
-            self.project_path / 'CONTRIBUTING.md',
-            self.project_path / 'CONTRIBUTING.rst',
-            self.project_path / 'docs' / 'CONTRIBUTING.md',
-            self.project_path / 'docs' / 'CONTRIBUTING.rst',
-            self.project_path / '.github' / 'CONTRIBUTING.md',
+            self.project_path / "CONTRIBUTING.md",
+            self.project_path / "CONTRIBUTING.rst",
+            self.project_path / "docs" / "CONTRIBUTING.md",
+            self.project_path / "docs" / "CONTRIBUTING.rst",
+            self.project_path / ".github" / "CONTRIBUTING.md",
         ]
 
         for guide_path in guide_candidates:
@@ -513,42 +557,60 @@ class BraxisAnalyzer:
                 try:
                     content = guide_path.read_text()
                     return {
-                        'exists': True,
-                        'path': str(guide_path.relative_to(self.project_path)),
-                        'content': content
+                        "exists": True,
+                        "path": str(guide_path.relative_to(self.project_path)),
+                        "content": content,
                     }
-                except (IOError, UnicodeDecodeError):
+                except (OSError, UnicodeDecodeError):
                     pass
 
-        return {'exists': False, 'path': None, 'content': None}
+        return {"exists": False, "path": None, "content": None}
 
     def _extract_dco_requirement(self, content: str) -> bool:
         """Check if project requires DCO sign-off."""
         content_lower = content.lower()
-        return any(phrase in content_lower for phrase in ['signed-off-by', 'git commit -s', 'dco', 'developer certificate'])
+        return any(
+            phrase in content_lower
+            for phrase in ["signed-off-by", "git commit -s", "dco", "developer certificate"]
+        )
 
     def _extract_release_notes_requirement(self, content: str) -> bool:
         """Check if project requires release-notes blocks."""
         content_lower = content.lower()
-        return any(phrase in content_lower for phrase in ['release-notes', 'release notes', 'changelog block'])
+        return any(
+            phrase in content_lower
+            for phrase in ["release-notes", "release notes", "changelog block"]
+        )
 
     def _extract_table_driven_tests(self, content: str) -> bool:
         """Check if project uses table-driven tests."""
         content_lower = content.lower()
-        return any(phrase in content_lower for phrase in ['table-driven test', 'table driven test', 'test cases in a table'])
+        return any(
+            phrase in content_lower
+            for phrase in ["table-driven test", "table driven test", "test cases in a table"]
+        )
 
     def _extract_performance_requirements(self, content: str) -> bool:
         """Check if project has special performance work requirements."""
         content_lower = content.lower()
-        return any(phrase in content_lower for phrase in ['benchmark', 'benchstat', 'performance work', 'perf'])
+        return any(
+            phrase in content_lower
+            for phrase in ["benchmark", "benchstat", "performance work", "perf"]
+        )
 
     def _extract_pr_title_format(self, content: str) -> Optional[str]:
         """Extract PR title format if mentioned."""
-        lines = content.split('\n')
+        lines = content.split("\n")
         for i, line in enumerate(lines):
-            if 'title' in line.lower() and ('format' in line.lower() or 'prefix' in line.lower() or ':' in line):
-                for j in range(i+1, min(i+5, len(lines))):
-                    if '```' in lines[j] or lines[j].strip().startswith('-') or lines[j].strip().startswith('`'):
+            if "title" in line.lower() and (
+                "format" in line.lower() or "prefix" in line.lower() or ":" in line
+            ):
+                for j in range(i + 1, min(i + 5, len(lines))):
+                    if (
+                        "```" in lines[j]
+                        or lines[j].strip().startswith("-")
+                        or lines[j].strip().startswith("`")
+                    ):
                         return lines[j].strip()
         return None
 
@@ -762,9 +824,9 @@ make test                     # Run all tests (if available)"""
 
     def _contribution_section_text(self) -> str:
         """Generate contribution guidelines section with smart pattern extraction."""
-        if self.contributing_guide['exists']:
-            guide_path = self.contributing_guide['path']
-            content = self.contributing_guide['content']
+        if self.contributing_guide["exists"]:
+            guide_path = self.contributing_guide["path"]
+            content = self.contributing_guide["content"]
 
             # Extract smart patterns
             has_dco = self._extract_dco_requirement(content)
@@ -776,15 +838,23 @@ make test                     # Run all tests (if available)"""
             # Build key requirements list
             requirements = []
             if has_dco:
-                requirements.append("**DCO Sign-off Required**: Every commit must be signed with `git commit -s`")
+                requirements.append(
+                    "**DCO Sign-off Required**: Every commit must be signed with `git commit -s`"
+                )
             if has_release_notes:
-                requirements.append("**Release Notes Block**: Include `release-notes` block in every PR description")
+                requirements.append(
+                    "**Release Notes Block**: Include `release-notes` block in every PR description"
+                )
             if pr_title_format:
                 requirements.append(f"**PR Title Format**: {pr_title_format}")
             if has_table_tests:
-                requirements.append("**Table-Driven Tests**: Prefer table-driven test patterns over individual test functions")
+                requirements.append(
+                    "**Table-Driven Tests**: Prefer table-driven test patterns over individual test functions"
+                )
             if has_perf_work:
-                requirements.append("**Performance Work**: Requires benchmarks and performance metrics in PR description")
+                requirements.append(
+                    "**Performance Work**: Requires benchmarks and performance metrics in PR description"
+                )
 
             # Build the section
             section = f"""This project has a detailed contribution guide at **`{guide_path}`**.
@@ -811,24 +881,24 @@ make test                     # Run all tests (if available)"""
         """Calculate agent readiness score."""
         scores = {}
         arch_score = min(20, len(self.critical_files) * 5 + 10)
-        scores['Architecture'] = arch_score
+        scores["Architecture"] = arch_score
         test_score = min(15, len(self.test_files) * 2 + 5)
-        scores['Testing'] = test_score
+        scores["Testing"] = test_score
         dep_score = 12 if self.build_system != "Unknown" else 6
-        scores['Dependencies'] = dep_score
+        scores["Dependencies"] = dep_score
         convention_count = sum(1 for v in self.conventions.values() if v > 0)
         conv_score = min(10, convention_count * 2)
-        scores['Conventions'] = conv_score
+        scores["Conventions"] = conv_score
         entry_score = min(10, len(self.critical_files) * 3 + 4)
-        scores['Entry Points'] = entry_score
-        sec_score = 10 if 'validation' in self.conventions else 5
+        scores["Entry Points"] = entry_score
+        sec_score = 10 if "validation" in self.conventions else 5
         sec_score += 5 if len(self.config_files) > 0 else 0
-        scores['Security'] = min(15, sec_score)
+        scores["Security"] = min(15, sec_score)
         build_score = 10 if len(self.build_files) > 0 else 5
-        scores['Build'] = build_score
-        readme_exists = any(f.name.lower() == 'readme.md' for f in self.files)
+        scores["Build"] = build_score
+        readme_exists = any(f.name.lower() == "readme.md" for f in self.files)
         doc_score = 8 if readme_exists else 3
-        scores['Documentation'] = doc_score
+        scores["Documentation"] = doc_score
         self.score_breakdown = scores
         total_score = sum(scores.values())
         self.total_score = total_score
@@ -855,11 +925,7 @@ make test                     # Run all tests (if available)"""
         try:
             file_path.parent.mkdir(parents=True, exist_ok=True)
             with tempfile.NamedTemporaryFile(
-                mode='w',
-                dir=file_path.parent,
-                suffix='.tmp',
-                delete=False,
-                encoding='utf-8'
+                mode="w", dir=file_path.parent, suffix=".tmp", delete=False, encoding="utf-8"
             ) as tmp_file:
                 tmp_file.write(content)
                 tmp_path = Path(tmp_file.name)
@@ -867,52 +933,61 @@ make test                     # Run all tests (if available)"""
         except Exception as e:
             if tmp_path and tmp_path.exists():
                 tmp_path.unlink()
-            raise IOError(f"Failed to write file {filepath}: {e}")
+            raise OSError(f"Failed to write file {filepath}: {e}") from e
 
     def print_score(self) -> None:
         """Print the score report."""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Agent Readiness Score: {self.total_score}/100")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
         print("Breakdown:\n")
         for category, score in self.score_breakdown.items():
             bar = chr(9608) * (score // 5) + chr(9617) * ((100 - score) // 5)
             print(f" {category:20} {score:3}/100 [{bar}]")
         print(f"\nTier: {self.tier}")
-        print(f"\nDetected:")
+        print("\nDetected:")
         print(f" Languages: {', '.join(self.languages.keys()) if self.languages else 'None'}")
         print(f" Build System: {self.build_system}")
         print(f" Test Frameworks: {', '.join(self.test_frameworks)}")
         print(f" Test Files: {len(self.test_files)}")
         print(f" Critical Files: {len(self.critical_files)}")
-        print(f"\nRecommendations:")
-        if self.score_breakdown['Documentation'] < 8:
-            print(f" * Add or improve README.md")
-        if self.score_breakdown['Testing'] < 15:
-            print(f" * Increase test coverage")
-        if self.score_breakdown['Conventions'] < 10:
-            print(f" * Standardize code conventions")
-        if self.score_breakdown['Security'] < 15:
-            print(f" * Add input validation and security checks")
-        print(f"\nNext Step:")
-        print(f" braxis generate")
-        print(f"\n{'='*60}\n")
+        print("\nRecommendations:")
+        if self.score_breakdown["Documentation"] < 8:
+            print(" * Add or improve README.md")
+        if self.score_breakdown["Testing"] < 15:
+            print(" * Increase test coverage")
+        if self.score_breakdown["Conventions"] < 10:
+            print(" * Standardize code conventions")
+        if self.score_breakdown["Security"] < 15:
+            print(" * Add input validation and security checks")
+        print("\nNext Step:")
+        print(" braxis generate")
+        print(f"\n{'=' * 60}\n")
 
     def _extract_gotchas_from_contributing(self) -> List[str]:
         """v1.3.1: Extract warnings and gotchas from CONTRIBUTING.md."""
-        if not self.contributing_guide['exists']:
+        if not self.contributing_guide["exists"]:
             return []
 
-        content = self.contributing_guide['content']
+        content = self.contributing_guide["content"]
         gotchas = []
-        warning_keywords = ['gotcha', 'warning:', 'caution:', 'note:', "don't", 'avoid', 'issue:', 'important:']
+        warning_keywords = [
+            "gotcha",
+            "warning:",
+            "caution:",
+            "note:",
+            "don't",
+            "avoid",
+            "issue:",
+            "important:",
+        ]
 
-        lines = content.split('\n')
-        for i, line in enumerate(lines):
+        lines = content.split("\n")
+        for _i, line in enumerate(lines):
             line_lower = line.lower()
             if any(kw in line_lower for kw in warning_keywords):
                 # Clean up markdown formatting
-                clean_line = line.strip().lstrip('-').lstrip('*').lstrip('>').strip()
+                clean_line = line.strip().lstrip("-").lstrip("*").lstrip(">").strip()
                 if clean_line and len(clean_line) > 10:
                     gotchas.append(clean_line)
 
@@ -920,37 +995,65 @@ make test                     # Run all tests (if available)"""
 
     def _extract_category_a_content(self) -> Dict[str, Any]:
         """v1.4: Extract Category A (Operations Manual) content from CONTRIBUTING.md."""
-        if not self.contributing_guide['exists']:
+        if not self.contributing_guide["exists"]:
             return {}
 
-        content = self.contributing_guide['content']
+        content = self.contributing_guide["content"]
         category_a: Dict[str, List[str]] = {
-            'procedures': [],
-            'requirements': [],
-            'workarounds': [],
-            'policy_notes': []
+            "procedures": [],
+            "requirements": [],
+            "workarounds": [],
+            "policy_notes": [],
         }
 
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         # Extract procedures (lines with verbs like "must", "should", "run", "follow")
-        procedure_keywords = ['must ', 'should ', 'run ', 'follow ', 'execute', 'install', 'build', 'test', 'commit']
-        requirement_keywords = ['require', 'required', 'prerequisite', 'need', 'dependency']
-        workaround_keywords = ['workaround', 'caveat', 'limitation', 'known issue', 'gotcha', 'exception']
-        policy_keywords = ['policy', 'rule', 'guideline', 'standard', 'convention', 'forbidden', 'banned', 'cannot', 'must not', 'agent']
+        procedure_keywords = [
+            "must ",
+            "should ",
+            "run ",
+            "follow ",
+            "execute",
+            "install",
+            "build",
+            "test",
+            "commit",
+        ]
+        requirement_keywords = ["require", "required", "prerequisite", "need", "dependency"]
+        workaround_keywords = [
+            "workaround",
+            "caveat",
+            "limitation",
+            "known issue",
+            "gotcha",
+            "exception",
+        ]
+        policy_keywords = [
+            "policy",
+            "rule",
+            "guideline",
+            "standard",
+            "convention",
+            "forbidden",
+            "banned",
+            "cannot",
+            "must not",
+            "agent",
+        ]
 
         for line in lines:
             # Skip markdown headers and empty lines
-            if line.strip().startswith('#') or not line.strip():
+            if line.strip().startswith("#") or not line.strip():
                 continue
 
-            clean_line = line.strip().lstrip('-').lstrip('*').lstrip('>').strip()
+            clean_line = line.strip().lstrip("-").lstrip("*").lstrip(">").strip()
             if not clean_line or len(clean_line) < 10:
                 continue
 
             # Strip bold markdown
-            if clean_line.startswith('**') and clean_line.endswith('**'):
-                clean_line = clean_line.strip('**').strip()
+            if clean_line.startswith("**") and clean_line.endswith("**"):
+                clean_line = clean_line.removeprefix("**").removesuffix("**").strip()
 
             if not clean_line or len(clean_line) < 10:
                 continue
@@ -959,17 +1062,17 @@ make test                     # Run all tests (if available)"""
 
             # Classify based on keywords - check policy first
             if any(kw in line_lower for kw in policy_keywords):
-                if clean_line not in category_a['policy_notes']:
-                    category_a['policy_notes'].append(clean_line)
+                if clean_line not in category_a["policy_notes"]:
+                    category_a["policy_notes"].append(clean_line)
             elif any(kw in line_lower for kw in procedure_keywords):
-                if clean_line not in category_a['procedures']:
-                    category_a['procedures'].append(clean_line)
+                if clean_line not in category_a["procedures"]:
+                    category_a["procedures"].append(clean_line)
             elif any(kw in line_lower for kw in requirement_keywords):
-                if clean_line not in category_a['requirements']:
-                    category_a['requirements'].append(clean_line)
+                if clean_line not in category_a["requirements"]:
+                    category_a["requirements"].append(clean_line)
             elif any(kw in line_lower for kw in workaround_keywords):
-                if clean_line not in category_a['workarounds']:
-                    category_a['workarounds'].append(clean_line)
+                if clean_line not in category_a["workarounds"]:
+                    category_a["workarounds"].append(clean_line)
 
         return category_a
 
@@ -981,27 +1084,27 @@ make test                     # Run all tests (if available)"""
         section = "## 🚨 AI Policy & Operations\n\n"
         section += "Extracted from CONTRIBUTING.md - operational constraints and procedures.\n\n"
 
-        if category_a_content['policy_notes']:
+        if category_a_content["policy_notes"]:
             section += "### AI Policy\n\n"
-            for note in category_a_content['policy_notes'][:5]:
+            for note in category_a_content["policy_notes"][:5]:
                 section += f"- {note}\n"
             section += "\n"
 
-        if category_a_content['requirements']:
+        if category_a_content["requirements"]:
             section += "### Key Requirements\n\n"
-            for req in category_a_content['requirements'][:5]:
+            for req in category_a_content["requirements"][:5]:
                 section += f"- {req}\n"
             section += "\n"
 
-        if category_a_content['procedures']:
+        if category_a_content["procedures"]:
             section += "### Development Procedures\n\n"
-            for proc in category_a_content['procedures'][:5]:
+            for proc in category_a_content["procedures"][:5]:
                 section += f"- {proc}\n"
             section += "\n"
 
-        if category_a_content['workarounds']:
+        if category_a_content["workarounds"]:
             section += "### Known Workarounds & Caveats\n\n"
-            for wka in category_a_content['workarounds'][:3]:
+            for wka in category_a_content["workarounds"][:3]:
                 section += f"- {wka}\n"
             section += "\n"
 
@@ -1009,16 +1112,17 @@ make test                     # Run all tests (if available)"""
 
     def _generate_architecture_tables(self) -> str:
         """v1.3.1: Auto-generate directory-to-purpose mapping tables."""
-        primary_lang = self._get_primary_language()
 
         # For monorepos, reference subsystem-scoped AGENTS.md files
         if self.monorepo_type:
             subsystems = self.get_monorepo_subsystems()
             if subsystems:
-                subsystem_refs = '\n'.join([
-                    f"- `{s['name']}/AGENTS.md` — {s['name'].capitalize()} subsystem ({s['language']})"
-                    for s in subsystems
-                ])
+                subsystem_refs = "\n".join(
+                    [
+                        f"- `{s['name']}/AGENTS.md` — {s['name'].capitalize()} subsystem ({s['language']})"
+                        for s in subsystems
+                    ]
+                )
                 return f"""### Directory-Scoped Agent Files
 
 Each subsystem has its own specialized AGENTS.md file:
@@ -1031,26 +1135,26 @@ Refer to the scoped file when working in that directory."""
         arch_table = "### Directory Map\n\n| Directory | Purpose |\n|-----------|----------|\n"
 
         common_dirs = {
-            'src': 'Source code',
-            'lib': 'Library code',
-            'tests': 'Test suite',
-            'test': 'Test suite',
-            'spec': 'Test specifications',
-            'docs': 'Documentation',
-            'examples': 'Usage examples',
-            'scripts': 'Build and utility scripts',
-            'pkg': 'Package definitions',
-            'cmd': 'Command-line tools',
-            'api': 'API handlers',
-            'config': 'Configuration files',
-            'migrations': 'Database migrations',
-            'public': 'Public assets',
-            'vendor': 'Dependencies',
+            "src": "Source code",
+            "lib": "Library code",
+            "tests": "Test suite",
+            "test": "Test suite",
+            "spec": "Test specifications",
+            "docs": "Documentation",
+            "examples": "Usage examples",
+            "scripts": "Build and utility scripts",
+            "pkg": "Package definitions",
+            "cmd": "Command-line tools",
+            "api": "API handlers",
+            "config": "Configuration files",
+            "migrations": "Database migrations",
+            "public": "Public assets",
+            "vendor": "Dependencies",
         }
 
         found_dirs = set()
         for item in self.project_path.iterdir():
-            if item.is_dir() and item.name in common_dirs and not item.name.startswith('.'):
+            if item.is_dir() and item.name in common_dirs and not item.name.startswith("."):
                 found_dirs.add(item.name)
 
         # Add found directories
@@ -1059,7 +1163,7 @@ Refer to the scoped file when working in that directory."""
 
         # If no standard directories found, use basic structure
         if not found_dirs:
-            arch_table += f"| `src/` or project root | Main source code |\n"
+            arch_table += "| `src/` or project root | Main source code |\n"
             arch_table += "| `tests/` or `test/` | Test suite |\n"
 
         return arch_table
@@ -1070,42 +1174,42 @@ Refer to the scoped file when working in that directory."""
         env_section = "### Environment Requirements\n\n"
 
         # Check .nvmrc for Node.js version
-        nvmrc = self.project_path / '.nvmrc'
+        nvmrc = self.project_path / ".nvmrc"
         if nvmrc.exists():
             try:
                 node_version = nvmrc.read_text().strip()
-                env_info['node'] = node_version
+                env_info["node"] = node_version
                 env_section += f"- **Node.js:** {node_version} (pinned in `.nvmrc`)\n"
                 env_section += "  ⚠️ **PATH Gotcha:** Run `yarn`/`npm` via login shell (`tmux` or `bash -lc`) to use pinned version\n"
-            except (IOError, UnicodeDecodeError):
+            except (OSError, UnicodeDecodeError):
                 pass
 
         # Check go.mod for Go version
-        go_mod = self.project_path / 'go.mod'
+        go_mod = self.project_path / "go.mod"
         if go_mod.exists():
             try:
-                for line in go_mod.read_text().split('\n'):
-                    if line.startswith('go '):
+                for line in go_mod.read_text().split("\n"):
+                    if line.startswith("go "):
                         go_version = line.split()[1]
-                        env_info['go'] = go_version
+                        env_info["go"] = go_version
                         env_section += f"- **Go:** {go_version}+ (from `go.mod`)\n"
                         env_section += "  - GCC required for CGo/SQLite compilation\n"
                         break
-            except (IOError, UnicodeDecodeError):
+            except (OSError, UnicodeDecodeError):
                 pass
 
         # Check .ruby-version for Ruby
-        ruby_version_file = self.project_path / '.ruby-version'
+        ruby_version_file = self.project_path / ".ruby-version"
         if ruby_version_file.exists():
             try:
                 ruby_version = ruby_version_file.read_text().strip()
-                env_info['ruby'] = ruby_version
+                env_info["ruby"] = ruby_version
                 env_section += f"- **Ruby:** {ruby_version} (from `.ruby-version`)\n"
-            except (IOError, UnicodeDecodeError):
+            except (OSError, UnicodeDecodeError):
                 pass
 
         # Check for Python requirements
-        if 'python' in self.languages:
+        if "python" in self.languages:
             version = self._get_language_version_requirement()
             env_section += f"- **Python:** {version}\n"
 
@@ -1120,7 +1224,9 @@ Refer to the scoped file when working in that directory."""
 
     def generate_agents_md(self) -> str:
         """v1.4: Generate dual-format AGENTS.md with Category A (Operations) + Category B (Context)."""
-        primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
+        primary_lang = (
+            max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
+        )
 
         # Build vars for the template - detect actual structure
         structure = self.project_path.name + "/"
@@ -1129,14 +1235,18 @@ Refer to the scoped file when working in that directory."""
                 structure += "\n├── " + f.name
 
         # Use detected project structure
-        if self.project_structure == 'src':
+        if self.project_structure == "src":
             structure += "\n├── src/                  # Source code"
-        elif self.project_structure == 'top-level':
+        elif self.project_structure == "top-level":
             # Find actual package directory
             primary_package = None
             for item in self.project_path.iterdir():
-                if item.is_dir() and not item.name.startswith('.') and item.name not in ['tests', 'docs', 'build', 'dist']:
-                    if primary_lang == 'python' and (item / '__init__.py').exists():
+                if (
+                    item.is_dir()
+                    and not item.name.startswith(".")
+                    and item.name not in ["tests", "docs", "build", "dist"]
+                ):
+                    if primary_lang == "python" and (item / "__init__.py").exists():
                         primary_package = item.name
                         break
             if primary_package:
@@ -1147,36 +1257,44 @@ Refer to the scoped file when working in that directory."""
             structure += "\n├── src/                  # Source code"
 
         if self.test_files:
-            structure += "\n├── tests/                # Test suite (" + str(len(self.test_files)) + " files)"
+            structure += (
+                "\n├── tests/                # Test suite (" + str(len(self.test_files)) + " files)"
+            )
         structure += "\n└── README.md             # Project documentation"
 
         # Determine test framework string with appropriate fallback
         if self.test_frameworks:
-            test_frameworks_str = ', '.join(sorted(self.test_frameworks))
+            test_frameworks_str = ", ".join(sorted(self.test_frameworks))
         elif primary_lang == "python":
-            test_frameworks_str = 'pytest'
+            test_frameworks_str = "pytest"
         elif self.build_system == "Bun":
-            test_frameworks_str = 'Bun'
+            test_frameworks_str = "Bun"
         elif primary_lang in ["javascript", "typescript"]:
-            test_frameworks_str = 'Jest'
+            test_frameworks_str = "Jest"
         else:
-            test_frameworks_str = 'Unknown'
-        critical_files_info = ', '.join(f.name for f in self.critical_files[:5]) if self.critical_files else 'Standard layout'
-        build_config = ', '.join(f.name for f in self.build_files[:3]) if self.build_files else "Standard"
+            test_frameworks_str = "Unknown"
+        critical_files_info = (
+            ", ".join(f.name for f in self.critical_files[:5])
+            if self.critical_files
+            else "Standard layout"
+        )
+        build_config = (
+            ", ".join(f.name for f in self.build_files[:3]) if self.build_files else "Standard"
+        )
 
-        type_hints_status = 'Yes' if 'type_hints' in self.conventions else 'No'
-        error_handling_status = 'Yes' if 'error_handling' in self.conventions else 'No'
-        logging_status = 'Yes' if 'logging' in self.conventions else 'No'
-        testing_status = 'Yes' if self.test_files else 'No'
+        type_hints_status = "Yes" if "type_hints" in self.conventions else "No"
+        error_handling_status = "Yes" if "error_handling" in self.conventions else "No"
+        logging_status = "Yes" if "logging" in self.conventions else "No"
+        testing_status = "Yes" if self.test_files else "No"
 
-        arch_score = self.score_breakdown.get('Architecture', 0)
-        test_score = self.score_breakdown.get('Testing', 0)
-        dep_score = self.score_breakdown.get('Dependencies', 0)
-        conv_score = self.score_breakdown.get('Conventions', 0)
-        entry_score = self.score_breakdown.get('Entry Points', 0)
-        sec_score = self.score_breakdown.get('Security', 0)
-        build_score = self.score_breakdown.get('Build', 0)
-        doc_score = self.score_breakdown.get('Documentation', 0)
+        arch_score = self.score_breakdown.get("Architecture", 0)
+        test_score = self.score_breakdown.get("Testing", 0)
+        dep_score = self.score_breakdown.get("Dependencies", 0)
+        conv_score = self.score_breakdown.get("Conventions", 0)
+        entry_score = self.score_breakdown.get("Entry Points", 0)
+        sec_score = self.score_breakdown.get("Security", 0)
+        build_score = self.score_breakdown.get("Build", 0)
+        doc_score = self.score_breakdown.get("Documentation", 0)
 
         # v1.4: Extract both Category A and Category B content
         category_a_content = self._extract_category_a_content()
@@ -1194,14 +1312,15 @@ Refer to the scoped file when working in that directory."""
 
         gotchas_section = ""
         if gotchas:
-            gotchas_list = '\n'.join([f"- {g}" for g in gotchas])
+            gotchas_list = "\n".join([f"- {g}" for g in gotchas])
             gotchas_section = f"""## Known Gotchas & Warnings
 
 {gotchas_list}
 
 """
 
-        return f"""# AGENTS.md
+        return (
+            f"""# AGENTS.md
 
 Context file for AI agents working on {self.project_path.name}.
 
@@ -1275,7 +1394,7 @@ cd {self.project_path.name}
 
 ### Code Style & Conventions
 
-- **Naming:** Use {primary_lang.capitalize()} conventions ({'camelCase' if primary_lang in ['javascript', 'typescript'] else 'snake_case'} for functions, PascalCase for classes)
+- **Naming:** Use {primary_lang.capitalize()} conventions ({"camelCase" if primary_lang in ["javascript", "typescript"] else "snake_case"} for functions, PascalCase for classes)
 - **Type Hints:** {type_hints_status} (strongly encouraged)
 - **Error Handling:** {error_handling_status} - handle errors at boundaries; let exceptions propagate when another layer owns recovery
 - **Logging:** {logging_status}
@@ -1353,7 +1472,9 @@ Before making changes:
 ---
 
 *Generated by Braxis - keeping AI agents in sync with your code*
-""" + "\n"
+"""
+            + "\n"
+        )
 
     def generate_claude_md(self) -> str:
         """Generate CLAUDE.md as a router to AGENTS.md."""
@@ -1380,30 +1501,44 @@ See AGENTS.md for full documentation on architecture, development workflow, and 
 
     def generate_cursorrules(self) -> str:
         """Generate .cursorrules file with project-specific rules."""
-        primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
+        primary_lang = (
+            max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
+        )
         # Determine test framework string with appropriate fallback
         if self.test_frameworks:
-            test_frameworks_str = ', '.join(sorted(self.test_frameworks))
+            test_frameworks_str = ", ".join(sorted(self.test_frameworks))
         elif primary_lang == "python":
-            test_frameworks_str = 'pytest'
+            test_frameworks_str = "pytest"
         elif self.build_system == "Bun":
-            test_frameworks_str = 'Bun'
+            test_frameworks_str = "Bun"
         elif primary_lang in ["javascript", "typescript"]:
-            test_frameworks_str = 'Jest'
+            test_frameworks_str = "Jest"
         else:
-            test_frameworks_str = 'Unknown'
-        code_formatter = "ruff" if primary_lang == "python" else "prettier" if primary_lang in ["javascript", "typescript"] else "default"
-        type_checking = "mypy" if primary_lang == "python" else "TypeScript" if primary_lang == "typescript" else "available"
-        
-        arch_score = self.score_breakdown.get('Architecture', 0)
-        test_score = self.score_breakdown.get('Testing', 0)
-        dep_score = self.score_breakdown.get('Dependencies', 0)
-        conv_score = self.score_breakdown.get('Conventions', 0)
-        entry_score = self.score_breakdown.get('Entry Points', 0)
-        sec_score = self.score_breakdown.get('Security', 0)
-        build_score = self.score_breakdown.get('Build', 0)
-        doc_score = self.score_breakdown.get('Documentation', 0)
-        
+            test_frameworks_str = "Unknown"
+        code_formatter = (
+            "ruff"
+            if primary_lang == "python"
+            else "prettier"
+            if primary_lang in ["javascript", "typescript"]
+            else "default"
+        )
+        type_checking = (
+            "mypy"
+            if primary_lang == "python"
+            else "TypeScript"
+            if primary_lang == "typescript"
+            else "available"
+        )
+
+        arch_score = self.score_breakdown.get("Architecture", 0)
+        test_score = self.score_breakdown.get("Testing", 0)
+        dep_score = self.score_breakdown.get("Dependencies", 0)
+        conv_score = self.score_breakdown.get("Conventions", 0)
+        entry_score = self.score_breakdown.get("Entry Points", 0)
+        sec_score = self.score_breakdown.get("Security", 0)
+        build_score = self.score_breakdown.get("Build", 0)
+        doc_score = self.score_breakdown.get("Documentation", 0)
+
         return f"""# Cursor Rules for {self.project_path.name}
 
 ## What This Project Does
@@ -1484,8 +1619,10 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
 
     def generate_agentic_config(self) -> str:
         """Generate comprehensive .agentic-config.json file."""
-        primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
-        
+        primary_lang = (
+            max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
+        )
+
         # Determine setup and commands based on language and build system
         if primary_lang == "python":
             setup_cmd = "pip install -e . && uv sync --all-groups"
@@ -1508,17 +1645,15 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
 
         # Determine test framework string with appropriate fallback
         if self.test_frameworks:
-            test_frameworks_str = ', '.join(sorted(self.test_frameworks))
+            test_frameworks_str = ", ".join(sorted(self.test_frameworks))
         elif primary_lang == "python":
-            test_frameworks_str = 'pytest'
+            test_frameworks_str = "pytest"
         elif self.build_system == "Bun":
-            test_frameworks_str = 'Bun'
+            test_frameworks_str = "Bun"
         elif primary_lang in ["javascript", "typescript"]:
-            test_frameworks_str = 'Jest'
+            test_frameworks_str = "Jest"
         else:
-            test_frameworks_str = 'Unknown'
-
-        build_config = ', '.join(f.name for f in self.build_files[:3]) if self.build_files else "Standard"
+            test_frameworks_str = "Unknown"
 
         config = {
             "metadata": {
@@ -1526,7 +1661,7 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                 "description": f"A {primary_lang.capitalize()} project with {self.build_system}",
                 "generated_by": "Braxis",
                 "generated_at": datetime.now().isoformat(),
-                "schema_version": "1.0"
+                "schema_version": "1.0",
             },
             "project": {
                 "languages": list(self.languages.keys()),
@@ -1536,47 +1671,49 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                 "is_monorepo": bool(self.monorepo_type),
                 "monorepo_type": self.monorepo_type,
                 "subsystems": [
-                    {"name": s['name'], "language": s['language'], "path": s['path']}
+                    {"name": s["name"], "language": s["language"], "path": s["path"]}
                     for s in self.monorepo_subsystems
-                ] if self.monorepo_subsystems else []
+                ]
+                if self.monorepo_subsystems
+                else [],
             },
             "ai_readiness": {
                 "overall_score": self.total_score,
                 "tier": self.tier,
                 "dimensions": {
                     "architecture": {
-                        "score": self.score_breakdown.get('Architecture', 0),
-                        "reason": "Code organization and modularity"
+                        "score": self.score_breakdown.get("Architecture", 0),
+                        "reason": "Code organization and modularity",
                     },
                     "testing": {
-                        "score": self.score_breakdown.get('Testing', 0),
-                        "reason": f"{len(self.test_files)} test files found"
+                        "score": self.score_breakdown.get("Testing", 0),
+                        "reason": f"{len(self.test_files)} test files found",
                     },
                     "dependencies": {
-                        "score": self.score_breakdown.get('Dependencies', 0),
-                        "reason": "Dependency management and version pinning"
+                        "score": self.score_breakdown.get("Dependencies", 0),
+                        "reason": "Dependency management and version pinning",
                     },
                     "conventions": {
-                        "score": self.score_breakdown.get('Conventions', 0),
-                        "reason": "Consistency in naming and patterns"
+                        "score": self.score_breakdown.get("Conventions", 0),
+                        "reason": "Consistency in naming and patterns",
                     },
                     "entry_points": {
-                        "score": self.score_breakdown.get('Entry Points', 0),
-                        "reason": f"{len(self.critical_files)} critical files identified"
+                        "score": self.score_breakdown.get("Entry Points", 0),
+                        "reason": f"{len(self.critical_files)} critical files identified",
                     },
                     "security": {
-                        "score": self.score_breakdown.get('Security', 0),
-                        "reason": "Input validation and error handling"
+                        "score": self.score_breakdown.get("Security", 0),
+                        "reason": "Input validation and error handling",
                     },
                     "build": {
-                        "score": self.score_breakdown.get('Build', 0),
-                        "reason": "Build system clarity and configuration"
+                        "score": self.score_breakdown.get("Build", 0),
+                        "reason": "Build system clarity and configuration",
                     },
                     "documentation": {
-                        "score": self.score_breakdown.get('Documentation', 0),
-                        "reason": "README and code documentation"
-                    }
-                }
+                        "score": self.score_breakdown.get("Documentation", 0),
+                        "reason": "README and code documentation",
+                    },
+                },
             },
             "development": {
                 "setup_command": setup_cmd,
@@ -1586,29 +1723,54 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                 "dev_server_command": None,
                 "prerequisites": {
                     "language_version": py_version,
-                    "package_manager": "pip or uv" if primary_lang == "python" else "bun" if self.build_system == "Bun" else "npm",
-                    "key_tools": list(self.test_frameworks) + (["ruff", "mypy"] if primary_lang == "python" else []),
-                    "runtime_tools": ["uv", "uvx"] if "python" in self.languages else (["bun"] if self.build_system == "Bun" else [])
-                }
+                    "package_manager": "pip or uv"
+                    if primary_lang == "python"
+                    else "bun"
+                    if self.build_system == "Bun"
+                    else "npm",
+                    "key_tools": list(self.test_frameworks)
+                    + (["ruff", "mypy"] if primary_lang == "python" else []),
+                    "runtime_tools": ["uv", "uvx"]
+                    if "python" in self.languages
+                    else (["bun"] if self.build_system == "Bun" else []),
+                },
             },
             "architecture": {
                 "pattern": "single-package project",
-                "main_entry": ', '.join(f.name for f in self.critical_files[:3]) if self.critical_files else "Standard layout",
+                "main_entry": ", ".join(f.name for f in self.critical_files[:3])
+                if self.critical_files
+                else "Standard layout",
                 "key_modules": [
-                    {"name": f.stem, "path": str(f.relative_to(self.project_path)), "purpose": "Source module"}
+                    {
+                        "name": f.stem,
+                        "path": str(f.relative_to(self.project_path)),
+                        "purpose": "Source module",
+                    }
                     for f in self.critical_files[:5]
-                ] if self.critical_files else [],
-                "layers": ["CLI interface (if applicable)", "Business logic", "Utilities and helpers"]
+                ]
+                if self.critical_files
+                else [],
+                "layers": [
+                    "CLI interface (if applicable)",
+                    "Business logic",
+                    "Utilities and helpers",
+                ],
             },
             "mcp_servers": [
-                {"name": s['name'], "type": s['type'], "config_file": str(s.get('location', 'unknown'))}
+                {
+                    "name": s["name"],
+                    "type": s["type"],
+                    "config_file": str(s.get("location", "unknown")),
+                }
                 for s in self.mcp_servers
-            ] if self.mcp_servers else [],
+            ]
+            if self.mcp_servers
+            else [],
             "core_principles": [
                 "Modularity - Code organized by functionality",
                 "Testability - Comprehensive test coverage",
                 "Clarity - Code easy for AI agents to understand",
-                "Consistency - Uniform patterns throughout"
+                "Consistency - Uniform patterns throughout",
             ],
             "contribution_criteria": {
                 "what_we_want": [
@@ -1616,31 +1778,37 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                     "Code quality improvements",
                     "Test coverage increases",
                     "Documentation improvements",
-                    "Performance optimizations"
+                    "Performance optimizations",
                 ],
                 "what_we_dont_want": [
                     "New dependencies without justification",
                     "Code that reduces test coverage",
                     "Inconsistent naming or style",
-                    "Dead code or commented code"
-                ]
+                    "Dead code or commented code",
+                ],
             },
             "contribution_boundaries": {
                 "project_scale": self.analyze_project_scale(),
-                "suggestion": self.suggest_contribution_boundaries()
+                "suggestion": self.suggest_contribution_boundaries(),
             },
             "commands": {
-                "setup": {"command": setup_cmd, "description": "Install dependencies and set up development environment"},
+                "setup": {
+                    "command": setup_cmd,
+                    "description": "Install dependencies and set up development environment",
+                },
                 "test": {"command": test_cmd, "description": "Run all tests"},
                 "lint": {"command": lint_cmd, "description": "Check code style and quality"},
-                "format": {"command": format_cmd, "description": "Format code to project standards"}
+                "format": {
+                    "command": format_cmd,
+                    "description": "Format code to project standards",
+                },
             },
             "testing": {
                 "framework": test_frameworks_str,
                 "total_tests": len(self.test_files),
                 "pass_rate": 100,
-                "run_command": test_cmd
-            }
+                "run_command": test_cmd,
+            },
         }
 
         return json.dumps(config, indent=2) + "\n"
@@ -1652,27 +1820,27 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
     def detect_monorepo_type(self) -> Optional[str]:
         """Detect monorepo platform: pnpm, uv, yarn, npm workspaces, or lerna."""
         monorepo_indicators = {
-            'pnpm': 'pnpm-workspace.yaml',
-            'uv': 'pyproject.toml',  # Check for [tool.uv.workspaces]
-            'yarn': 'package.json',  # Check for workspaces
-            'npm': 'package.json',  # Check for workspaces
-            'lerna': 'lerna.json',
+            "pnpm": "pnpm-workspace.yaml",
+            "uv": "pyproject.toml",  # Check for [tool.uv.workspaces]
+            "yarn": "package.json",  # Check for workspaces
+            "npm": "package.json",  # Check for workspaces
+            "lerna": "lerna.json",
         }
 
         for monorepo_type, indicator_file in monorepo_indicators.items():
             file_path = self.project_path / indicator_file
             if file_path.exists():
-                if monorepo_type == 'pnpm' and 'pnpm-workspace' in file_path.name:
-                    return 'pnpm'
-                elif monorepo_type == 'lerna':
-                    return 'lerna'
-                elif monorepo_type in ('uv', 'yarn', 'npm'):
+                if monorepo_type == "pnpm" and "pnpm-workspace" in file_path.name:
+                    return "pnpm"
+                elif monorepo_type == "lerna":
+                    return "lerna"
+                elif monorepo_type in ("uv", "yarn", "npm"):
                     # Check content for workspaces configuration
                     try:
                         content = file_path.read_text()
-                        if 'workspaces' in content or '[tool.uv.workspaces]' in content:
+                        if "workspaces" in content or "[tool.uv.workspaces]" in content:
                             return monorepo_type
-                    except (IOError, UnicodeDecodeError):
+                    except (OSError, UnicodeDecodeError):
                         pass
 
         return None
@@ -1682,18 +1850,14 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
         subsystems = []
 
         # Common subsystem directories
-        subsystem_dirs = ['api', 'web', 'cli', 'packages', 'libs', 'apps', 'services']
+        subsystem_dirs = ["api", "web", "cli", "packages", "libs", "apps", "services"]
 
         for subsys_dir in subsystem_dirs:
             subsys_path = self.project_path / subsys_dir
             if subsys_path.exists() and subsys_path.is_dir():
                 # Detect language in this subsystem
                 lang = self._detect_subsystem_language(subsys_path)
-                subsystems.append({
-                    'name': subsys_dir,
-                    'path': subsys_dir,
-                    'language': lang
-                })
+                subsystems.append({"name": subsys_dir, "path": subsys_dir, "language": lang})
 
         return subsystems
 
@@ -1702,11 +1866,11 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
         lang_counts: DefaultDict[str, int] = defaultdict(int)
         for ext, langs in self.LANGUAGE_EXTENSIONS.items():
             for lang_ext in langs:
-                count = len(list(path.rglob(f'*{lang_ext}')))
+                count = len(list(path.rglob(f"*{lang_ext}")))
                 if count > 0:
                     lang_counts[ext] += count
 
-        return max(lang_counts.items(), key=lambda x: x[1])[0] if lang_counts else 'unknown'
+        return max(lang_counts.items(), key=lambda x: x[1])[0] if lang_counts else "unknown"
 
     def generate_hierarchical_contexts(self) -> Optional[Dict[str, str]]:
         """Generate hierarchical AGENTS.md for monorepos."""
@@ -1727,17 +1891,16 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
             scoped_content = self._generate_scoped_agents_md(subsystem)
             scoped_contents[f"{subsystem['path']}/AGENTS.md"] = scoped_content
 
-        return {
-            'AGENTS.md': root_content,
-            **scoped_contents
-        }
+        return {"AGENTS.md": root_content, **scoped_contents}
 
     def _generate_root_agents_md(self, monorepo_type: str, subsystems: List[Dict[str, str]]) -> str:
         """Generate root AGENTS.md for monorepo."""
-        subsystem_list = '\n'.join([
-            f"- `{s['name']}/` → See {s['name']}/AGENTS.md ({s['language']} {s['name']})"
-            for s in subsystems
-        ])
+        subsystem_list = "\n".join(
+            [
+                f"- `{s['name']}/` → See {s['name']}/AGENTS.md ({s['language']} {s['name']})"
+                for s in subsystems
+            ]
+        )
 
         return f"""# {self.project_path.name} - Agent Context
 
@@ -1800,16 +1963,16 @@ When contributing:
 
     def _generate_scoped_agents_md(self, subsystem: Dict[str, str]) -> str:
         """Generate scoped AGENTS.md for a subsystem."""
-        lang = subsystem.get('language', 'unknown').capitalize()
+        lang = subsystem.get("language", "unknown").capitalize()
 
-        return f"""# {subsystem['name'].capitalize()} Subsystem Agent Guide
+        return f"""# {subsystem["name"].capitalize()} Subsystem Agent Guide
 
-Read this file when working in `{subsystem['path']}/`.
+Read this file when working in `{subsystem["path"]}/`.
 Then refer to root AGENTS.md for repo-wide patterns.
 
 ## Subsystem Overview
 
-This subsystem is the **{subsystem['name']}** layer of the project.
+This subsystem is the **{subsystem["name"]}** layer of the project.
 
 Primary Language: **{lang}**
 
@@ -1821,15 +1984,15 @@ Primary Language: **{lang}**
 
 Follow root AGENTS.md conventions, with these subsystem-specific rules:
 
-- Keep {subsystem['name']} concerns isolated
+- Keep {subsystem["name"]} concerns isolated
 - Use clear interfaces with other subsystems
 - Document public APIs for cross-subsystem use
 
 ## Testing
 
 - Write tests alongside code changes
-- Tests live in `{subsystem['path']}/__tests__` or `{subsystem['path']}/tests/`
-- Run with: `pytest {subsystem['path']}/`
+- Tests live in `{subsystem["path"]}/__tests__` or `{subsystem["path"]}/tests/`
+- Run with: `pytest {subsystem["path"]}/`
 
 ## Common Patterns
 
@@ -1854,33 +2017,33 @@ Document any dependencies on other subsystems:
     def _get_lock_file(self, monorepo_type: str) -> str:
         """Get lock file name for monorepo type."""
         lock_files = {
-            'pnpm': 'pnpm-lock.yaml',
-            'uv': 'uv.lock',
-            'yarn': 'yarn.lock',
-            'npm': 'package-lock.json',
-            'lerna': 'package-lock.json'
+            "pnpm": "pnpm-lock.yaml",
+            "uv": "uv.lock",
+            "yarn": "yarn.lock",
+            "npm": "package-lock.json",
+            "lerna": "package-lock.json",
         }
-        return lock_files.get(monorepo_type, 'lock file')
+        return lock_files.get(monorepo_type, "lock file")
 
     def _get_install_cmd(self, monorepo_type: str) -> str:
         """Get install command for monorepo type."""
         cmds = {
-            'pnpm': 'pnpm install',
-            'uv': 'uv sync --all-groups',
-            'yarn': 'yarn install',
-            'npm': 'npm install',
-            'lerna': 'lerna bootstrap'
+            "pnpm": "pnpm install",
+            "uv": "uv sync --all-groups",
+            "yarn": "yarn install",
+            "npm": "npm install",
+            "lerna": "lerna bootstrap",
         }
-        return cmds.get(monorepo_type, 'npm install')
+        return cmds.get(monorepo_type, "npm install")
 
     def _get_format_cmd(self, monorepo_type: str) -> str:
         """Get format command for monorepo type."""
         # Most modern projects use ruff or prettier
-        return 'ruff format . && prettier --write .' if self.build_system else 'ruff format .'
+        return "ruff format . && prettier --write ." if self.build_system else "ruff format ."
 
     def _get_test_cmd(self, monorepo_type: str) -> str:
         """Get test command for monorepo type."""
-        return 'pytest' if 'python' in self.languages else 'npm test'
+        return "pytest" if "python" in self.languages else "npm test"
 
     def _generate_arch_overview(self, subsystems: List[Dict[str, str]]) -> str:
         """Generate architecture overview section."""
@@ -1895,12 +2058,12 @@ Document any dependencies on other subsystems:
 
     def _generate_subsystem_arch(self, subsystem: Dict[str, str]) -> str:
         """Generate subsystem-specific architecture."""
-        return f"""The **{subsystem['name']}** subsystem is primarily {subsystem['language'].capitalize()}.
+        return f"""The **{subsystem["name"]}** subsystem is primarily {subsystem["language"].capitalize()}.
 
 Key responsibilities:
-- Implement {subsystem['name']}-specific business logic
+- Implement {subsystem["name"]}-specific business logic
 - Expose clean interfaces to other subsystems
-- Maintain {subsystem['name']}-specific configuration
+- Maintain {subsystem["name"]}-specific configuration
 """
 
     def detect_mcp_servers(self) -> List[Dict[str, Any]]:
@@ -1908,43 +2071,44 @@ Key responsibilities:
         mcp_servers = []
 
         # Check for Claude Desktop config
-        claude_config = self.project_path / '.claude' / 'claude_desktop_config.json'
+        claude_config = self.project_path / ".claude" / "claude_desktop_config.json"
         if claude_config.exists():
             try:
                 config = json.loads(claude_config.read_text())
-                if 'mcpServers' in config:
-                    for server_name, server_config in config['mcpServers'].items():
-                        mcp_servers.append({
-                            'name': server_name,
-                            'type': 'claude_desktop',
-                            'config': server_config
-                        })
-            except (json.JSONDecodeError, IOError):
+                if "mcpServers" in config:
+                    for server_name, server_config in config["mcpServers"].items():
+                        mcp_servers.append(
+                            {"name": server_name, "type": "claude_desktop", "config": server_config}
+                        )
+            except (OSError, json.JSONDecodeError):
                 pass
 
         # Check for MCP entry points in pyproject.toml
-        if 'python' in self.languages:
-            pyproject = self.project_path / 'pyproject.toml'
+        if "python" in self.languages:
+            pyproject = self.project_path / "pyproject.toml"
             if pyproject.exists():
                 content = pyproject.read_text()
-                if '[project.entry-points.mcp]' in content or '[project.entry-points."mcp"]' in content:
+                if (
+                    "[project.entry-points.mcp]" in content
+                    or '[project.entry-points."mcp"]' in content
+                ):
                     # This is an MCP server project
-                    mcp_servers.append({
-                        'name': self.project_path.name,
-                        'type': 'python_entry_point',
-                        'location': 'pyproject.toml'
-                    })
+                    mcp_servers.append(
+                        {
+                            "name": self.project_path.name,
+                            "type": "python_entry_point",
+                            "location": "pyproject.toml",
+                        }
+                    )
 
         # Check for mcp.json or similar config
-        for config_file in self.project_path.glob('*mcp*.json'):
+        for config_file in self.project_path.glob("*mcp*.json"):
             try:
                 config = json.loads(config_file.read_text())
-                mcp_servers.append({
-                    'name': config_file.stem,
-                    'type': 'config_file',
-                    'config': config
-                })
-            except (json.JSONDecodeError, IOError):
+                mcp_servers.append(
+                    {"name": config_file.stem, "type": "config_file", "config": config}
+                )
+            except (OSError, json.JSONDecodeError):
                 pass
 
         return mcp_servers
@@ -1956,9 +2120,7 @@ Key responsibilities:
         if not mcp_servers:
             return None
 
-        server_docs = '\n'.join([
-            f"- **{s['name']}** ({s['type']})" for s in mcp_servers
-        ])
+        server_docs = "\n".join([f"- **{s['name']}** ({s['type']})" for s in mcp_servers])
 
         return f"""## MCP Integration
 
@@ -2028,10 +2190,10 @@ class BraxisGrader:
 
     # Reference benchmarks for comparison
     BENCHMARKS = {
-        'braxis': 78,
-        'sentry': 83,
-        'fastapi': 81,
-        'airflow': 72,
+        "braxis": 78,
+        "sentry": 83,
+        "fastapi": 81,
+        "airflow": 72,
     }
 
     def __init__(self, agents_path: str) -> None:
@@ -2046,16 +2208,16 @@ class BraxisGrader:
     def grade(self) -> Dict[str, Any]:
         """Score AGENTS.md across all 10 dimensions."""
         self.scores = {
-            'command_execution': self._grade_command_execution(),
-            'type_checking': self._grade_type_checking(),
-            'unified_linting': self._grade_unified_linting(),
-            'agent_boundaries': self._grade_agent_boundaries(),
-            'architecture': self._grade_architecture(),
-            'pr_checklist': self._grade_pr_checklist(),
-            'ci_cd': self._grade_ci_cd(),
-            'anti_patterns': self._grade_anti_patterns(),
-            'examples': self._grade_examples(),
-            'overall_guidance': self._grade_overall_guidance(),
+            "command_execution": self._grade_command_execution(),
+            "type_checking": self._grade_type_checking(),
+            "unified_linting": self._grade_unified_linting(),
+            "agent_boundaries": self._grade_agent_boundaries(),
+            "architecture": self._grade_architecture(),
+            "pr_checklist": self._grade_pr_checklist(),
+            "ci_cd": self._grade_ci_cd(),
+            "anti_patterns": self._grade_anti_patterns(),
+            "examples": self._grade_examples(),
+            "overall_guidance": self._grade_overall_guidance(),
         }
         return self.scores
 
@@ -2065,16 +2227,16 @@ class BraxisGrader:
         content_lower = self.content.lower()
 
         # Check for make targets (best)
-        if 'make test' in content_lower or 'make lint' in content_lower:
+        if "make test" in content_lower or "make lint" in content_lower:
             score = 9
         # Check for unified command pattern
-        elif 'pytest' in content_lower and 'mypy' in content_lower:
+        elif "pytest" in content_lower and "mypy" in content_lower:
             score = 8
         # Check for any documented commands
-        elif any(cmd in content_lower for cmd in ['python -m', 'npm test', 'cargo test']):
+        elif any(cmd in content_lower for cmd in ["python -m", "npm test", "cargo test"]):
             score = 7
         # Minimal documentation
-        elif 'test' in content_lower or 'lint' in content_lower:
+        elif "test" in content_lower or "lint" in content_lower:
             score = 3
 
         self.recommendations.append(f"Command Execution: {score}/10")
@@ -2086,13 +2248,13 @@ class BraxisGrader:
         content_lower = self.content.lower()
 
         # Check for strict mypy
-        if 'mypy' in content_lower and 'strict' in content_lower:
+        if "mypy" in content_lower and "strict" in content_lower:
             score = 9
         # Check for mypy without strict
-        elif 'mypy' in content_lower:
+        elif "mypy" in content_lower:
             score = 7
         # Check for type hints mention
-        elif 'type hint' in content_lower or 'type annotation' in content_lower:
+        elif "type hint" in content_lower or "type annotation" in content_lower:
             score = 5
         # No type checking mentioned
         else:
@@ -2106,13 +2268,13 @@ class BraxisGrader:
         content_lower = self.content.lower()
 
         # Single make target for all checks
-        if 'make lint' in content_lower and 'mypy' in content_lower and 'ruff' in content_lower:
+        if "make lint" in content_lower and "mypy" in content_lower and "ruff" in content_lower:
             score = 9
         # Multiple tools documented clearly
-        elif content_lower.count('linting') >= 2 or content_lower.count('lint') >= 3:
+        elif content_lower.count("linting") >= 2 or content_lower.count("lint") >= 3:
             score = 7
         # Some linting documented
-        elif 'linting' in content_lower or 'lint' in content_lower:
+        elif "linting" in content_lower or "lint" in content_lower:
             score = 5
 
         return score
@@ -2123,11 +2285,15 @@ class BraxisGrader:
         content_lower = self.content.lower()
 
         # Check for explicit sections
-        can_section = 'what agents can' in content_lower or 'what ai agents can' in content_lower
-        cannot_section = 'what agents must not' in content_lower or 'must not do' in content_lower or 'never do' in content_lower
+        can_section = "what agents can" in content_lower or "what ai agents can" in content_lower
+        cannot_section = (
+            "what agents must not" in content_lower
+            or "must not do" in content_lower
+            or "never do" in content_lower
+        )
 
         # Count boundary items
-        must_not_count = content_lower.count('never ') + content_lower.count('must not')
+        must_not_count = content_lower.count("never ") + content_lower.count("must not")
 
         # Perfect: Both sections with 8+ MUST NOT patterns
         if can_section and cannot_section and must_not_count >= 8:
@@ -2142,7 +2308,7 @@ class BraxisGrader:
         elif can_section or cannot_section:
             score = 7
         # Some boundaries mentioned
-        elif 'boundary' in content_lower or 'limit' in content_lower:
+        elif "boundary" in content_lower or "limit" in content_lower:
             score = 4
 
         return score
@@ -2152,11 +2318,11 @@ class BraxisGrader:
         score = 2
         content_lower = self.content.lower()
 
-        components_count = content_lower.count('component')
+        components_count = content_lower.count("component")
         arch_sections = (
-            content_lower.count('architecture') +
-            content_lower.count('structure') +
-            content_lower.count('design principle')
+            content_lower.count("architecture")
+            + content_lower.count("structure")
+            + content_lower.count("design principle")
         )
 
         # Comprehensive with multiple sections
@@ -2166,10 +2332,10 @@ class BraxisGrader:
         elif arch_sections >= 2:
             score = 8
         # Basic structure documented
-        elif arch_sections >= 1 or 'directory' in content_lower:
+        elif arch_sections >= 1 or "directory" in content_lower:
             score = 5
         # Minimal architecture info
-        elif 'project' in content_lower:
+        elif "project" in content_lower:
             score = 2
 
         return score
@@ -2179,20 +2345,17 @@ class BraxisGrader:
         score = 2
         content_lower = self.content.lower()
 
-        # Count checklist items
-        checklist_count = content_lower.count('[ ]') + content_lower.count('[x]')
-
         # Numbered list with 8+ items
-        if content_lower.count('- [') >= 8:
+        if content_lower.count("- [") >= 8:
             score = 9
         # 6-7 items
-        elif content_lower.count('- [') >= 6:
+        elif content_lower.count("- [") >= 6:
             score = 8
         # 5 items or documented "done" criteria
-        elif content_lower.count('- [') >= 5 or 'done' in content_lower:
+        elif content_lower.count("- [") >= 5 or "done" in content_lower:
             score = 6
         # Checklist mentioned
-        elif 'checklist' in content_lower or 'criteria' in content_lower:
+        elif "checklist" in content_lower or "criteria" in content_lower:
             score = 3
 
         return score
@@ -2202,11 +2365,9 @@ class BraxisGrader:
         score = 2
         content_lower = self.content.lower()
 
-        github_actions = 'github actions' in content_lower or '.github/workflows' in content_lower
+        github_actions = "github actions" in content_lower or ".github/workflows" in content_lower
         ci_checks = (
-            content_lower.count('test') +
-            content_lower.count('lint') +
-            content_lower.count('type')
+            content_lower.count("test") + content_lower.count("lint") + content_lower.count("type")
         )
 
         # All checks automated
@@ -2216,10 +2377,10 @@ class BraxisGrader:
         elif github_actions and ci_checks >= 2:
             score = 8
         # CI mentioned
-        elif 'ci' in content_lower or github_actions:
+        elif "ci" in content_lower or github_actions:
             score = 6
         # CI mentioned but not detailed
-        elif any(x in content_lower for x in ['github', 'gitlab', 'azure']):
+        elif any(x in content_lower for x in ["github", "gitlab", "azure"]):
             score = 4
 
         return score
@@ -2229,16 +2390,16 @@ class BraxisGrader:
         score = 2
         content_lower = self.content.lower()
 
-        never_count = content_lower.count('never')
-        must_not_count = content_lower.count('must not')
-        avoid_count = content_lower.count('avoid')
+        never_count = content_lower.count("never")
+        must_not_count = content_lower.count("must not")
+        avoid_count = content_lower.count("avoid")
         anti_pattern_count = never_count + must_not_count + avoid_count
 
         # 10+ anti-patterns with impact analysis
-        if anti_pattern_count >= 10 and 'impact' in content_lower:
+        if anti_pattern_count >= 10 and "impact" in content_lower:
             score = 10
         # 8-9 patterns with rationale
-        elif anti_pattern_count >= 8 and 'rationale' in content_lower:
+        elif anti_pattern_count >= 8 and "rationale" in content_lower:
             score = 9
         # 6-7 patterns documented
         elif anti_pattern_count >= 6:
@@ -2258,8 +2419,8 @@ class BraxisGrader:
         content_lower = self.content.lower()
 
         # Count code blocks
-        code_blocks = content_lower.count('```')
-        example_mentions = content_lower.count('example')
+        code_blocks = content_lower.count("```")
+        example_mentions = content_lower.count("example")
 
         # 5+ code examples
         if code_blocks >= 10:
@@ -2282,7 +2443,7 @@ class BraxisGrader:
     def _grade_overall_guidance(self) -> int:
         """Grade overall developer guidance quality (0-10)."""
         score = 5
-        lines = len(self.content.split('\n'))
+        lines = len(self.content.split("\n"))
 
         # 400+ lines, well-organized
         if lines >= 400:
@@ -2332,29 +2493,29 @@ class BraxisGrader:
         tier = self.get_tier(overall)
 
         dimension_names = {
-            'command_execution': 'Command Execution',
-            'type_checking': 'Type-Checking Coverage',
-            'unified_linting': 'Unified Linting',
-            'agent_boundaries': 'Agent Boundaries',
-            'architecture': 'Architecture Docs',
-            'pr_checklist': 'PR Checklist',
-            'ci_cd': 'CI/CD Enforcement',
-            'anti_patterns': 'Anti-Patterns',
-            'examples': 'Example Quality',
-            'overall_guidance': 'Overall Guidance',
+            "command_execution": "Command Execution",
+            "type_checking": "Type-Checking Coverage",
+            "unified_linting": "Unified Linting",
+            "agent_boundaries": "Agent Boundaries",
+            "architecture": "Architecture Docs",
+            "pr_checklist": "PR Checklist",
+            "ci_cd": "CI/CD Enforcement",
+            "anti_patterns": "Anti-Patterns",
+            "examples": "Example Quality",
+            "overall_guidance": "Overall Guidance",
         }
 
-        print(f"\n{'='*60}")
-        print(f"AGENTS.md Grade Report")
-        print(f"{'='*60}\n")
+        print(f"\n{'=' * 60}")
+        print("AGENTS.md Grade Report")
+        print(f"{'=' * 60}\n")
         print(f"Overall Score: {overall}/100 🟢 {tier}\n")
         print("Dimension Scores:")
 
         for key in self.scores:
             score = self.scores[key]
-            name = dimension_names.get(key, key.replace('_', ' ').title())
+            name = dimension_names.get(key, key.replace("_", " ").title())
             bar_filled = int(score)
-            bar = '█' * bar_filled + '░' * (10 - bar_filled)
+            bar = "█" * bar_filled + "░" * (10 - bar_filled)
             star = " ⭐" if score >= 9 else ""
             print(f"  {name:<25} [{bar}] {score}/10{star}")
 
@@ -2369,30 +2530,44 @@ class BraxisGrader:
                 else:
                     print(f"  {repo.capitalize():<15} ({benchmark}/100)   = (baseline)")
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
 
 
 __version__ = "1.3.0"
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description='Braxis - AI agent context generator')
-    parser.add_argument('--version', action='version', version=f'Braxis {__version__}')
-    parser.add_argument('command', choices=['generate', 'score', 'inspect', 'validate', 'history', 'grade'],
-                        help='Command to run')
-    parser.add_argument('--path', default='AGENTS.md', help='Path to AGENTS.md file (for grade command)')
-    parser.add_argument('--project-path', default='.', help='Project path (for other commands)')
-    parser.add_argument('--trends', action='store_true', help='Show score trends')
-    parser.add_argument('--compare', action='store_true', help='Compare against benchmarks (for grade)')
-    parser.add_argument('--verbose', action='store_true', help='Verbose output (for grade)')
+    parser = argparse.ArgumentParser(description="Braxis - AI agent context generator")
+    parser.add_argument("--version", action="version", version=f"Braxis {__version__}")
+    parser.add_argument(
+        "command",
+        choices=["generate", "score", "inspect", "validate", "history", "grade"],
+        help="Command to run",
+    )
+    parser.add_argument(
+        "--path", default="AGENTS.md", help="Path to AGENTS.md file (for grade command)"
+    )
+    parser.add_argument("--project-path", default=".", help="Project path (for other commands)")
+    parser.add_argument("--trends", action="store_true", help="Show score trends")
+    parser.add_argument(
+        "--compare", action="store_true", help="Compare against benchmarks (for grade)"
+    )
+    parser.add_argument("--verbose", action="store_true", help="Verbose output (for grade)")
     args = parser.parse_args()
 
-    if not args.command or args.command not in ['generate', 'score', 'inspect', 'validate', 'history', 'grade']:
+    if not args.command or args.command not in [
+        "generate",
+        "score",
+        "inspect",
+        "validate",
+        "history",
+        "grade",
+    ]:
         parser.print_help()
         sys.exit(1)
 
     # Handle grade command separately
-    if args.command == 'grade':
+    if args.command == "grade":
         try:
             grader = BraxisGrader(args.path)
             grader.grade()
@@ -2405,7 +2580,7 @@ def main() -> None:
             sys.exit(1)
         return
 
-    if args.command == 'history':
+    if args.command == "history":
         try:
             analyzer = BraxisAnalyzer(args.project_path)
             if args.trends:
@@ -2417,9 +2592,9 @@ def main() -> None:
                 else:
                     print(f"\nScore History for {analyzer.project_path.name}:")
                     for i, entry in enumerate(history, 1):
-                        timestamp = entry['timestamp'][:10]
-                        score = entry['score']
-                        tier = entry['tier']
+                        timestamp = entry["timestamp"][:10]
+                        score = entry["score"]
+                        tier = entry["tier"]
                         print(f"{i}. {timestamp} - {score}/100 ({tier})")
         except (ValueError, FileNotFoundError, NotADirectoryError) as e:
             print(f"Error: {e}", file=sys.stderr)
@@ -2433,9 +2608,9 @@ def main() -> None:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    if args.command == 'score':
+    if args.command == "score":
         analyzer.print_score()
-    elif args.command == 'generate':
+    elif args.command == "generate":
         print("Generating context files...")
         try:
             # v1.1: Check for monorepo and generate hierarchically
@@ -2446,35 +2621,37 @@ def main() -> None:
                     analyzer._write_file_safely(file_path, content)
                     print(f"* {file_path}")
             else:
-                analyzer._write_file_safely('AGENTS.md', analyzer.generate_agents_md())
+                analyzer._write_file_safely("AGENTS.md", analyzer.generate_agents_md())
                 print("* AGENTS.md")
 
-            analyzer._write_file_safely('CLAUDE.md', analyzer.generate_claude_md())
+            analyzer._write_file_safely("CLAUDE.md", analyzer.generate_claude_md())
             print("* CLAUDE.md")
-            analyzer._write_file_safely('.cursorrules', analyzer.generate_cursorrules())
+            analyzer._write_file_safely(".cursorrules", analyzer.generate_cursorrules())
             print("* .cursorrules")
-            analyzer._write_file_safely('.agentic-config.json', analyzer.generate_agentic_config())
+            analyzer._write_file_safely(".agentic-config.json", analyzer.generate_agentic_config())
             print("* .agentic-config.json")
 
             # v1.1: Report MCP and monorepo info
             if analyzer.monorepo_type:
-                print(f"\n✓ Monorepo detected: {analyzer.monorepo_type.upper()} with {len(analyzer.monorepo_subsystems)} subsystems")
+                print(
+                    f"\n✓ Monorepo detected: {analyzer.monorepo_type.upper()} with {len(analyzer.monorepo_subsystems)} subsystems"
+                )
             if analyzer.mcp_servers:
                 print(f"✓ MCP servers detected: {len(analyzer.mcp_servers)} server(s)")
 
             scale = analyzer.analyze_project_scale()
-            if scale in ('large', 'medium'):
+            if scale in ("large", "medium"):
                 suggestion = analyzer.suggest_contribution_boundaries()
                 if suggestion:
                     print(f"\n💡 Project Scale ({scale}): {suggestion}")
 
             print(f"\nAgent Readiness: {analyzer.total_score}/100 ({analyzer.tier})")
             print("\nFiles created successfully!")
-        except IOError as e:
+        except OSError as e:
             print(f"Error writing files: {e}", file=sys.stderr)
             sys.exit(1)
-    elif args.command == 'inspect':
-        print(f"\nProject Analysis:")
+    elif args.command == "inspect":
+        print("\nProject Analysis:")
         print(f" Languages: {dict(analyzer.languages)}")
         print(f" Build System: {analyzer.build_system}")
         print(f" Test Frameworks: {list(analyzer.test_frameworks)}")
@@ -2491,17 +2668,17 @@ def main() -> None:
             print(f" MCP Servers: {len(analyzer.mcp_servers)}")
             for server in analyzer.mcp_servers:
                 print(f"   - {server['name']} ({server['type']})")
-    elif args.command == 'validate':
-        required_files = ['AGENTS.md', 'CLAUDE.md', '.cursorrules', '.agentic-config.json']
+    elif args.command == "validate":
+        required_files = ["AGENTS.md", "CLAUDE.md", ".cursorrules", ".agentic-config.json"]
         missing = [f for f in required_files if not Path(f).exists()]
         if missing:
             print(f"* Missing: {', '.join(missing)}")
-            print(f"Run: braxis generate")
+            print("Run: braxis generate")
             sys.exit(1)
         else:
-            print(f"* All context files present")
+            print("* All context files present")
             print(f"Agent Readiness: {analyzer.total_score}/100 ({analyzer.tier})")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
