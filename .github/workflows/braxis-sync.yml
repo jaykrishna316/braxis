@@ -2,7 +2,7 @@ name: Braxis Context Auto-Sync
 
 on:
   push:
-    branches: ['**']
+    branches: [main, develop, master]
     paths:
       - '**.py'
       - '**.js'
