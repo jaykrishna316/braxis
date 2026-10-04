@@ -11,7 +11,7 @@ braxis is a Python project using Python (setuptools).
 - **Pattern:** Single-package project
 - **Primary Language:** Python
 - **Build System:** Python (setuptools)
-- **Test Framework:** unittest
+- **Test Framework:** pytest
 - **Test Files:** 1
 
 ## Must-Follow Rules
@@ -62,10 +62,9 @@ These 8 areas drive AI readiness. Focus on these when making changes:
 ## Before You Commit
 
 ```bash
-python3 -m unittest discover                     # Run all tests
-# Optional: add linting/formatting if configured
-# ruff format .                 # Format code
-# ruff check .                  # Lint check
+ruff format .                 # Format code
+ruff check .                  # Lint check
+pytest                        # Run all tests
 ```
 
 All checks must pass before committing.

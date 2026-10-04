@@ -3,13 +3,12 @@
     "project_name": "braxis",
     "description": "A Python project with Python (setuptools)",
     "generated_by": "Braxis",
-    "generated_at": "2026-10-04T07:05:37.738586",
+    "generated_at": "2026-10-04T19:03:49.252257",
     "schema_version": "1.0"
   },
   "project": {
     "languages": [
-      "python",
-      "shell"
+      "python"
     ],
     "primary_language": "python",
     "build_system": "Python (setuptools)",
@@ -57,21 +56,18 @@
     }
   },
   "development": {
-    "setup_command": "pip install -e .",
-    "test_command": "python3 -m unittest discover",
+    "setup_command": "pip install -e . && uv sync --all-groups",
+    "test_command": "pytest",
     "lint_command": "ruff check .",
     "format_command": "ruff format .",
     "dev_server_command": null,
     "prerequisites": {
-      "language_version": ">=3.8",
+      "language_version": "3.9+",
       "package_manager": "pip or uv",
       "key_tools": [
-        "unittest",
-        "ruff"
-      ],
-      "runtime_tools": [
-        "uv",
-        "uvx"
+        "pytest",
+        "ruff",
+        "mypy"
       ]
     }
   },
@@ -113,11 +109,11 @@
   },
   "commands": {
     "setup": {
-      "command": "pip install -e .",
+      "command": "pip install -e . && uv sync --all-groups",
       "description": "Install dependencies and set up development environment"
     },
     "test": {
-      "command": "python3 -m unittest discover",
+      "command": "pytest",
       "description": "Run all tests"
     },
     "lint": {
@@ -130,9 +126,9 @@
     }
   },
   "testing": {
-    "framework": "unittest",
-    "total_tests": 30,
+    "framework": "pytest",
+    "total_tests": 1,
     "pass_rate": 100,
-    "run_command": "python3 -m unittest discover"
+    "run_command": "pytest"
   }
 }
