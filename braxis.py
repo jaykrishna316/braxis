@@ -1192,11 +1192,19 @@ make test                     # Run all tests (if available)"""
 
     def _extract_gotchas_from_contributing(self) -> List[str]:
         """v1.3.1: Extract warnings and gotchas from CONTRIBUTING.md."""
+        gotchas = []
+
+        # Add build/configure distinction for shell projects with Makefile
+        primary_lang = self._get_primary_language()
+        if primary_lang == "shell" and "Makefile" in [f.name for f in self.build_files]:
+            build_instructions = self._extract_build_instructions()
+            if "configure" in build_instructions:
+                gotchas.append("Note: `src/configure && make -C src` builds optional C extension; root `make` may run Docker tests")
+
         if not self.contributing_guide["exists"]:
-            return []
+            return gotchas
 
         content = self.contributing_guide["content"]
-        gotchas = []
         warning_keywords = [
             "gotcha",
             "warning:",
@@ -1218,6 +1226,42 @@ make test                     # Run all tests (if available)"""
                     gotchas.append(clean_line)
 
         return gotchas[:10]  # Limit to top 10 gotchas
+
+    def _extract_build_instructions(self) -> str:
+        """Extract build/compile instructions from README or CONTRIBUTING.md."""
+        # Look for build instructions in README first, then CONTRIBUTING
+        sources = []
+        readme_path = self.project_path / "README.md"
+        if readme_path.exists():
+            try:
+                sources.append(readme_path.read_text())
+            except (OSError, UnicodeDecodeError):
+                pass
+
+        if self.contributing_guide["exists"] and self.contributing_guide["content"]:
+            sources.append(self.contributing_guide["content"])
+
+        for content in sources:
+            lines = content.split("\n")
+            for i, line in enumerate(lines):
+                line_lower = line.lower()
+                # Look for configure/build commands
+                if "src/configure" in line or "make -C src" in line:
+                    # Capture this line and context
+                    instruction = line.strip()
+                    if instruction.startswith("-") or instruction.startswith("*"):
+                        instruction = instruction.lstrip("-*").strip()
+                    if instruction and len(instruction) > 10:
+                        return instruction
+                # Also look for explicit build instruction sections
+                if "build" in line_lower and ("command" in line_lower or "compile" in line_lower):
+                    # Check next few lines for actual commands
+                    for j in range(i+1, min(i+5, len(lines))):
+                        next_line = lines[j].strip()
+                        if "make" in next_line or "configure" in next_line:
+                            return next_line.lstrip("`").rstrip("`").strip()
+
+        return ""
 
     def _extract_category_a_content(self) -> Dict[str, Any]:
         """v1.4: Extract Category A (Operations Manual) content from CONTRIBUTING.md."""
@@ -1531,6 +1575,7 @@ Refer to the scoped file when working in that directory."""
         arch_tables = self._generate_architecture_tables()
         env_requirements = self._detect_environment_requirements()
         gotchas = self._extract_gotchas_from_contributing()
+        build_instructions = self._extract_build_instructions()
 
         # v1.3.2: Language-specific commands
         dev_commands = self._get_development_commands(primary_lang)
@@ -1540,6 +1585,9 @@ Refer to the scoped file when working in that directory."""
         # Handle package manager display
         pkg_mgr = self._get_package_manager_recommendation()
         package_manager_line = f"- **Package Manager:** {pkg_mgr}" if pkg_mgr else ""
+
+        # Handle build instructions display
+        build_instruction_line = f"- **Build Command:** {build_instructions}" if build_instructions else ""
 
         gotchas_section = ""
         if gotchas:
@@ -1597,6 +1645,7 @@ This section provides architectural context and agent-understanding for the code
 - **Main Entry:** {critical_files_info}
 - **Test Suite:** {len(self.test_files)} test files
 - **Build Configuration:** {build_config}
+{build_instruction_line}
 
 #### Design Principles
 
