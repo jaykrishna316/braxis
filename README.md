@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="images/braxis-banner.webp" alt="Braxis - Keep your AI agents in sync with your codebase" width="100%" />
+</div>
+
 # Braxis — Auto-Generated AI Agent Context Files
 
 [![PyPI - Version](https://img.shields.io/pypi/v/braxis.svg)](https://pypi.org/project/braxis/)
