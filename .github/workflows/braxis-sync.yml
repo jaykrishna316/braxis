@@ -7,18 +7,8 @@ on:
       - '**.py'
       - '**.js'
       - '**.ts'
-      - '**.tsx'
-      - '**.jsx'
-      - '**.java'
-      - '**.rs'
-      - '**.go'
-      - 'package.json'
-      - 'pyproject.toml'
       - 'setup.py'
-      - 'Cargo.toml'
-      - 'go.mod'
-      - 'pom.xml'
-      - 'build.gradle'
+      - 'pyproject.toml'
       - '.github/workflows/braxis-sync.yml'
 
 jobs:
@@ -31,7 +21,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           ref: ${{ github.head_ref }}
 
       - uses: actions/setup-python@v4
@@ -40,8 +29,7 @@ jobs:
 
       - run: pip install -q braxis
 
-      - name: Generate context files
-        run: braxis generate
+      - run: braxis generate
 
       - name: Check for changes
         id: changes
@@ -50,32 +38,18 @@ jobs:
             echo "has_changes=false" >> $GITHUB_OUTPUT
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "diff<<EOF" >> $GITHUB_OUTPUT
-            git diff --stat AGENTS.md CLAUDE.md .cursorrules .agentic-config.json >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
           fi
 
-      - name: Commit context file changes
+      - name: Commit and push changes
         if: steps.changes.outputs.has_changes == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add AGENTS.md CLAUDE.md .cursorrules .agentic-config.json
-          git commit -m "chore: regenerate braxis context files
-
-Automatically updated by Braxis based on code changes in this PR.
-
-Updated files:
-- AGENTS.md - Universal agent instructions
-- CLAUDE.md - Claude Code optimized
-- .cursorrules - Cursor IDE rules
-- .agentic-config.json - Machine-readable metadata
-
-Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01V4eyLffAGHpjJKbMgpN4d7"
+          git commit -m "chore: regenerate braxis context files"
           git push
 
-      - name: Post comment on PR
+      - name: Post comment
         if: steps.changes.outputs.has_changes == 'true'
         uses: actions/github-script@v7
         with:
@@ -84,10 +58,10 @@ Claude-Session: https://claude.ai/code/session_01V4eyLffAGHpjJKbMgpN4d7"
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `✅ **Braxis Context Files Updated**\n\nAutomatically regenerated context files based on your code changes:\n\n- AGENTS.md - Universal agent instructions\n- CLAUDE.md - Claude Code optimized\n- .cursorrules - Cursor IDE rules  \n- .agentic-config.json - Machine-readable metadata\n\nThese changes have been committed to your PR branch.`
+              body: '✅ Braxis context files automatically updated and committed to this PR'
             })
 
-      - name: Comment if no changes needed
+      - name: Post comment - no changes
         if: steps.changes.outputs.has_changes == 'false'
         uses: actions/github-script@v7
         with:
@@ -96,5 +70,5 @@ Claude-Session: https://claude.ai/code/session_01V4eyLffAGHpjJKbMgpN4d7"
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `✅ **Braxis Context Files Up to Date**\n\nNo context file updates needed. Your changes don't affect the AI agent context.`
+              body: '✅ Context files already up to date'
             })
