@@ -284,27 +284,38 @@ class BraxisAnalyzer:
 
         # Language-specific test framework detection
         if primary_lang == "go":
-            # Go uses built-in testing package
-            test_frameworks.add("Go testing")
+            # Go uses built-in testing package (detect _test.go files)
+            go_tests = [f for f in self.test_files if f.suffix == ".go" and "_test" in f.name]
+            if go_tests:
+                test_frameworks.add("Go testing")
         elif primary_lang == "python":
+            # Check for unittest first (Python built-in)
+            unittest_detected = any(
+                (f.name.startswith("test_") or f.name.endswith("_test.py"))
+                for f in self.test_files if f.suffix == ".py"
+            )
+            if unittest_detected:
+                test_frameworks.add("unittest")
+
             # Check pyproject.toml for pytest config
             pyproject = self.project_path / "pyproject.toml"
             if pyproject.exists():
                 try:
                     content = pyproject.read_text()
-                    if "[tool.pytest" in content or "pytest" in content:
+                    if "[tool.pytest" in content:
                         test_frameworks.add("pytest")
                 except (OSError, UnicodeDecodeError):
                     pass
-            # Check for pytest imports in Python files
-            content_samples = self._sample_file_contents(limit=20)
-            for content in content_samples:
-                if "pytest" in content or "from pytest" in content:
-                    test_frameworks.add("pytest")
-                    break
-            # Default to pytest for Python
+            # Check for pytest imports in Python files (only if unittest not found)
+            if not test_frameworks:
+                content_samples = self._sample_file_contents(limit=20)
+                for content in content_samples:
+                    if "pytest" in content or "from pytest" in content:
+                        test_frameworks.add("pytest")
+                        break
+            # Default to unittest if nothing detected (most Python projects use it)
             if not test_frameworks and self.test_files:
-                test_frameworks.add("pytest")
+                test_frameworks.add("unittest")
         elif primary_lang in ["javascript", "typescript"]:
             bunfig = self.project_path / "bunfig.toml"
             if bunfig.exists():
@@ -321,11 +332,16 @@ class BraxisAnalyzer:
                 if not test_frameworks and self.test_files:
                     test_frameworks.add("Jest")  # Default for JS/TS
         elif primary_lang == "ruby":
-            content_samples = self._sample_file_contents(limit=20)
-            for content in content_samples:
-                if "rspec" in content or "describe" in content:
-                    test_frameworks.add("RSpec")
-                    break
+            # Check for RSpec files (*_spec.rb)
+            rspec_files = [f for f in self.test_files if f.name.endswith("_spec.rb")]
+            if rspec_files:
+                test_frameworks.add("RSpec")
+            else:
+                content_samples = self._sample_file_contents(limit=20)
+                for content in content_samples:
+                    if "rspec" in content or "describe" in content:
+                        test_frameworks.add("RSpec")
+                        break
             if not test_frameworks and self.test_files:
                 test_frameworks.add("RSpec")
         elif primary_lang == "shell":
@@ -361,6 +377,41 @@ class BraxisAnalyzer:
                     test_frameworks.add("JUnit")
 
         self.test_frameworks = test_frameworks if test_frameworks else {"None detected"}
+
+    def _count_test_functions(self) -> int:
+        """Count actual test functions/declarations, not just files."""
+        count = 0
+
+        for test_file in self.test_files:
+            try:
+                content = test_file.read_text(encoding='utf-8', errors='ignore')
+
+                if test_file.suffix == '.py':
+                    # Python: count def test_ functions
+                    count += content.count('def test_')
+                elif test_file.suffix == '.go':
+                    # Go: count func Test declarations
+                    count += content.count('func Test')
+                elif test_file.suffix in ['.sh', '.bats']:
+                    # Bats/Shell: count @test declarations
+                    count += content.count('@test')
+                elif test_file.suffix in ['.js', '.ts']:
+                    # JavaScript/TypeScript: count describe/it blocks
+                    count += content.count('describe(')
+                    count += content.count('it(')
+                elif test_file.suffix == '.rb':
+                    # Ruby: count describe/it blocks
+                    count += content.count('describe ')
+                    count += content.count('it ')
+                elif test_file.suffix == '.java':
+                    # Java: count @Test methods
+                    count += content.count('@Test')
+                    count += content.count('public void test')
+            except (OSError, UnicodeDecodeError):
+                pass
+
+        # Return at least file count if no functions found
+        return max(count, len(self.test_files)) if self.test_files else 0
 
     def _detect_conventions(self) -> None:
         """Detect code conventions."""
@@ -554,6 +605,33 @@ class BraxisAnalyzer:
 
         return "3.9+"  # Default fallback
 
+    def _get_detected_python_tools(self) -> List[str]:
+        """Get Python tools that are actually configured in the project."""
+        tools = []
+
+        pyproject = self.project_path / "pyproject.toml"
+        if pyproject.exists():
+            try:
+                content = pyproject.read_text()
+
+                # Check for linting tools
+                if "[tool.ruff" in content:
+                    tools.append("ruff")
+                if "[tool.pylint" in content:
+                    tools.append("pylint")
+                if "[tool.flake8" in content:
+                    tools.append("flake8")
+
+                # Check for type checking
+                if "[tool.mypy" in content:
+                    tools.append("mypy")
+                if "[tool.pyright" in content:
+                    tools.append("pyright")
+            except (OSError, UnicodeDecodeError):
+                pass
+
+        return tools if tools else []
+
     def _detect_contributing_guide(self) -> Dict[str, Any]:
         """Detect and summarize contributing guide if present."""
         guide_candidates = [
@@ -700,7 +778,7 @@ bundle exec rubocop -a    # Auto-fix issues
         elif primary_lang == "shell":
             return """```bash
 make test                 # Run all Bats tests
-make test-<test-name>    # Run specific test
+BATS_FILE_FILTER=test-<name>.bats make test  # Run specific test
 ```
 
 #### Code Quality
@@ -720,20 +798,44 @@ npm run lint              # Lint code
 npm run format            # Format code (prettier)
 npm run lint -- --fix     # Auto-fix lint issues
 ```"""
-        else:
-            return """```bash
-pytest                    # Run all tests
-pytest tests/             # Run specific test directory
-pytest -v                 # Verbose output with test names
-pytest -x                 # Stop on first failure
-coverage run -m pytest && coverage report  # With coverage report
+        else:  # Python and others
+            # Use detected test framework instead of hardcoding pytest
+            test_framework = list(self.test_frameworks)[0] if self.test_frameworks else "pytest"
+            if "unittest" in test_framework:
+                return """```bash
+python3 -m unittest discover  # Run all tests
+python3 -m unittest test_module.TestClass  # Run specific test
+python3 -m unittest -v        # Verbose output
 ```
 
 #### Code Quality
 ```bash
-ruff check .              # Lint with ruff
-ruff format .             # Format code
-mypy .                    # Type checking (if configured)
+# Format and lint tools (if configured)
+# ruff check .              # Check code style
+# ruff format .             # Format code
+```"""
+            elif "pytest" in test_framework:
+                return """```bash
+pytest                    # Run all tests
+pytest tests/             # Run specific test directory
+pytest -v                 # Verbose output with test names
+pytest -x                 # Stop on first failure
+```
+
+#### Code Quality
+```bash
+# ruff check .              # Lint with ruff (if configured)
+# ruff format .             # Format code
+# mypy .                    # Type checking (if configured)
+```"""
+            else:
+                return """```bash
+pytest                    # Run all tests (or use detected framework)
+```
+
+#### Code Quality
+```bash
+# Configure and run your project's linting and type checking tools
 ```"""
 
     def _get_initial_setup_commands(self, primary_lang: str) -> str:
@@ -748,15 +850,37 @@ mypy .                    # Type checking (if configured)
             return "# Add ./bin to your PATH\nexport PATH=\"$PWD/bin:$PATH\""
         elif primary_lang in ["javascript", "typescript"]:
             return "npm install\n# or\nyarn install"
-        else:  # Python and others
-            return "pip install -e .\n# or\nuv sync --all-groups"
+        elif primary_lang == "python":
+            # Only suggest pip install if it's actually a Python package
+            has_setup_py = (self.project_path / "setup.py").exists()
+            pyproject = self.project_path / "pyproject.toml"
+            is_package = False
+
+            if pyproject.exists():
+                try:
+                    content = pyproject.read_text()
+                    is_package = "[project]" in content or "setuptools" in content
+                except (OSError, UnicodeDecodeError):
+                    pass
+
+            if has_setup_py or is_package:
+                return "pip install -e ."
+            else:
+                return "# No setup needed - this is not a Python package"
+        else:
+            return "# See project documentation for setup instructions"
 
     def _get_cursor_rules_commands(self, primary_lang: str) -> str:
         """Get language-appropriate pre-commit commands for .cursorrules file."""
         if primary_lang == "python":
-            return """ruff format .                 # Format code
-ruff check .                  # Lint check
-pytest                        # Run all tests"""
+            # Use detected test framework instead of hardcoding pytest
+            test_framework = list(self.test_frameworks)[0] if self.test_frameworks else "pytest"
+            test_cmd = "python3 -m unittest discover" if "unittest" in test_framework else "pytest"
+
+            return f"""{test_cmd}                     # Run all tests
+# Optional: add linting/formatting if configured
+# ruff format .                 # Format code
+# ruff check .                  # Lint check"""
         elif primary_lang in ["javascript", "typescript"]:
             if self.build_system == "Bun":
                 return """bun run format                # Format code
@@ -1669,11 +1793,24 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
             format_cmd = None
             py_version = "N/A"
         elif primary_lang == "python":
-            setup_cmd = "pip install -e . && uv sync --all-groups"
-            test_cmd = "pytest"
-            lint_cmd = "ruff check ."
-            format_cmd = "ruff format ."
-            py_version = "3.9+"
+            # Use dynamic setup based on whether it's a package
+            setup_cmd = self._get_initial_setup_commands(primary_lang)
+            # Use detected test framework instead of hardcoding
+            test_framework = list(self.test_frameworks)[0] if self.test_frameworks else "pytest"
+            test_cmd = "python3 -m unittest discover" if "unittest" in test_framework else "pytest"
+            # Only suggest linting if tools are configured
+            pyproject = self.project_path / "pyproject.toml"
+            lint_cmd = None
+            format_cmd = None
+            if pyproject.exists():
+                try:
+                    content = pyproject.read_text()
+                    if "[tool.ruff" in content:
+                        lint_cmd = "ruff check ."
+                        format_cmd = "ruff format ."
+                except (OSError, UnicodeDecodeError):
+                    pass
+            py_version = self._detect_python_version()
         elif self.build_system == "Bun":
             setup_cmd = "bun install"
             test_cmd = "bun test"
@@ -1691,9 +1828,9 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
         if self.test_frameworks:
             test_frameworks_str = ", ".join(sorted(self.test_frameworks))
         elif primary_lang == "shell":
-            test_frameworks_str = "Bats"
+            test_frameworks_str = "shell script tests"
         elif primary_lang == "python":
-            test_frameworks_str = "pytest"
+            test_frameworks_str = "unittest"  # Python's built-in default
         elif self.build_system == "Bun":
             test_frameworks_str = "Bun"
         elif primary_lang in ["javascript", "typescript"]:
@@ -1775,7 +1912,7 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                     if self.build_system == "Bun"
                     else "npm",
                     "key_tools": list(self.test_frameworks)
-                    + (["ruff", "mypy"] if primary_lang == "python" else []),
+                    + (self._get_detected_python_tools() if primary_lang == "python" else []),
                     "runtime_tools": ["uv", "uvx"]
                     if "python" in self.languages
                     else (["bun"] if self.build_system == "Bun" else []),
@@ -1851,7 +1988,7 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
             },
             "testing": {
                 "framework": test_frameworks_str,
-                "total_tests": len(self.test_files),
+                "total_tests": self._count_test_functions(),
                 "pass_rate": 100,
                 "run_command": test_cmd,
             },
