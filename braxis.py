@@ -12,7 +12,7 @@ from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
 import hashlib
-from typing import Any, DefaultDict, Dict, List, Optional, Tuple
+from typing import Any, cast, DefaultDict, Dict, List, Optional, Tuple
 
 
 class BraxisAnalyzer:
@@ -55,8 +55,8 @@ class BraxisAnalyzer:
         self.contributing_guide: Dict[str, Any] = {'exists': False, 'path': None, 'content': None}
         # v1.1 features
         self.monorepo_type: Optional[str] = None
-        self.monorepo_subsystems: List[str] = []
-        self.mcp_servers: List[str] = []
+        self.monorepo_subsystems: List[Dict[str, str]] = []
+        self.mcp_servers: List[Dict[str, Any]] = []
 
     def _validate_project_path(self, project_path: str) -> Path:
         """Validate and normalize project path."""
@@ -108,7 +108,7 @@ class BraxisAnalyzer:
             return []
 
         try:
-            history = json.loads(history_file.read_text())
+            history = cast(List[Dict[str, Any]], json.loads(history_file.read_text()))
             return history[-limit:] if limit else history
         except (json.JSONDecodeError, IOError):
             return []
@@ -191,7 +191,7 @@ class BraxisAnalyzer:
         # Return language with most files
         return max(self.languages.items(), key=lambda x: x[1])[0]
 
-    def _detect_build_system(self):
+    def _detect_build_system(self) -> None:
         """Detect build system, prioritized by primary language."""
         primary_lang = self._get_primary_language()
         build_system = "Unknown"
@@ -254,7 +254,7 @@ class BraxisAnalyzer:
 
         self.build_system = build_system
 
-    def _detect_test_framework(self):
+    def _detect_test_framework(self) -> None:
         """Detect test framework, language-aware."""
         test_frameworks = set()
         primary_lang = self._get_primary_language()
@@ -324,7 +324,7 @@ class BraxisAnalyzer:
 
         self.test_frameworks = test_frameworks if test_frameworks else {"None detected"}
 
-    def _detect_conventions(self):
+    def _detect_conventions(self) -> None:
         """Detect code conventions."""
         content_samples = self._sample_file_contents(limit=20)
         for content in content_samples:
@@ -347,7 +347,7 @@ class BraxisAnalyzer:
             if 'validate' in content.lower() or 'schema' in content.lower():
                 self.conventions['validation'] += 1
 
-    def _detect_project_structure(self):
+    def _detect_project_structure(self) -> str:
         """Detect project layout: src/ vs top-level package."""
         src_dir = self.project_path / 'src'
         if src_dir.exists() and src_dir.is_dir():
@@ -373,14 +373,14 @@ class BraxisAnalyzer:
 
         return 'standard'
 
-    def _identify_critical_files(self):
+    def _identify_critical_files(self) -> None:
         """Identify critical files (main, entry points, etc)."""
         critical_names = ['main.py', 'app.py', 'server.py', 'index.js', 'main.js', 'app.js', 'main.rs', 'main.go', 'main.ts']
         for file_path in self.files:
             if file_path.name in critical_names or 'src/main' in str(file_path):
                 self.critical_files.append(file_path)
 
-    def _sample_file_contents(self, limit=20):
+    def _sample_file_contents(self, limit: int = 20) -> List[str]:
         """Sample file contents for convention detection."""
         samples = []
         code_files = [f for f in self.files if f.suffix in ['.py', '.js', '.ts', '.go', '.rs', '.java']]
@@ -392,7 +392,7 @@ class BraxisAnalyzer:
                 pass
         return samples
 
-    def _detect_repository_url(self):
+    def _detect_repository_url(self) -> str:
         """Detect repository URL from pyproject.toml or README."""
         pyproject = self.project_path / 'pyproject.toml'
         if pyproject.exists():
@@ -416,7 +416,7 @@ class BraxisAnalyzer:
         # If not found, use project name as fallback
         return f"https://github.com/YOUR_ORG/{self.project_path.name}.git"
 
-    def _detect_python_version(self):
+    def _detect_python_version(self) -> str:
         """Detect Python version requirement from pyproject.toml or setup.py."""
         pyproject = self.project_path / 'pyproject.toml'
         if pyproject.exists():
@@ -457,7 +457,7 @@ class BraxisAnalyzer:
 
         return "3.9+"  # Default fallback
 
-    def _detect_contributing_guide(self):
+    def _detect_contributing_guide(self) -> Dict[str, Any]:
         """Detect and summarize contributing guide if present."""
         guide_candidates = [
             self.project_path / 'CONTRIBUTING.md',
@@ -481,27 +481,27 @@ class BraxisAnalyzer:
 
         return {'exists': False, 'path': None, 'content': None}
 
-    def _extract_dco_requirement(self, content):
+    def _extract_dco_requirement(self, content: str) -> bool:
         """Check if project requires DCO sign-off."""
         content_lower = content.lower()
         return any(phrase in content_lower for phrase in ['signed-off-by', 'git commit -s', 'dco', 'developer certificate'])
 
-    def _extract_release_notes_requirement(self, content):
+    def _extract_release_notes_requirement(self, content: str) -> bool:
         """Check if project requires release-notes blocks."""
         content_lower = content.lower()
         return any(phrase in content_lower for phrase in ['release-notes', 'release notes', 'changelog block'])
 
-    def _extract_table_driven_tests(self, content):
+    def _extract_table_driven_tests(self, content: str) -> bool:
         """Check if project uses table-driven tests."""
         content_lower = content.lower()
         return any(phrase in content_lower for phrase in ['table-driven test', 'table driven test', 'test cases in a table'])
 
-    def _extract_performance_requirements(self, content):
+    def _extract_performance_requirements(self, content: str) -> bool:
         """Check if project has special performance work requirements."""
         content_lower = content.lower()
         return any(phrase in content_lower for phrase in ['benchmark', 'benchstat', 'performance work', 'perf'])
 
-    def _extract_pr_title_format(self, content):
+    def _extract_pr_title_format(self, content: str) -> Optional[str]:
         """Extract PR title format if mentioned."""
         lines = content.split('\n')
         for i, line in enumerate(lines):
@@ -511,7 +511,7 @@ class BraxisAnalyzer:
                         return lines[j].strip()
         return None
 
-    def _get_language_version_requirement(self):
+    def _get_language_version_requirement(self) -> str:
         """Get language-appropriate version requirement."""
         primary_lang = self._get_primary_language()
         if primary_lang == "go":
@@ -527,7 +527,7 @@ class BraxisAnalyzer:
         else:
             return self.python_version
 
-    def _get_package_manager_recommendation(self):
+    def _get_package_manager_recommendation(self) -> str:
         """Get language-appropriate package manager recommendation."""
         primary_lang = self._get_primary_language()
         if primary_lang == "go":
@@ -543,7 +543,7 @@ class BraxisAnalyzer:
         else:
             return "pip or uv"
 
-    def _get_development_commands(self, primary_lang):
+    def _get_development_commands(self, primary_lang: str) -> str:
         """Get language-appropriate development commands."""
         if primary_lang == "go":
             return """```bash
@@ -610,7 +610,7 @@ ruff format .             # Format code
 mypy .                    # Type checking (if configured)
 ```"""
 
-    def _get_initial_setup_commands(self, primary_lang):
+    def _get_initial_setup_commands(self, primary_lang: str) -> str:
         """Get language-appropriate initial setup commands."""
         if primary_lang == "go":
             return "go mod download"
@@ -623,7 +623,7 @@ mypy .                    # Type checking (if configured)
         else:  # Python and others
             return "pip install -e .\n# or\nuv sync --all-groups"
 
-    def _get_testing_strategy_commands(self, primary_lang):
+    def _get_testing_strategy_commands(self, primary_lang: str) -> str:
         """Get language-appropriate testing strategy commands."""
         if primary_lang == "go":
             return """Before committing:
@@ -656,7 +656,7 @@ mypy .                    # Type checking (if configured)
 3. Check type hints: `mypy .`
 4. Format code: `ruff format .`"""
 
-    def _contribution_section_text(self):
+    def _contribution_section_text(self) -> str:
         """Generate contribution guidelines section with smart pattern extraction."""
         if self.contributing_guide['exists']:
             guide_path = self.contributing_guide['path']
@@ -703,7 +703,7 @@ mypy .                    # Type checking (if configured)
 2. Follow the patterns established in the codebase
 3. Ensure your contribution aligns with the project's design principles above"""
 
-    def _calculate_score(self):
+    def _calculate_score(self) -> None:
         """Calculate agent readiness score."""
         scores = {}
         arch_score = min(20, len(self.critical_files) * 5 + 10)
@@ -740,32 +740,32 @@ mypy .                    # Type checking (if configured)
             self.tier = "Not Ready"
         self._save_score_to_history()
 
-    def _write_file_safely(self, filepath, content):
+    def _write_file_safely(self, filepath: str, content: str) -> None:
         """Write file safely using atomic operation with temp file."""
         if not filepath:
             raise ValueError("Filepath cannot be empty")
         if not isinstance(content, str):
             raise TypeError(f"Content must be str, got {type(content).__name__}")
-        filepath = Path(filepath)
+        file_path = Path(filepath)
         tmp_path = None
         try:
-            filepath.parent.mkdir(parents=True, exist_ok=True)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
             with tempfile.NamedTemporaryFile(
                 mode='w',
-                dir=filepath.parent,
+                dir=file_path.parent,
                 suffix='.tmp',
                 delete=False,
                 encoding='utf-8'
             ) as tmp_file:
                 tmp_file.write(content)
                 tmp_path = Path(tmp_file.name)
-            tmp_path.replace(filepath)
+            tmp_path.replace(file_path)
         except Exception as e:
             if tmp_path and tmp_path.exists():
                 tmp_path.unlink()
             raise IOError(f"Failed to write file {filepath}: {e}")
 
-    def print_score(self):
+    def print_score(self) -> None:
         """Print the score report."""
         print(f"\n{'='*60}")
         print(f"Agent Readiness Score: {self.total_score}/100")
@@ -794,7 +794,7 @@ mypy .                    # Type checking (if configured)
         print(f" braxis generate")
         print(f"\n{'='*60}\n")
 
-    def _extract_gotchas_from_contributing(self):
+    def _extract_gotchas_from_contributing(self) -> List[str]:
         """v1.3.1: Extract warnings and gotchas from CONTRIBUTING.md."""
         if not self.contributing_guide['exists']:
             return []
@@ -814,13 +814,13 @@ mypy .                    # Type checking (if configured)
 
         return gotchas[:10]  # Limit to top 10 gotchas
 
-    def _extract_category_a_content(self):
+    def _extract_category_a_content(self) -> Dict[str, Any]:
         """v1.4: Extract Category A (Operations Manual) content from CONTRIBUTING.md."""
         if not self.contributing_guide['exists']:
             return {}
 
         content = self.contributing_guide['content']
-        category_a = {
+        category_a: Dict[str, List[str]] = {
             'procedures': [],
             'requirements': [],
             'workarounds': [],
@@ -869,7 +869,7 @@ mypy .                    # Type checking (if configured)
 
         return category_a
 
-    def _format_category_a_section(self, category_a_content):
+    def _format_category_a_section(self, category_a_content: Dict[str, Any]) -> str:
         """Format Category A content into markdown section."""
         if not any(category_a_content.values()):
             return ""
@@ -903,7 +903,7 @@ mypy .                    # Type checking (if configured)
 
         return section
 
-    def _generate_architecture_tables(self):
+    def _generate_architecture_tables(self) -> str:
         """v1.3.1: Auto-generate directory-to-purpose mapping tables."""
         primary_lang = self._get_primary_language()
 
@@ -960,7 +960,7 @@ Refer to the scoped file when working in that directory."""
 
         return arch_table
 
-    def _detect_environment_requirements(self):
+    def _detect_environment_requirements(self) -> str:
         """v1.3.1: Extract environment setup requirements and gotchas."""
         env_info = {}
         env_section = "### Environment Requirements\n\n"
@@ -1014,7 +1014,7 @@ Refer to the scoped file when working in that directory."""
 
         return env_section if env_info else ""
 
-    def generate_agents_md(self):
+    def generate_agents_md(self) -> str:
         """v1.4: Generate dual-format AGENTS.md with Category A (Operations) + Category B (Context)."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
 
@@ -1241,10 +1241,9 @@ Before making changes:
 ---
 
 *Generated by Braxis - keeping AI agents in sync with your code*
-"""
-        return agents_content + "\n"
+""" + "\n"
 
-    def generate_claude_md(self):
+    def generate_claude_md(self) -> str:
         """Generate CLAUDE.md as a router to AGENTS.md."""
         return """# CLAUDE.md
 
@@ -1273,7 +1272,7 @@ See AGENTS.md for full documentation and the complete list of available commands
 *Generated by Braxis*
 """
 
-    def generate_cursorrules(self):
+    def generate_cursorrules(self) -> str:
         """Generate .cursorrules file with project-specific rules."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
         test_frameworks_str = ', '.join(sorted(self.test_frameworks)) if self.test_frameworks else 'pytest'
@@ -1369,7 +1368,7 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
 *Generated by Braxis*
 """
 
-    def generate_agentic_config(self):
+    def generate_agentic_config(self) -> str:
         """Generate comprehensive .agentic-config.json file."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
         
@@ -1518,7 +1517,7 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
     # BRAXIS v1.1 FEATURES
     # ============================================================================
 
-    def detect_monorepo_type(self):
+    def detect_monorepo_type(self) -> Optional[str]:
         """Detect monorepo platform: pnpm, uv, yarn, npm workspaces, or lerna."""
         monorepo_indicators = {
             'pnpm': 'pnpm-workspace.yaml',
@@ -1546,7 +1545,7 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
 
         return None
 
-    def get_monorepo_subsystems(self):
+    def get_monorepo_subsystems(self) -> List[Dict[str, str]]:
         """Identify subsystems in a monorepo (api, web, packages, etc.)."""
         subsystems = []
 
@@ -1566,9 +1565,9 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
 
         return subsystems
 
-    def _detect_subsystem_language(self, path):
+    def _detect_subsystem_language(self, path: Path) -> str:
         """Detect primary language in a directory."""
-        lang_counts = defaultdict(int)
+        lang_counts: DefaultDict[str, int] = defaultdict(int)
         for ext, langs in self.LANGUAGE_EXTENSIONS.items():
             for lang_ext in langs:
                 count = len(list(path.rglob(f'*{lang_ext}')))
@@ -1577,7 +1576,7 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
 
         return max(lang_counts.items(), key=lambda x: x[1])[0] if lang_counts else 'unknown'
 
-    def generate_hierarchical_contexts(self):
+    def generate_hierarchical_contexts(self) -> Optional[Dict[str, str]]:
         """Generate hierarchical AGENTS.md for monorepos."""
         monorepo_type = self.detect_monorepo_type()
 
@@ -1601,7 +1600,7 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
             **scoped_contents
         }
 
-    def _generate_root_agents_md(self, monorepo_type, subsystems):
+    def _generate_root_agents_md(self, monorepo_type: str, subsystems: List[Dict[str, str]]) -> str:
         """Generate root AGENTS.md for monorepo."""
         subsystem_list = '\n'.join([
             f"- `{s['name']}/` → See {s['name']}/AGENTS.md ({s['language']} {s['name']})"
@@ -1667,7 +1666,7 @@ When contributing:
 *Generated by Braxis v1.1 - Hierarchical Agent Context for Monorepos*
 """
 
-    def _generate_scoped_agents_md(self, subsystem):
+    def _generate_scoped_agents_md(self, subsystem: Dict[str, str]) -> str:
         """Generate scoped AGENTS.md for a subsystem."""
         lang = subsystem.get('language', 'unknown').capitalize()
 
@@ -1720,7 +1719,7 @@ Document any dependencies on other subsystems:
 *Generated by Braxis v1.1*
 """
 
-    def _get_lock_file(self, monorepo_type):
+    def _get_lock_file(self, monorepo_type: str) -> str:
         """Get lock file name for monorepo type."""
         lock_files = {
             'pnpm': 'pnpm-lock.yaml',
@@ -1731,7 +1730,7 @@ Document any dependencies on other subsystems:
         }
         return lock_files.get(monorepo_type, 'lock file')
 
-    def _get_install_cmd(self, monorepo_type):
+    def _get_install_cmd(self, monorepo_type: str) -> str:
         """Get install command for monorepo type."""
         cmds = {
             'pnpm': 'pnpm install',
@@ -1742,16 +1741,16 @@ Document any dependencies on other subsystems:
         }
         return cmds.get(monorepo_type, 'npm install')
 
-    def _get_format_cmd(self, monorepo_type):
+    def _get_format_cmd(self, monorepo_type: str) -> str:
         """Get format command for monorepo type."""
         # Most modern projects use ruff or prettier
         return 'ruff format . && prettier --write .' if self.build_system else 'ruff format .'
 
-    def _get_test_cmd(self, monorepo_type):
+    def _get_test_cmd(self, monorepo_type: str) -> str:
         """Get test command for monorepo type."""
         return 'pytest' if 'python' in self.languages else 'npm test'
 
-    def _generate_arch_overview(self, subsystems):
+    def _generate_arch_overview(self, subsystems: List[Dict[str, str]]) -> str:
         """Generate architecture overview section."""
         overview = "```\n"
         overview += f"{self.project_path.name}/\n"
@@ -1762,7 +1761,7 @@ Document any dependencies on other subsystems:
         overview += "```"
         return overview
 
-    def _generate_subsystem_arch(self, subsystem):
+    def _generate_subsystem_arch(self, subsystem: Dict[str, str]) -> str:
         """Generate subsystem-specific architecture."""
         return f"""The **{subsystem['name']}** subsystem is primarily {subsystem['language'].capitalize()}.
 
@@ -1772,7 +1771,7 @@ Key responsibilities:
 - Maintain {subsystem['name']}-specific configuration
 """
 
-    def detect_mcp_servers(self):
+    def detect_mcp_servers(self) -> List[Dict[str, Any]]:
         """Detect MCP server configuration in repo."""
         mcp_servers = []
 
@@ -1818,7 +1817,7 @@ Key responsibilities:
 
         return mcp_servers
 
-    def generate_mcp_context(self):
+    def generate_mcp_context(self) -> Optional[str]:
         """Generate MCP documentation section."""
         mcp_servers = self.detect_mcp_servers()
 
@@ -1865,7 +1864,7 @@ mcp call <tool_name> <args>
 ---
 """
 
-    def analyze_project_scale(self):
+    def analyze_project_scale(self) -> str:
         """Suggest contribution boundaries based on project scale."""
         num_files = len(self.files)
 
@@ -1878,7 +1877,7 @@ mcp call <tool_name> <args>
         else:
             return "large"
 
-    def suggest_contribution_boundaries(self):
+    def suggest_contribution_boundaries(self) -> str:
         """Generate contribution boundaries template."""
         scale = self.analyze_project_scale()
 
@@ -2244,7 +2243,7 @@ class BraxisGrader:
 __version__ = "1.3.0"
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description='Braxis - AI agent context generator')
     parser.add_argument('--version', action='version', version=f'Braxis {__version__}')
     parser.add_argument('command', choices=['generate', 'score', 'inspect', 'validate', 'history', 'grade'],
