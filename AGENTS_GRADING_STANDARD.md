@@ -2,9 +2,11 @@
 
 > **Community Standard for Evaluating AI Agent Guidance Quality**
 >
-> Version: 1.0 (October 2026)  
-> Status: Open for Community Contribution  
+> Version: 1.0 (October 2026) — **v1.1 in development (pending external review)**  
+> Status: Open for Expert Validation  
 > License: MIT (same as Braxis)
+>
+> ⚠️ **BIAS DISCLOSURE**: This standard was created by the Braxis team. Braxis scores highest (93/100). We acknowledge inherent conflict of interest and are actively soliciting external expert review to validate fairness. See [EXPERT_REVIEW_FRAMEWORK.md](./EXPERT_REVIEW_FRAMEWORK.md) for peer review process.
 
 ---
 
@@ -13,6 +15,27 @@
 AGENTS.md files are critical for AI agent effectiveness. This standard provides a **language-agnostic rubric** for evaluating AGENTS.md quality across 10 dimensions, each scored 0-10.
 
 **Final Score = Average of all 10 dimensions** → 0-100 scale
+
+### Fair Comparison Methodology (Important)
+
+**Caveat**: This standard evaluates *AI agent guidance quality*, not project maturity or overall quality.
+
+**For repositories WITH formal AGENTS.md files:**
+- Score reflects actual quality of documented agent guidance
+- Fair to compare Braxis vs Sentry vs FastAPI directly
+- 3 repositories in this category (as of Oct 2026)
+
+**For repositories WITHOUT formal AGENTS.md files:**
+- Score reflects "AI readiness" (likelihood guidance exists but is scattered)
+- Not directly comparable to AGENTS.md-first projects
+- Example: Django has excellent agent guidance *scattered across docs* but no consolidated AGENTS.md file
+- Score reflects this architectural choice, not guidance quality
+
+**v1.1 will propose** separate scoring tracks:
+- **Track A**: "AGENTS.md Quality" (for repos with formal file)
+- **Track B**: "AI Readiness Score" (for any repo with scattered guidance)
+
+See [EXPERT_REVIEW_FRAMEWORK.md](./EXPERT_REVIEW_FRAMEWORK.md) for feedback on this approach.
 
 ### Score Tiers
 
@@ -26,7 +49,58 @@ AGENTS.md files are critical for AI agent effectiveness. This standard provides 
 
 ---
 
-## Dimension 1: Command Execution & Clarity (0-10)
+## Proposed v1.1 Changes (Pending Expert Review)
+
+**Current Issues with v1.0**:
+- Dimensions may favor Python/make-based projects
+- Missing enterprise-critical dimensions
+- Unfair to grade repos without AGENTS.md files
+
+**v1.1 Proposals** (seeking expert feedback):
+
+### New Dimensions Under Review
+
+1. **Production Deployment Guides** (0-10)
+   - How to ship code safely to production
+   - Rollback, monitoring, incident response
+   - Language/framework agnostic
+   - *Why it matters*: Critical for enterprise projects (Django, Kubernetes, TensorFlow)
+
+2. **Enterprise Scalability & Multi-tenancy** (0-10)
+   - Guidance for high-scale or multi-tenant systems
+   - Architectural patterns for scaling
+   - Data isolation, performance considerations
+   - *Why it matters*: Sentry, Airflow excel here but v1.0 misses it
+
+3. **Security & Hardening** (0-10)
+   - Secure defaults, CVE response, compliance
+   - Authentication, authorization, data protection guidance
+   - *Why it matters*: Increasingly critical for AI-native systems
+
+4. **Integration & Extensibility** (0-10)
+   - Plugin architecture, SDK documentation
+   - How external developers contribute
+   - *Why it matters*: Kubernetes, Django, FastAPI, React excel here
+
+### Reweighting Under Review
+
+Current dimensions may need rebalancing:
+- **Dimension 2 (Type-Checking)**: Too Python-centric? JavaScript projects can't score 10/10
+- **Dimension 1 (Commands)**: `make` is not universal (Node.js, Go projects use different tools)
+- **Dimension 8 (Anti-Patterns)**: Already well-covered by Dimension 4 (Boundaries)?
+
+**What experts should evaluate**:
+- Should these 4 new dimensions replace existing ones? Add to the standard? Or optional?
+- Should existing dimensions be rewritten for language-agnostic fairness?
+- Should we weight dimensions differently (not all 0-10 averaged equally)?
+
+**Provide feedback**: See [EXPERT_REVIEW_FRAMEWORK.md](./EXPERT_REVIEW_FRAMEWORK.md)
+
+---
+
+## Current Dimensions (v1.0)
+
+### Dimension 1: Command Execution & Clarity (0-10)
 
 **What it measures**: How clear and easy are the development commands?
 
