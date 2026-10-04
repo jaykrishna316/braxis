@@ -2,7 +2,7 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/braxis.svg)](https://pypi.org/project/braxis/)
 [![Python - Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
-[![Tests - Status](https://img.shields.io/badge/tests-30%2F30%20passing-brightgreen.svg)](https://github.com/jaykrishna316/braxis/blob/main/test_braxis.py)
+[![Tests - Status](https://img.shields.io/badge/tests-57%2F57%20passing-brightgreen.svg)](https://github.com/jaykrishna316/braxis/blob/main/test_braxis.py)
 [![License - MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/jaykrishna316/braxis/blob/main/LICENSE)
 
 > **Keep your AI agents in sync with your code. One command. Always current. Production-grade.**
@@ -43,6 +43,9 @@ Commit them to your repo. Your agents get automatic, always-current guidance.
 
 ✅ **One Command** - Generate all context files with `braxis generate`
 ✅ **Zero Config** - Works out of the box, no setup needed
+✅ **Programmatic API** - Use Braxis as a Python library in your tools (NEW in v1.1)
+✅ **Configuration Files** - Customize behavior with `.braxis.yml` (NEW in v1.1)
+✅ **Smart Triggering** - Skip trivial changes, reduce CI noise (NEW in v1.1)
 ✅ **Auto-Score** - Measure your project's AI agent readiness (0-100)
 ✅ **Score History** - Track improvements over time with trends
 ✅ **Multi-Language** - Python, JavaScript, TypeScript, Go, Rust, Java, and more
@@ -331,6 +334,191 @@ braxis --version                    # Check version
 
 ---
 
+## 🔧 Programmatic API (NEW in v1.1)
+
+Use Braxis as a Python library in your own tools and workflows:
+
+### Generate Context Files Programmatically
+
+```python
+from braxis_api import ContextGenerator
+
+generator = ContextGenerator(project_path=".")
+result = generator.generate()
+
+if result.success:
+    for filename, content in result.changes.items():
+        print(f"✅ Generated: {filename}")
+```
+
+### Analyze AI Readiness Scores
+
+```python
+from braxis_api import ScoreAnalyzer
+
+analyzer = ScoreAnalyzer(project_path=".")
+score = analyzer.calculate()
+
+print(f"AI Readiness: {score.total}/100 ({score.level})")
+print(f"Testing: {score.testing}/100")
+print(f"Architecture: {score.architecture}/100")
+
+# Get improvement suggestions
+suggestions = analyzer.get_improvement_suggestions()
+for s in suggestions:
+    print(f"{s.dimension}: {s.current_score} → {s.target_score}")
+```
+
+### Track Score Trends Over Time
+
+```python
+from braxis_api import TrendAnalyzer
+
+analyzer = TrendAnalyzer(project_path=".")
+history = analyzer.get_history(limit=10)
+
+trend = analyzer.get_trend("testing")
+if trend:
+    print(f"Testing trend: {trend['trend']}")
+    print(f"Average: {trend['average']:.0f}/100")
+
+predicted = analyzer.predict_score(days_ahead=30)
+print(f"Predicted score in 30 days: {predicted}/100")
+```
+
+### Analyze Multiple Repositories
+
+```python
+from braxis_api import MultiRepoAnalyzer
+
+analyzer = MultiRepoAnalyzer(repos=[
+    "/path/to/repo1",
+    "/path/to/repo2",
+    "/path/to/repo3",
+])
+
+org_summary = analyzer.get_org_summary()
+print(f"Organization Average: {org_summary['average_score']}/100")
+print(f"Analyzed {org_summary['num_repos']} repositories")
+```
+
+### Smart Triggering (Skip Trivial Changes)
+
+```python
+from braxis_triggers import SmartTrigger
+
+trigger = SmartTrigger()
+should_regen, metrics = trigger.should_regenerate(
+    changed_files=["src/module.py", "tests/test.py"],
+    repo_path=".",
+    git_base="origin/main"
+)
+
+if should_regen:
+    print(f"Regenerating context... ({metrics.total_lines_changed} lines changed)")
+else:
+    print(f"Skipping (reason: {metrics.change_reason})")
+```
+
+### Use Case: IDE Plugins
+
+```python
+# Show real-time AI readiness in your editor
+from braxis_api import ScoreAnalyzer
+
+def get_project_health():
+    analyzer = ScoreAnalyzer(project_path=".")
+    score = analyzer.calculate()
+    return {
+        "score": score.total,
+        "level": score.level,
+        "status": "🟢" if score.total >= 70 else "🟡" if score.total >= 40 else "🔴"
+    }
+```
+
+### Use Case: Organization Dashboard
+
+```python
+# Track scores across all your repos
+from braxis_api import MultiRepoAnalyzer
+import json
+
+analyzer = MultiRepoAnalyzer(repos=["repo1", "repo2", "repo3"])
+summary = analyzer.get_org_summary()
+
+# Export to JSON for dashboard
+with open("org-metrics.json", "w") as f:
+    json.dump(summary, f, indent=2)
+```
+
+**See [API_GUIDE.md](API_GUIDE.md) for complete documentation.**
+
+---
+
+## ⚙️ Configuration File Support (NEW in v1.1)
+
+Customize Braxis behavior per project using `.braxis.yml`:
+
+```yaml
+# Control context file generation
+context:
+  output_format: markdown
+  code_block_style: python-fenced
+  include_test_metrics: true
+
+# Set change thresholds and patterns
+generation:
+  min_change_threshold: 5  # Lines changed to trigger regeneration
+  skip_trivial_changes: true  # Skip whitespace/comments only
+  exclude_patterns:
+    - __pycache__
+    - .venv
+    - node_modules
+
+# Configure GitHub Actions automation
+automation:
+  github_paths: [src/, tests/, setup.py, pyproject.toml]
+  github_branches: [main, develop, master]
+  auto_commit: true
+  auto_comment_prs: true
+  commit_message: "chore: regenerate context files"
+
+# Customize scoring weights
+scoring:
+  enable_scoring: true
+  weight_testing: 1.2  # Weight testing 20% higher
+  weight_documentation: 0.8  # Weight docs 20% lower
+```
+
+Load configuration in your code:
+
+```python
+from braxis_config import BraxisConfig
+from braxis_api import ContextGenerator
+
+config = BraxisConfig.load(".braxis.yml")
+generator = ContextGenerator(project_path=".", config=config)
+result = generator.generate()
+```
+
+**See [.braxis.yml.example](.braxis.yml.example) for all options.**
+
+---
+
+## 🎯 Smart Triggering Logic (NEW in v1.1)
+
+Automatically skip regenerating context files for trivial changes:
+
+- ✅ Filters documentation-only changes (.md, .txt)
+- ✅ Skips whitespace-only modifications
+- ✅ Checks minimum line-change threshold
+- ✅ Excludes configured patterns
+- ✅ Detects meaningful changes vs noise
+
+**Result:** Fewer CI runs, faster feedback, cleaner git history.
+
+---
+
 ## Real-World Examples
 
 ### Onboarding New Team Members
@@ -377,7 +565,7 @@ $ braxis recommendations
 Braxis enforces enterprise standards:
 
 ### Testing & Quality
-- ✅ 30+ unit tests covering all features
+- ✅ 57 unit tests covering all features (30 core + 27 API tests)
 - ✅ 100% pass rate across Python 3.8-3.12
 - ✅ Strict mypy type-checking (`disallow_untyped_defs`)
 - ✅ ruff linting with E, W, F, I, UP, B, A, C4 rules
