@@ -561,7 +561,7 @@ class BraxisAnalyzer:
         # If not found, use project name as fallback
         return f"https://github.com/YOUR_ORG/{self.project_path.name}.git"
 
-    def _detect_python_version(self) -> str | None:
+    def _detect_python_version(self) -> Optional[str]:
         """Detect Python version requirement from pyproject.toml or setup.py."""
         pyproject = self.project_path / "pyproject.toml"
         if pyproject.exists():
@@ -705,7 +705,7 @@ class BraxisAnalyzer:
                         return lines[j].strip()
         return None
 
-    def _get_language_version_requirement(self) -> str | None:
+    def _get_language_version_requirement(self) -> Optional[str]:
         """Get language-appropriate version requirement."""
         primary_lang = self._get_primary_language()
         if primary_lang == "go":
