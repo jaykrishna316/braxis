@@ -12,6 +12,36 @@ This project uses AGENTS.md as the standard agent context. Claude Code loads it 
 4. **Run tests locally** before asking for code suggestions
 5. **Reference the scoring dimensions** when optimizing code
 
+## Braxis Automation (Hybrid Approach)
+
+This project uses **two-layer Braxis automation** to keep context files fresh:
+
+### Local Development (Option 1)
+Enable automatic context regeneration before commits:
+
+```bash
+./scripts/setup-braxis-hook.sh
+```
+
+This installs a pre-commit hook that:
+- Runs `braxis generate` before each commit
+- Automatically updates context files if code changes detected
+- Stages changes for inclusion in your commit
+
+**Manual alternative:**
+```bash
+braxis generate  # Run locally before committing
+```
+
+### Remote Safety Net (Option 3)
+GitHub Actions automatically regenerates context files on PRs if local hook was skipped:
+- Triggers on meaningful code changes (src/, tests/, setup.py, pyproject.toml)
+- Auto-commits updates to your PR
+- Posts confirmation comment
+
+### Result
+Context files stay in sync with your code, whether you use local hooks or remote automation.
+
 See AGENTS.md for full documentation on architecture, development workflow, and testing strategy.
 
 ---

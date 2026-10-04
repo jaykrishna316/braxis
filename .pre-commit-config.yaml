@@ -1,0 +1,10 @@
+repos:
+  - repo: local
+    hooks:
+      - id: braxis-generate
+        name: Braxis Context Generator
+        entry: bash -c 'braxis generate && git add AGENTS.md CLAUDE.md .cursorrules .agentic-config.json'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        description: Automatically regenerate AI context files if needed
