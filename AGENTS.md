@@ -10,9 +10,9 @@ braxis is a Python project using Python (setuptools).
 - **Primary Language:** Python
 - **Build System:** Python (setuptools)
 - **Test Framework:** pytest
-- **Total Files:** 37
-- **Test Files:** 1
-- **AI Readiness Score:** 71/100 (AI-Native)
+- **Total Files:** 46
+- **Test Files:** 2
+- **AI Readiness Score:** 73/100 (AI-Native)
 
 ## Prerequisites
 
@@ -30,7 +30,7 @@ braxis/
 ├── Makefile
 ├── setup.py
 ├── src/                  # Source code
-├── tests/                # Test suite (1 files)
+├── tests/                # Test suite (2 files)
 └── README.md             # Project documentation
 ```
 
@@ -38,7 +38,7 @@ braxis/
 
 ### Key Components
 - **Main Entry:** Standard layout
-- **Test Suite:** 1 test files
+- **Test Suite:** 2 test files
 - **Build Configuration:** pyproject.toml, Makefile, setup.py
 
 ### Design Principles
@@ -97,7 +97,7 @@ mypy .                    # Type checking (if configured)
 ## Testing Strategy
 
 **Framework:** pytest
-**Test Files:** 1 found
+**Test Files:** 2 found
 
 Before committing:
 1. Run the full test suite: `pytest`
@@ -153,7 +153,7 @@ When contributing to this project:
 This project is evaluated across 8 dimensions:
 
 1. **Architecture** (10/100) - Code organization and modularity
-2. **Testing** (7/100) - Test coverage and quality
+2. **Testing** (9/100) - Test coverage and quality
 3. **Dependencies** (12/100) - Dependency management
 4. **Conventions** (10/100) - Consistent patterns
 5. **Entry Points** (4/100) - Clear main/start locations

@@ -3,7 +3,7 @@
     "project_name": "braxis",
     "description": "A Python project with Python (setuptools)",
     "generated_by": "Braxis",
-    "generated_at": "2026-10-04T19:03:49.252257",
+    "generated_at": "2026-10-04T19:28:47.138420",
     "schema_version": "1.0"
   },
   "project": {
@@ -18,7 +18,7 @@
     "subsystems": []
   },
   "ai_readiness": {
-    "overall_score": 71,
+    "overall_score": 73,
     "tier": "AI-Native",
     "dimensions": {
       "architecture": {
@@ -26,8 +26,8 @@
         "reason": "Code organization and modularity"
       },
       "testing": {
-        "score": 7,
-        "reason": "1 test files found"
+        "score": 9,
+        "reason": "2 test files found"
       },
       "dependencies": {
         "score": 12,
@@ -127,7 +127,7 @@
   },
   "testing": {
     "framework": "pytest",
-    "total_tests": 1,
+    "total_tests": 2,
     "pass_rate": 100,
     "run_command": "pytest"
   }
