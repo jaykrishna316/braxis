@@ -292,7 +292,8 @@ class BraxisAnalyzer:
             # Check for unittest first (Python built-in)
             unittest_detected = any(
                 (f.name.startswith("test_") or f.name.endswith("_test.py"))
-                for f in self.test_files if f.suffix == ".py"
+                for f in self.test_files
+                if f.suffix == ".py"
             )
             if unittest_detected:
                 test_frameworks.add("unittest")
@@ -384,29 +385,29 @@ class BraxisAnalyzer:
 
         for test_file in self.test_files:
             try:
-                content = test_file.read_text(encoding='utf-8', errors='ignore')
+                content = test_file.read_text(encoding="utf-8", errors="ignore")
 
-                if test_file.suffix == '.py':
+                if test_file.suffix == ".py":
                     # Python: count def test_ functions
-                    count += content.count('def test_')
-                elif test_file.suffix == '.go':
+                    count += content.count("def test_")
+                elif test_file.suffix == ".go":
                     # Go: count func Test declarations
-                    count += content.count('func Test')
-                elif test_file.suffix in ['.sh', '.bats']:
+                    count += content.count("func Test")
+                elif test_file.suffix in [".sh", ".bats"]:
                     # Bats/Shell: count @test declarations
-                    count += content.count('@test')
-                elif test_file.suffix in ['.js', '.ts']:
+                    count += content.count("@test")
+                elif test_file.suffix in [".js", ".ts"]:
                     # JavaScript/TypeScript: count describe/it blocks
-                    count += content.count('describe(')
-                    count += content.count('it(')
-                elif test_file.suffix == '.rb':
+                    count += content.count("describe(")
+                    count += content.count("it(")
+                elif test_file.suffix == ".rb":
                     # Ruby: count describe/it blocks
-                    count += content.count('describe ')
-                    count += content.count('it ')
-                elif test_file.suffix == '.java':
+                    count += content.count("describe ")
+                    count += content.count("it ")
+                elif test_file.suffix == ".java":
                     # Java: count @Test methods
-                    count += content.count('@Test')
-                    count += content.count('public void test')
+                    count += content.count("@Test")
+                    count += content.count("public void test")
             except (OSError, UnicodeDecodeError):
                 pass
 
@@ -911,7 +912,7 @@ pytest                    # Run all tests (or use detected framework)
         elif primary_lang == "ruby":
             return "bundle install"
         elif primary_lang == "shell":
-            return "# Add ./bin to your PATH\nexport PATH=\"$PWD/bin:$PATH\""
+            return '# Add ./bin to your PATH\nexport PATH="$PWD/bin:$PATH"'
         elif primary_lang in ["javascript", "typescript"]:
             return "npm install\n# or\nyarn install"
         elif primary_lang == "python":
@@ -1199,7 +1200,9 @@ make test                     # Run all tests (if available)"""
         if primary_lang == "shell" and "Makefile" in [f.name for f in self.build_files]:
             build_instructions = self._extract_build_instructions()
             if "configure" in build_instructions:
-                gotchas.append("Note: `src/configure && make -C src` builds optional C extension; root `make` may run Docker tests")
+                gotchas.append(
+                    "Note: `src/configure && make -C src` builds optional C extension; root `make` may run Docker tests"
+                )
 
         if not self.contributing_guide["exists"]:
             return gotchas
@@ -1256,7 +1259,7 @@ make test                     # Run all tests (if available)"""
                 # Also look for explicit build instruction sections
                 if "build" in line_lower and ("command" in line_lower or "compile" in line_lower):
                     # Check next few lines for actual commands
-                    for j in range(i+1, min(i+5, len(lines))):
+                    for j in range(i + 1, min(i + 5, len(lines))):
                         next_line = lines[j].strip()
                         if "make" in next_line or "configure" in next_line:
                             return next_line.lstrip("`").rstrip("`").strip()
@@ -1587,7 +1590,9 @@ Refer to the scoped file when working in that directory."""
         package_manager_line = f"- **Package Manager:** {pkg_mgr}" if pkg_mgr else ""
 
         # Handle build instructions display
-        build_instruction_line = f"- **Build Command:** {build_instructions}" if build_instructions else ""
+        build_instruction_line = (
+            f"- **Build Command:** {build_instructions}" if build_instructions else ""
+        )
 
         gotchas_section = ""
         if gotchas:
