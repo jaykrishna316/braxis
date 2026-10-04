@@ -1891,25 +1891,391 @@ mcp call <tool_name> <args>
         return suggestions.get(scale, "")
 
 
+class BraxisGrader:
+    """Grades AGENTS.md files against community standard."""
+
+    # Reference benchmarks for comparison
+    BENCHMARKS = {
+        'braxis': 78,
+        'sentry': 83,
+        'fastapi': 81,
+        'airflow': 72,
+    }
+
+    def __init__(self, agents_path: str) -> None:
+        """Initialize grader with AGENTS.md file path."""
+        self.agents_path = Path(agents_path)
+        if not self.agents_path.exists():
+            raise FileNotFoundError(f"AGENTS.md not found: {agents_path}")
+        self.content = self.agents_path.read_text()
+        self.scores: Dict[str, int] = {}
+        self.recommendations: List[str] = []
+
+    def grade(self) -> Dict[str, Any]:
+        """Score AGENTS.md across all 10 dimensions."""
+        self.scores = {
+            'command_execution': self._grade_command_execution(),
+            'type_checking': self._grade_type_checking(),
+            'unified_linting': self._grade_unified_linting(),
+            'agent_boundaries': self._grade_agent_boundaries(),
+            'architecture': self._grade_architecture(),
+            'pr_checklist': self._grade_pr_checklist(),
+            'ci_cd': self._grade_ci_cd(),
+            'anti_patterns': self._grade_anti_patterns(),
+            'examples': self._grade_examples(),
+            'overall_guidance': self._grade_overall_guidance(),
+        }
+        return self.scores
+
+    def _grade_command_execution(self) -> int:
+        """Grade command execution clarity (0-10)."""
+        score = 5
+        content_lower = self.content.lower()
+
+        # Check for make targets (best)
+        if 'make test' in content_lower or 'make lint' in content_lower:
+            score = 9
+        # Check for unified command pattern
+        elif 'pytest' in content_lower and 'mypy' in content_lower:
+            score = 8
+        # Check for any documented commands
+        elif any(cmd in content_lower for cmd in ['python -m', 'npm test', 'cargo test']):
+            score = 7
+        # Minimal documentation
+        elif 'test' in content_lower or 'lint' in content_lower:
+            score = 3
+
+        self.recommendations.append(f"Command Execution: {score}/10")
+        return score
+
+    def _grade_type_checking(self) -> int:
+        """Grade type-checking coverage (0-10)."""
+        score = 5
+        content_lower = self.content.lower()
+
+        # Check for strict mypy
+        if 'mypy' in content_lower and 'strict' in content_lower:
+            score = 9
+        # Check for mypy without strict
+        elif 'mypy' in content_lower:
+            score = 7
+        # Check for type hints mention
+        elif 'type hint' in content_lower or 'type annotation' in content_lower:
+            score = 5
+        # No type checking mentioned
+        else:
+            score = 2
+
+        return score
+
+    def _grade_unified_linting(self) -> int:
+        """Grade unified linting entrypoint (0-10)."""
+        score = 5
+        content_lower = self.content.lower()
+
+        # Single make target for all checks
+        if 'make lint' in content_lower and 'mypy' in content_lower and 'ruff' in content_lower:
+            score = 9
+        # Multiple tools documented clearly
+        elif content_lower.count('linting') >= 2 or content_lower.count('lint') >= 3:
+            score = 7
+        # Some linting documented
+        elif 'linting' in content_lower or 'lint' in content_lower:
+            score = 5
+
+        return score
+
+    def _grade_agent_boundaries(self) -> int:
+        """Grade agent boundaries documentation (0-10)."""
+        score = 2
+        content_lower = self.content.lower()
+
+        # Check for explicit sections
+        can_section = 'what agents can' in content_lower or 'what ai agents can' in content_lower
+        cannot_section = 'what agents must not' in content_lower or 'must not do' in content_lower or 'never do' in content_lower
+
+        # Count boundary items
+        must_not_count = content_lower.count('never ') + content_lower.count('must not')
+
+        # Perfect: Both sections with 8+ MUST NOT patterns
+        if can_section and cannot_section and must_not_count >= 8:
+            score = 10
+        # Excellent: Both sections with 6+ MUST NOT
+        elif can_section and cannot_section and must_not_count >= 6:
+            score = 9
+        # Good: Both sections present
+        elif can_section and cannot_section:
+            score = 8
+        # Good: Clear boundaries stated
+        elif can_section or cannot_section:
+            score = 7
+        # Some boundaries mentioned
+        elif 'boundary' in content_lower or 'limit' in content_lower:
+            score = 4
+
+        return score
+
+    def _grade_architecture(self) -> int:
+        """Grade architecture documentation (0-10)."""
+        score = 2
+        content_lower = self.content.lower()
+
+        components_count = content_lower.count('component')
+        arch_sections = (
+            content_lower.count('architecture') +
+            content_lower.count('structure') +
+            content_lower.count('design principle')
+        )
+
+        # Comprehensive with multiple sections
+        if arch_sections >= 3 and components_count >= 2:
+            score = 9
+        # Good architecture docs
+        elif arch_sections >= 2:
+            score = 8
+        # Basic structure documented
+        elif arch_sections >= 1 or 'directory' in content_lower:
+            score = 5
+        # Minimal architecture info
+        elif 'project' in content_lower:
+            score = 2
+
+        return score
+
+    def _grade_pr_checklist(self) -> int:
+        """Grade PR checklist and done criteria (0-10)."""
+        score = 2
+        content_lower = self.content.lower()
+
+        # Count checklist items
+        checklist_count = content_lower.count('[ ]') + content_lower.count('[x]')
+
+        # Numbered list with 8+ items
+        if content_lower.count('- [') >= 8:
+            score = 9
+        # 6-7 items
+        elif content_lower.count('- [') >= 6:
+            score = 8
+        # 5 items or documented "done" criteria
+        elif content_lower.count('- [') >= 5 or 'done' in content_lower:
+            score = 6
+        # Checklist mentioned
+        elif 'checklist' in content_lower or 'criteria' in content_lower:
+            score = 3
+
+        return score
+
+    def _grade_ci_cd(self) -> int:
+        """Grade CI/CD enforcement (0-10)."""
+        score = 2
+        content_lower = self.content.lower()
+
+        github_actions = 'github actions' in content_lower or '.github/workflows' in content_lower
+        ci_checks = (
+            content_lower.count('test') +
+            content_lower.count('lint') +
+            content_lower.count('type')
+        )
+
+        # All checks automated
+        if github_actions and ci_checks >= 4:
+            score = 9
+        # Multiple checks in CI
+        elif github_actions and ci_checks >= 2:
+            score = 8
+        # CI mentioned
+        elif 'ci' in content_lower or github_actions:
+            score = 6
+        # CI mentioned but not detailed
+        elif any(x in content_lower for x in ['github', 'gitlab', 'azure']):
+            score = 4
+
+        return score
+
+    def _grade_anti_patterns(self) -> int:
+        """Grade anti-patterns and never-do guidance (0-10)."""
+        score = 2
+        content_lower = self.content.lower()
+
+        never_count = content_lower.count('never')
+        must_not_count = content_lower.count('must not')
+        avoid_count = content_lower.count('avoid')
+        anti_pattern_count = never_count + must_not_count + avoid_count
+
+        # 10+ anti-patterns with impact analysis
+        if anti_pattern_count >= 10 and 'impact' in content_lower:
+            score = 10
+        # 8-9 patterns with rationale
+        elif anti_pattern_count >= 8 and 'rationale' in content_lower:
+            score = 9
+        # 6-7 patterns documented
+        elif anti_pattern_count >= 6:
+            score = 8
+        # Some patterns documented
+        elif anti_pattern_count >= 4:
+            score = 5
+        # Minimal anti-pattern guidance
+        elif anti_pattern_count >= 1:
+            score = 2
+
+        return score
+
+    def _grade_examples(self) -> int:
+        """Grade code examples quality (0-10)."""
+        score = 2
+        content_lower = self.content.lower()
+
+        # Count code blocks
+        code_blocks = content_lower.count('```')
+        example_mentions = content_lower.count('example')
+
+        # 5+ code examples
+        if code_blocks >= 10:
+            score = 10
+        # 4 substantial examples
+        elif code_blocks >= 8:
+            score = 9
+        # 3 examples with explanations
+        elif code_blocks >= 6 and example_mentions >= 3:
+            score = 8
+        # Some examples
+        elif code_blocks >= 4:
+            score = 5
+        # Minimal examples
+        elif code_blocks >= 2:
+            score = 2
+
+        return score
+
+    def _grade_overall_guidance(self) -> int:
+        """Grade overall developer guidance quality (0-10)."""
+        score = 5
+        lines = len(self.content.split('\n'))
+
+        # 400+ lines, well-organized
+        if lines >= 400:
+            score = 9
+        # 300+ lines, comprehensive
+        elif lines >= 300:
+            score = 8
+        # 200+ lines, decent coverage
+        elif lines >= 200:
+            score = 7
+        # 100+ lines, basic coverage
+        elif lines >= 100:
+            score = 5
+        # Short file
+        else:
+            score = 2
+
+        return score
+
+    def get_overall_score(self) -> int:
+        """Calculate overall score (average of all dimensions, 0-100)."""
+        if not self.scores:
+            self.grade()
+        # Each dimension is 0-10, so average and multiply by 10 to get 0-100
+        average = sum(self.scores.values()) / len(self.scores)
+        return int(average * 10)
+
+    def get_tier(self, score: Optional[int] = None) -> str:
+        """Get tier name for score."""
+        if score is None:
+            score = self.get_overall_score()
+
+        if score >= 90:
+            return "Agent-Optimized"
+        elif score >= 80:
+            return "Enterprise-Ready"
+        elif score >= 60:
+            return "AI-Native"
+        elif score >= 30:
+            return "Agent-Aware"
+        else:
+            return "Not Ready"
+
+    def print_grade_report(self, compare: bool = False, verbose: bool = False) -> None:
+        """Print formatted grade report."""
+        overall = self.get_overall_score()
+        tier = self.get_tier(overall)
+
+        dimension_names = {
+            'command_execution': 'Command Execution',
+            'type_checking': 'Type-Checking Coverage',
+            'unified_linting': 'Unified Linting',
+            'agent_boundaries': 'Agent Boundaries',
+            'architecture': 'Architecture Docs',
+            'pr_checklist': 'PR Checklist',
+            'ci_cd': 'CI/CD Enforcement',
+            'anti_patterns': 'Anti-Patterns',
+            'examples': 'Example Quality',
+            'overall_guidance': 'Overall Guidance',
+        }
+
+        print(f"\n{'='*60}")
+        print(f"AGENTS.md Grade Report")
+        print(f"{'='*60}\n")
+        print(f"Overall Score: {overall}/100 🟢 {tier}\n")
+        print("Dimension Scores:")
+
+        for key in self.scores:
+            score = self.scores[key]
+            name = dimension_names.get(key, key.replace('_', ' ').title())
+            bar_filled = int(score)
+            bar = '█' * bar_filled + '░' * (10 - bar_filled)
+            star = " ⭐" if score >= 9 else ""
+            print(f"  {name:<25} [{bar}] {score}/10{star}")
+
+        if compare:
+            print("\nComparison:")
+            for repo, benchmark in sorted(self.BENCHMARKS.items(), key=lambda x: -x[1]):
+                diff = overall - benchmark
+                if diff > 0:
+                    print(f"  {repo.capitalize():<15} ({benchmark}/100)  +{diff} points")
+                elif diff < 0:
+                    print(f"  {repo.capitalize():<15} ({benchmark}/100)  {diff} points")
+                else:
+                    print(f"  {repo.capitalize():<15} ({benchmark}/100)   = (baseline)")
+
+        print(f"\n{'='*60}")
+
+
 __version__ = "1.3.0"
 
 
 def main():
     parser = argparse.ArgumentParser(description='Braxis - AI agent context generator')
     parser.add_argument('--version', action='version', version=f'Braxis {__version__}')
-    parser.add_argument('command', choices=['generate', 'score', 'inspect', 'validate', 'history'],
+    parser.add_argument('command', choices=['generate', 'score', 'inspect', 'validate', 'history', 'grade'],
                         help='Command to run')
-    parser.add_argument('--path', default='.', help='Project path')
+    parser.add_argument('--path', default='AGENTS.md', help='Path to AGENTS.md file (for grade command)')
+    parser.add_argument('--project-path', default='.', help='Project path (for other commands)')
     parser.add_argument('--trends', action='store_true', help='Show score trends')
+    parser.add_argument('--compare', action='store_true', help='Compare against benchmarks (for grade)')
+    parser.add_argument('--verbose', action='store_true', help='Verbose output (for grade)')
     args = parser.parse_args()
 
-    if not args.command or args.command not in ['generate', 'score', 'inspect', 'validate', 'history']:
+    if not args.command or args.command not in ['generate', 'score', 'inspect', 'validate', 'history', 'grade']:
         parser.print_help()
         sys.exit(1)
 
+    # Handle grade command separately
+    if args.command == 'grade':
+        try:
+            grader = BraxisGrader(args.path)
+            grader.grade()
+            grader.print_grade_report(compare=args.compare, verbose=args.verbose)
+        except FileNotFoundError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error grading AGENTS.md: {e}", file=sys.stderr)
+            sys.exit(1)
+        return
+
     if args.command == 'history':
         try:
-            analyzer = BraxisAnalyzer(args.path)
+            analyzer = BraxisAnalyzer(args.project_path)
             if args.trends:
                 analyzer.show_score_trends()
             else:
@@ -1929,7 +2295,7 @@ def main():
         return
 
     try:
-        analyzer = BraxisAnalyzer(args.path)
+        analyzer = BraxisAnalyzer(args.project_path)
         analyzer.analyze()
     except (ValueError, FileNotFoundError, NotADirectoryError) as e:
         print(f"Error: {e}", file=sys.stderr)
