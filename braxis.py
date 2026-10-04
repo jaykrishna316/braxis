@@ -229,7 +229,9 @@ class BraxisAnalyzer:
             elif any('setup.py' in str(f) for f in self.build_files):
                 build_system = "Python (setuptools)"
         elif primary_lang in ["javascript", "typescript"]:
-            if any('package.json' in str(f) for f in self.build_files):
+            if any('bunfig.toml' in str(f) or 'bunfig.ts' in str(f) for f in self.build_files):
+                build_system = "Bun"
+            elif any('package.json' in str(f) for f in self.build_files):
                 build_system = "npm/Node.js"
         elif primary_lang == "java":
             if any('pom.xml' in str(f) for f in self.build_files):
@@ -283,16 +285,20 @@ class BraxisAnalyzer:
             if not test_frameworks and self.test_files:
                 test_frameworks.add('pytest')
         elif primary_lang in ["javascript", "typescript"]:
-            content_samples = self._sample_file_contents(limit=20)
-            for content in content_samples:
-                if 'jest' in content:
-                    test_frameworks.add('Jest')
-                    break
-                elif 'mocha' in content or 'describe(' in content:
-                    test_frameworks.add('Mocha')
-                    break
-            if not test_frameworks and self.test_files:
-                test_frameworks.add('Jest')  # Default for JS/TS
+            bunfig = self.project_path / 'bunfig.toml'
+            if bunfig.exists():
+                test_frameworks.add('Bun')
+            else:
+                content_samples = self._sample_file_contents(limit=20)
+                for content in content_samples:
+                    if 'jest' in content:
+                        test_frameworks.add('Jest')
+                        break
+                    elif 'mocha' in content or 'describe(' in content:
+                        test_frameworks.add('Mocha')
+                        break
+                if not test_frameworks and self.test_files:
+                    test_frameworks.add('Jest')  # Default for JS/TS
         elif primary_lang == "ruby":
             content_samples = self._sample_file_contents(limit=20)
             for content in content_samples:
@@ -393,7 +399,23 @@ class BraxisAnalyzer:
         return samples
 
     def _detect_repository_url(self) -> str:
-        """Detect repository URL from pyproject.toml or README."""
+        """Detect repository URL from git remote, pyproject.toml, or package.json."""
+        # First check git remote origin
+        try:
+            git_dir = self.project_path / '.git'
+            if git_dir.exists():
+                config = git_dir / 'config'
+                if config.exists():
+                    content = config.read_text()
+                    for line in content.split('\n'):
+                        if 'url = ' in line:
+                            url = line.split('url = ', 1)[1].strip()
+                            if url.startswith('http') or url.startswith('git@'):
+                                return url
+        except (IOError, UnicodeDecodeError):
+            pass
+
+        # Check pyproject.toml
         pyproject = self.project_path / 'pyproject.toml'
         if pyproject.exists():
             try:
@@ -410,6 +432,25 @@ class BraxisAnalyzer:
                                 continue
                             if url.startswith('http'):
                                 return url
+            except (IOError, UnicodeDecodeError):
+                pass
+
+        # Check package.json
+        package_json = self.project_path / 'package.json'
+        if package_json.exists():
+            try:
+                content = package_json.read_text()
+                if '"repository"' in content:
+                    for line in content.split('\n'):
+                        if '"url"' in line and 'github.com' in line:
+                            if '"' in line:
+                                parts = line.split('"')
+                                for i, part in enumerate(parts):
+                                    if 'github.com' in part or (i > 0 and 'github.com' in parts[i-1]):
+                                        if part.startswith('http'):
+                                            return part
+                                        elif i > 0 and 'github.com' in parts[i-1]:
+                                            return part
             except (IOError, UnicodeDecodeError):
                 pass
 
@@ -623,6 +664,69 @@ mypy .                    # Type checking (if configured)
         else:  # Python and others
             return "pip install -e .\n# or\nuv sync --all-groups"
 
+    def _get_cursor_rules_commands(self, primary_lang: str) -> str:
+        """Get language-appropriate pre-commit commands for .cursorrules file."""
+        if primary_lang == "python":
+            return """ruff format .                 # Format code
+ruff check .                  # Lint check
+pytest                        # Run all tests"""
+        elif primary_lang in ["javascript", "typescript"]:
+            if self.build_system == "Bun":
+                return """bun run format                # Format code
+bun run lint                  # Lint check
+bun test                      # Run all tests"""
+            else:
+                return """npm run format                # Format code
+npm run lint                  # Lint check
+npm test                      # Run all tests"""
+        elif primary_lang == "go":
+            return """gofmt -w .                    # Format code
+golangci-lint run             # Lint check
+go test ./...                 # Run all tests"""
+        elif primary_lang == "rust":
+            return """cargo fmt                     # Format code
+cargo clippy --all-targets    # Lint check
+cargo test                    # Run all tests"""
+        elif primary_lang == "ruby":
+            return """bundle exec rubocop -a        # Format and lint code
+bundle exec rspec             # Run all tests"""
+        else:
+            return """make format                   # Format code (if available)
+make lint                     # Lint check (if available)
+make test                     # Run all tests (if available)"""
+
+    def _get_pre_commit_checklist(self, primary_lang: str) -> str:
+        """Get language-appropriate pre-commit checklist steps 5-7."""
+        if primary_lang == "python":
+            return """5. Run `pytest` to verify nothing breaks
+6. Run code quality checks: `ruff check . && mypy .`
+7. Format your code: `ruff format .`"""
+        elif primary_lang in ["javascript", "typescript"]:
+            if self.build_system == "Bun":
+                return """5. Run `bun test` to verify nothing breaks
+6. Run linter: `bun run lint`
+7. Format your code: `bun run format`"""
+            else:
+                return """5. Run `npm test` to verify nothing breaks
+6. Run linter: `npm run lint`
+7. Format your code: `npm run format`"""
+        elif primary_lang == "go":
+            return """5. Run `go test ./...` to verify nothing breaks
+6. Run linter: `golangci-lint run`
+7. Format your code: `gofmt -w .`"""
+        elif primary_lang == "rust":
+            return """5. Run `cargo test` to verify nothing breaks
+6. Run clippy: `cargo clippy --all-targets`
+7. Format your code: `cargo fmt`"""
+        elif primary_lang == "ruby":
+            return """5. Run `bundle exec rspec` to verify nothing breaks
+6. Run linter: `bundle exec rubocop`
+7. Format your code: `bundle exec rubocop -a`"""
+        else:
+            return """5. Run the appropriate test command to verify nothing breaks
+6. Run code quality checks
+7. Format your code"""
+
     def _get_testing_strategy_commands(self, primary_lang: str) -> str:
         """Get language-appropriate testing strategy commands."""
         if primary_lang == "go":
@@ -648,7 +752,7 @@ mypy .                    # Type checking (if configured)
 1. Run the full test suite: `npm test` or `yarn test`
 2. Run linter: `npm run lint` or `yarn lint`
 3. Format code: `npm run format` or `yarn format`
-4. Type check (if TypeScript): `npm run type-check`"""
+4. Type check (if TypeScript): `npm run typecheck`"""
         else:  # Python and others
             return """Before committing:
 1. Run the full test suite: `pytest`
@@ -1046,7 +1150,17 @@ Refer to the scoped file when working in that directory."""
             structure += "\n├── tests/                # Test suite (" + str(len(self.test_files)) + " files)"
         structure += "\n└── README.md             # Project documentation"
 
-        test_frameworks_str = ', '.join(sorted(self.test_frameworks)) if self.test_frameworks else 'pytest'
+        # Determine test framework string with appropriate fallback
+        if self.test_frameworks:
+            test_frameworks_str = ', '.join(sorted(self.test_frameworks))
+        elif primary_lang == "python":
+            test_frameworks_str = 'pytest'
+        elif self.build_system == "Bun":
+            test_frameworks_str = 'Bun'
+        elif primary_lang in ["javascript", "typescript"]:
+            test_frameworks_str = 'Jest'
+        else:
+            test_frameworks_str = 'Unknown'
         critical_files_info = ', '.join(f.name for f in self.critical_files[:5]) if self.critical_files else 'Standard layout'
         build_config = ', '.join(f.name for f in self.build_files[:3]) if self.build_files else "Standard"
 
@@ -1161,7 +1275,7 @@ cd {self.project_path.name}
 
 ### Code Style & Conventions
 
-- **Naming:** Use {primary_lang.capitalize()} conventions (snake_case for functions, PascalCase for classes)
+- **Naming:** Use {primary_lang.capitalize()} conventions ({'camelCase' if primary_lang in ['javascript', 'typescript'] else 'snake_case'} for functions, PascalCase for classes)
 - **Type Hints:** {type_hints_status} (strongly encouraged)
 - **Error Handling:** {error_handling_status} - handle errors at boundaries; let exceptions propagate when another layer owns recovery
 - **Logging:** {logging_status}
@@ -1234,9 +1348,7 @@ Before making changes:
 2. Look at existing tests for similar functionality
 3. Follow the patterns you see in the codebase
 4. Write tests for your changes
-5. Run `pytest` to verify nothing breaks
-6. Run code quality checks: `ruff check . && mypy .`
-7. Format your code: `ruff format .`
+{self._get_pre_commit_checklist(primary_lang)}
 
 ---
 
@@ -1251,7 +1363,7 @@ Before making changes:
 
 This project uses AGENTS.md as the standard agent context. Claude Code loads it automatically via the @AGENTS.md import above.
 
-## Claude Code Setup
+## Setup for Claude Code
 
 1. **Read AGENTS.md first** for full project context
 2. **Use the provided commands** in AGENTS.md for development workflow
@@ -1259,23 +1371,27 @@ This project uses AGENTS.md as the standard agent context. Claude Code loads it 
 4. **Run tests locally** before asking for code suggestions
 5. **Reference the scoring dimensions** when optimizing code
 
-## Quick Commands
-
-Generate updated context: `braxis generate`
-View your AI readiness score: `braxis score`
-See score trends: `braxis history --trends`
-
-See AGENTS.md for full documentation and the complete list of available commands.
+See AGENTS.md for full documentation on architecture, development workflow, and testing strategy.
 
 ---
 
-*Generated by Braxis*
+*Generated by Braxis - keeping AI agents in sync with your code*
 """
 
     def generate_cursorrules(self) -> str:
         """Generate .cursorrules file with project-specific rules."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
-        test_frameworks_str = ', '.join(sorted(self.test_frameworks)) if self.test_frameworks else 'pytest'
+        # Determine test framework string with appropriate fallback
+        if self.test_frameworks:
+            test_frameworks_str = ', '.join(sorted(self.test_frameworks))
+        elif primary_lang == "python":
+            test_frameworks_str = 'pytest'
+        elif self.build_system == "Bun":
+            test_frameworks_str = 'Bun'
+        elif primary_lang in ["javascript", "typescript"]:
+            test_frameworks_str = 'Jest'
+        else:
+            test_frameworks_str = 'Unknown'
         code_formatter = "ruff" if primary_lang == "python" else "prettier" if primary_lang in ["javascript", "typescript"] else "default"
         type_checking = "mypy" if primary_lang == "python" else "TypeScript" if primary_lang == "typescript" else "available"
         
@@ -1352,9 +1468,7 @@ These 8 areas drive AI readiness. Focus on these when making changes:
 ## Before You Commit
 
 ```bash
-ruff format .                 # Format code
-ruff check .                  # Lint check
-pytest                        # Run all tests
+{self._get_cursor_rules_commands(primary_lang)}
 ```
 
 All checks must pass before committing.
@@ -1372,23 +1486,40 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
         """Generate comprehensive .agentic-config.json file."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
         
-        # Determine setup and commands based on language
+        # Determine setup and commands based on language and build system
         if primary_lang == "python":
             setup_cmd = "pip install -e . && uv sync --all-groups"
             test_cmd = "pytest"
             lint_cmd = "ruff check ."
             format_cmd = "ruff format ."
             py_version = "3.9+"
+        elif self.build_system == "Bun":
+            setup_cmd = "bun install"
+            test_cmd = "bun test"
+            lint_cmd = "bun run lint"
+            format_cmd = "bun run format"
+            py_version = "N/A"
         else:
             setup_cmd = "npm install"
             test_cmd = "npm test"
             lint_cmd = "npm run lint"
             format_cmd = "npm run format"
             py_version = "N/A"
-        
-        test_frameworks_str = ', '.join(sorted(self.test_frameworks)) if self.test_frameworks else 'pytest'
+
+        # Determine test framework string with appropriate fallback
+        if self.test_frameworks:
+            test_frameworks_str = ', '.join(sorted(self.test_frameworks))
+        elif primary_lang == "python":
+            test_frameworks_str = 'pytest'
+        elif self.build_system == "Bun":
+            test_frameworks_str = 'Bun'
+        elif primary_lang in ["javascript", "typescript"]:
+            test_frameworks_str = 'Jest'
+        else:
+            test_frameworks_str = 'Unknown'
+
         build_config = ', '.join(f.name for f in self.build_files[:3]) if self.build_files else "Standard"
-        
+
         config = {
             "metadata": {
                 "project_name": self.project_path.name,
@@ -1455,8 +1586,9 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                 "dev_server_command": None,
                 "prerequisites": {
                     "language_version": py_version,
-                    "package_manager": "pip or uv" if primary_lang == "python" else "npm",
-                    "key_tools": list(self.test_frameworks) + (["ruff", "mypy"] if primary_lang == "python" else [])
+                    "package_manager": "pip or uv" if primary_lang == "python" else "bun" if self.build_system == "Bun" else "npm",
+                    "key_tools": list(self.test_frameworks) + (["ruff", "mypy"] if primary_lang == "python" else []),
+                    "runtime_tools": ["uv", "uvx"] if "python" in self.languages else (["bun"] if self.build_system == "Bun" else [])
                 }
             },
             "architecture": {
