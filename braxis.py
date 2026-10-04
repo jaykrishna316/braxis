@@ -720,7 +720,7 @@ class BraxisAnalyzer:
         else:
             return self.python_version
 
-    def _get_package_manager_recommendation(self) -> str:
+    def _get_package_manager_recommendation(self) -> Optional[str]:
         """Get language-appropriate package manager recommendation."""
         primary_lang = self._get_primary_language()
         if primary_lang == "go":
@@ -733,8 +733,72 @@ class BraxisAnalyzer:
             return "Bundler"
         elif primary_lang in ["javascript", "typescript"]:
             return "npm or yarn"
+        elif primary_lang == "shell":
+            return None
         else:
-            return "pip or uv"
+            return None
+
+    def _get_shellcheck_command(self) -> str:
+        """Get comprehensive shellcheck command for shell projects."""
+        return "shellcheck ./bin/* ./libexec/* ./plugins/*/bin/* ./plugins/*/libexec/* ./completions/*.bash ./pyenv.d/*/*.bash"
+
+    def _get_naming_convention(self, primary_lang: str) -> str:
+        """Get language-appropriate naming convention."""
+        if primary_lang in ["javascript", "typescript"]:
+            return "camelCase"
+        else:
+            return "snake_case"
+
+    def _get_type_hints_guidance(self, primary_lang: str) -> str:
+        """Get language-appropriate type hints guidance."""
+        if primary_lang in ["python", "typescript"]:
+            return "Yes"
+        elif primary_lang == "shell":
+            return "Not applicable (Shell scripts don't support type hints)"
+        else:
+            return "Optional"
+
+    def _get_error_handling_guidance(self, primary_lang: str) -> str:
+        """Get language-appropriate error handling guidance."""
+        if primary_lang == "shell":
+            return "Yes (check exit status of commands)"
+        else:
+            return "Yes"
+
+    def _get_test_command_for_cursorrules(self, primary_lang: str) -> str:
+        """Get language-appropriate test command for .cursorrules."""
+        if self.test_frameworks:
+            return list(self.test_frameworks)[0].lower()
+        elif primary_lang == "python":
+            return "pytest"
+        elif primary_lang == "shell":
+            return "make test"
+        elif primary_lang in ["javascript", "typescript"]:
+            return "npm test"
+        else:
+            return "make test"
+
+    def _get_code_formatter_for_cursorrules(self, primary_lang: str) -> str:
+        """Get language-appropriate code formatter for .cursorrules."""
+        if primary_lang == "python":
+            return "ruff"
+        elif primary_lang in ["javascript", "typescript"]:
+            return "prettier"
+        elif primary_lang == "shell":
+            return "shfmt"
+        else:
+            return "default"
+
+    def _get_type_checking_for_cursorrules(self, primary_lang: str) -> str:
+        """Get language-appropriate type checking for .cursorrules."""
+        if primary_lang == "python":
+            return "mypy"
+        elif primary_lang == "typescript":
+            return "TypeScript"
+        elif primary_lang == "shell":
+            return "shellcheck (static analysis)"
+        else:
+            return "available"
 
     def _get_development_commands(self, primary_lang: str) -> str:
         """Get language-appropriate development commands."""
@@ -776,14 +840,14 @@ bundle exec rubocop       # Lint with RuboCop
 bundle exec rubocop -a    # Auto-fix issues
 ```"""
         elif primary_lang == "shell":
-            return """```bash
+            return f"""```bash
 make test                 # Run all Bats tests
 BATS_FILE_FILTER=test-<name>.bats make test  # Run specific test
 ```
 
 #### Code Quality
 ```bash
-shellcheck ./**/*.sh      # Lint shell scripts
+{self._get_shellcheck_command()}  # Lint shell scripts
 chmod +x ./bin/*         # Ensure scripts executable
 ```"""
         elif primary_lang in ["javascript", "typescript"]:
@@ -902,7 +966,7 @@ cargo test                    # Run all tests"""
             return """bundle exec rubocop -a        # Format and lint code
 bundle exec rspec             # Run all tests"""
         elif primary_lang == "shell":
-            return """shellcheck ./**/*.sh          # Lint shell scripts
+            return f"""{self._get_shellcheck_command()}          # Lint shell scripts
 make test                     # Run all Bats tests"""
         else:
             return """make format                   # Format code (if available)
@@ -937,8 +1001,8 @@ make test                     # Run all tests (if available)"""
 6. Run linter: `bundle exec rubocop`
 7. Format your code: `bundle exec rubocop -a`"""
         elif primary_lang == "shell":
-            return """5. Run `make test` to verify nothing breaks
-6. Run linter: `shellcheck ./**/*.sh`
+            return f"""5. Run `make test` to verify nothing breaks
+6. Run linter: `{self._get_shellcheck_command()}`
 7. Ensure scripts are executable: `chmod +x ./bin/*`"""
         else:
             return """5. Run the appropriate test command to verify nothing breaks
@@ -966,9 +1030,9 @@ make test                     # Run all tests (if available)"""
 3. Lint with RuboCop: `bundle exec rubocop`
 4. Auto-fix issues: `bundle exec rubocop -a`"""
         elif primary_lang == "shell":
-            return """Before committing:
+            return f"""Before committing:
 1. Run the full Bats test suite: `make test`
-2. Lint all shell scripts: `shellcheck ./**/*.sh`
+2. Lint all shell scripts: `{self._get_shellcheck_command()}`
 3. Verify scripts are executable: `ls -la ./bin/`
 4. Test locally to confirm behavior"""
         elif primary_lang in ["javascript", "typescript"]:
@@ -1444,10 +1508,11 @@ Refer to the scoped file when working in that directory."""
             ", ".join(f.name for f in self.build_files[:3]) if self.build_files else "Standard"
         )
 
-        type_hints_status = "Yes" if "type_hints" in self.conventions else "No"
-        error_handling_status = "Yes" if "error_handling" in self.conventions else "No"
+        type_hints_status = self._get_type_hints_guidance(primary_lang)
+        error_handling_status = self._get_error_handling_guidance(primary_lang)
         logging_status = "Yes" if "logging" in self.conventions else "No"
         testing_status = "Yes" if self.test_files else "No"
+        naming_convention = self._get_naming_convention(primary_lang)
 
         arch_score = self.score_breakdown.get("Architecture", 0)
         test_score = self.score_breakdown.get("Testing", 0)
@@ -1471,6 +1536,10 @@ Refer to the scoped file when working in that directory."""
         dev_commands = self._get_development_commands(primary_lang)
         init_commands = self._get_initial_setup_commands(primary_lang)
         testing_strategy = self._get_testing_strategy_commands(primary_lang)
+
+        # Handle package manager display
+        pkg_mgr = self._get_package_manager_recommendation()
+        package_manager_line = f"- **Package Manager:** {pkg_mgr}" if pkg_mgr else ""
 
         gotchas_section = ""
         if gotchas:
@@ -1511,7 +1580,7 @@ This section provides architectural context and agent-understanding for the code
 ### Prerequisites
 
 - **{primary_lang.capitalize()}:** {self._get_language_version_requirement()} (or applicable language version)
-- **Package Manager:** {self._get_package_manager_recommendation()}
+{package_manager_line}
 - **Test Runner:** {test_frameworks_str}
 
 {env_requirements}
@@ -1556,7 +1625,7 @@ cd {self.project_path.name}
 
 ### Code Style & Conventions
 
-- **Naming:** Use {primary_lang.capitalize()} conventions ({"camelCase" if primary_lang in ["javascript", "typescript"] else "snake_case"} for functions, PascalCase for classes)
+- **Naming:** Use {primary_lang.capitalize()} conventions ({naming_convention} for functions, PascalCase for classes)
 - **Type Hints:** {type_hints_status} (strongly encouraged)
 - **Error Handling:** {error_handling_status} - handle errors at boundaries; let exceptions propagate when another layer owns recovery
 - **Logging:** {logging_status}
@@ -1677,20 +1746,10 @@ See AGENTS.md for full documentation on architecture, development workflow, and 
             test_frameworks_str = "Jest"
         else:
             test_frameworks_str = "Unknown"
-        code_formatter = (
-            "ruff"
-            if primary_lang == "python"
-            else "prettier"
-            if primary_lang in ["javascript", "typescript"]
-            else "default"
-        )
-        type_checking = (
-            "mypy"
-            if primary_lang == "python"
-            else "TypeScript"
-            if primary_lang == "typescript"
-            else "available"
-        )
+        code_formatter = self._get_code_formatter_for_cursorrules(primary_lang)
+        type_checking = self._get_type_checking_for_cursorrules(primary_lang)
+        naming_convention_cursorrules = self._get_naming_convention(primary_lang)
+        test_command = self._get_test_command_for_cursorrules(primary_lang)
 
         arch_score = self.score_breakdown.get("Architecture", 0)
         test_score = self.score_breakdown.get("Testing", 0)
@@ -1722,7 +1781,7 @@ See AGENTS.md for full documentation on architecture, development workflow, and 
 ### Code Style
 
 1. Use {code_formatter} for code formatting
-2. Follow {primary_lang.capitalize()} naming conventions (snake_case for functions/variables, PascalCase for classes)
+2. Follow {primary_lang.capitalize()} naming conventions ({naming_convention_cursorrules} for functions/variables, PascalCase for classes)
 3. Add type hints where applicable ({type_checking} checking enabled)
 4. No commented-out code or dead code
 5. Keep functions focused and single-purpose
@@ -1730,7 +1789,7 @@ See AGENTS.md for full documentation on architecture, development workflow, and 
 ### Testing
 
 1. Write tests alongside code changes
-2. Run full test suite before commit: `pytest`
+2. Run full test suite before commit: `{test_command}`
 3. Maintain test coverage for critical paths
 4. Use descriptive test names that explain what's being tested
 5. Test both success and error cases
@@ -1912,7 +1971,9 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                     if primary_lang == "python"
                     else "bun"
                     if self.build_system == "Bun"
-                    else "npm",
+                    else "npm"
+                    if primary_lang in ["javascript", "typescript"]
+                    else None,
                     "key_tools": list(self.test_frameworks)
                     + (self._get_detected_python_tools() if primary_lang == "python" else []),
                     "runtime_tools": ["uv", "uvx"]

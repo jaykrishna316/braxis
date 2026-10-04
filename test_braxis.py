@@ -752,5 +752,124 @@ class TestHardcodedValueDetection(unittest.TestCase):
                            "Shell project should not have pip setup command")
 
 
+class TestRegression_HardcodingFixes(unittest.TestCase):
+    """Regression tests for hardcoding issues fixed in Braxis."""
+
+    def test_shell_project_package_manager_is_none(self):
+        """Test that shell projects have None as package manager (Issue 1)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "bin").mkdir()
+            Path(tmpdir, "bin/script").write_text("#!/bin/bash\necho hello")
+            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            config_content = analyzer.generate_agentic_config()
+            config = json.loads(config_content)
+
+            pkg_mgr = config.get("development", {}).get("prerequisites", {}).get("package_manager")
+            self.assertIsNone(pkg_mgr, "Shell project should have None as package manager")
+
+    def test_agents_md_shell_package_manager_not_listed(self):
+        """Test that AGENTS.md doesn't list package manager for shell projects (Issue 2)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "bin").mkdir()
+            Path(tmpdir, "bin/script").write_text("#!/bin/bash\necho hello")
+            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            agents_md = analyzer.generate_agents_md()
+
+            self.assertNotIn("**Package Manager:** pip", agents_md,
+                           "Shell project AGENTS.md should not list pip as package manager")
+            self.assertNotIn("**Package Manager:** npm", agents_md,
+                           "Shell project AGENTS.md should not list npm as package manager")
+
+    def test_agents_md_code_style_shell_specific(self):
+        """Test that AGENTS.md has Shell-specific code style (Issue 3)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "bin").mkdir()
+            Path(tmpdir, "bin/script").write_text("#!/bin/bash\necho hello")
+            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            agents_md = analyzer.generate_agents_md()
+
+            self.assertIn("snake_case", agents_md,
+                         "Shell project should have snake_case naming convention")
+            self.assertIn("exit status", agents_md,
+                         "Shell project should mention exit status checking")
+
+    def test_shellcheck_command_comprehensive_paths(self):
+        """Test that shellcheck command includes comprehensive paths (Issue 4)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "bin").mkdir()
+            Path(tmpdir, "bin/script").write_text("#!/bin/bash\necho hello")
+            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            agents_md = analyzer.generate_agents_md()
+
+            # Check that shellcheck includes the comprehensive paths
+            self.assertIn("./bin/*", agents_md,
+                         "shellcheck command should include ./bin/*")
+            self.assertIn("./libexec/*", agents_md,
+                         "shellcheck command should include ./libexec/*")
+            self.assertIn("./plugins/*/bin/*", agents_md,
+                         "shellcheck command should include ./plugins/*/bin/*")
+
+    def test_claude_md_agents_import_not_in_code_fence(self):
+        """Test that CLAUDE.md doesn't put @AGENTS.md in code fence (Issue 5)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "test.py").write_text("# test")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            claude_md = analyzer.generate_claude_md()
+
+            # @AGENTS.md should NOT be inside ```code fence```
+            self.assertNotIn("```\n@AGENTS.md", claude_md,
+                           "CLAUDE.md should not have @AGENTS.md in code fence")
+            self.assertIn("\n@AGENTS.md\n", claude_md,
+                         "CLAUDE.md should have @AGENTS.md without code fence")
+
+    def test_cursorrules_shell_specific_naming_convention(self):
+        """Test that .cursorrules has Shell-specific naming convention (Issue 6)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "bin").mkdir()
+            Path(tmpdir, "bin/script").write_text("#!/bin/bash\necho hello")
+            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            cursorrules = analyzer.generate_cursorrules()
+
+            self.assertIn("snake_case", cursorrules,
+                         ".cursorrules should specify snake_case for shell")
+            self.assertIn("shellcheck", cursorrules,
+                         ".cursorrules should mention shellcheck for shell")
+
+    def test_cursorrules_test_command_language_specific(self):
+        """Test that .cursorrules uses language-specific test commands (Issue 7)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "bin").mkdir()
+            Path(tmpdir, "bin/script").write_text("#!/bin/bash\necho hello")
+            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            cursorrules = analyzer.generate_cursorrules()
+
+            # For shell projects with Bats, should use make test, not pytest
+            self.assertIn("make test", cursorrules,
+                         ".cursorrules should use 'make test' for shell projects")
+            # Should NOT have pytest for shell projects
+            self.assertNotIn("pytest", cursorrules,
+                           ".cursorrules should not use pytest for shell projects")
+
+
 if __name__ == '__main__':
     unittest.main()
