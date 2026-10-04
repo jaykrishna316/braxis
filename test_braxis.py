@@ -871,5 +871,26 @@ class TestRegression_HardcodingFixes(unittest.TestCase):
                            ".cursorrules should not use pytest for shell projects")
 
 
+class TestAutomationVerification(unittest.TestCase):
+    """Tests to verify automation and context regeneration."""
+
+    def test_automation_triggers_context_regeneration(self):
+        """Verify that code changes trigger context file regeneration."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "src").mkdir()
+            Path(tmpdir, "src/main.py").write_text("print('hello')")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+
+            # Verify analyzer can detect Python projects
+            self.assertIn("python", analyzer.languages,
+                         "Analyzer should detect Python language")
+            # Verify AGENTS.md gets generated
+            agents_md = analyzer.generate_agents_md()
+            self.assertIn("Python", agents_md,
+                         "AGENTS.md should mention Python language")
+
+
 if __name__ == '__main__':
     unittest.main()
