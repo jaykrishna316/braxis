@@ -6,16 +6,26 @@ on:
     paths:
       - 'setup.py'
       - 'pyproject.toml'
+      - 'braxis.py'
+      - 'braxis_api.py'
+      - 'braxis_config.py'
+      - 'braxis_triggers.py'
       - 'src/**'
       - 'tests/**'
+      - 'test_*.py'
       - '.github/workflows/braxis-sync.yml'
   push:
     branches: [main, develop, master]
     paths:
       - 'setup.py'
       - 'pyproject.toml'
+      - 'braxis.py'
+      - 'braxis_api.py'
+      - 'braxis_config.py'
+      - 'braxis_triggers.py'
       - 'src/**'
       - 'tests/**'
+      - 'test_*.py'
       - '.github/workflows/braxis-sync.yml'
 
 jobs:
