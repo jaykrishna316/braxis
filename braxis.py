@@ -560,7 +560,7 @@ class BraxisAnalyzer:
         # If not found, use project name as fallback
         return f"https://github.com/YOUR_ORG/{self.project_path.name}.git"
 
-    def _detect_python_version(self) -> str:
+    def _detect_python_version(self) -> str | None:
         """Detect Python version requirement from pyproject.toml or setup.py."""
         pyproject = self.project_path / "pyproject.toml"
         if pyproject.exists():
@@ -1812,7 +1812,7 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                 except (OSError, UnicodeDecodeError):
                     pass
             detected_version = self._detect_python_version()
-            py_version = detected_version if detected_version else None
+            py_version: str | None = detected_version
         elif self.build_system == "Bun":
             setup_cmd = "bun install"
             test_cmd = "bun test"
