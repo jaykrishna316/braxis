@@ -12,6 +12,7 @@ from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
 import hashlib
+from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 
 
 class BraxisAnalyzer:
@@ -39,25 +40,25 @@ class BraxisAnalyzer:
     BUILD_FILES = ['package.json', 'pyproject.toml', 'setup.py', 'Makefile', 'build.gradle', 'pom.xml', 'Cargo.toml']
     CONFIG_FILES = ['.env', '.env.example', 'config.json', 'settings.py', 'config.yaml']
 
-    def __init__(self, project_path='.'):
-        self.project_path = self._validate_project_path(project_path)
-        self.files = []
-        self.languages = defaultdict(int)
-        self.test_files = []
-        self.config_files = []
-        self.build_files = []
-        self.conventions = defaultdict(int)
-        self.critical_files = []
-        self.score_breakdown = {}
-        self.tier = "Not Ready"
+    def __init__(self, project_path: str = '.') -> None:
+        self.project_path: Path = self._validate_project_path(project_path)
+        self.files: List[Path] = []
+        self.languages: DefaultDict[str, int] = defaultdict(int)
+        self.test_files: List[Path] = []
+        self.config_files: List[Path] = []
+        self.build_files: List[Path] = []
+        self.conventions: DefaultDict[str, int] = defaultdict(int)
+        self.critical_files: List[Path] = []
+        self.score_breakdown: Dict[str, Any] = {}
+        self.tier: str = "Not Ready"
         # Contributing guide detection
-        self.contributing_guide = {'exists': False, 'path': None, 'content': None}
+        self.contributing_guide: Dict[str, Any] = {'exists': False, 'path': None, 'content': None}
         # v1.1 features
-        self.monorepo_type = None
-        self.monorepo_subsystems = []
-        self.mcp_servers = []
+        self.monorepo_type: Optional[str] = None
+        self.monorepo_subsystems: List[str] = []
+        self.mcp_servers: List[str] = []
 
-    def _validate_project_path(self, project_path):
+    def _validate_project_path(self, project_path: str) -> Path:
         """Validate and normalize project path."""
         if not project_path:
             raise ValueError("Project path cannot be empty")
@@ -68,19 +69,19 @@ class BraxisAnalyzer:
             raise NotADirectoryError(f"Project path is not a directory: {project_path}")
         return path
 
-    def _get_project_hash(self):
+    def _get_project_hash(self) -> str:
         """Generate unique hash for project for tracking."""
         project_str = str(self.project_path).encode()
         return hashlib.md5(project_str).hexdigest()[:8]
 
-    def _get_history_file(self):
+    def _get_history_file(self) -> Path:
         """Get path to score history file."""
         home = Path.home()
         history_dir = home / '.braxis' / 'history'
         history_dir.mkdir(parents=True, exist_ok=True)
         return history_dir / f"scores_{self._get_project_hash()}.json"
 
-    def _save_score_to_history(self):
+    def _save_score_to_history(self) -> None:
         """Save current score to history."""
         history_file = self._get_history_file()
         history = []
@@ -100,7 +101,7 @@ class BraxisAnalyzer:
 
         history_file.write_text(json.dumps(history, indent=2))
 
-    def get_score_history(self, limit=None):
+    def get_score_history(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get score history for this project."""
         history_file = self._get_history_file()
         if not history_file.exists():
@@ -112,7 +113,7 @@ class BraxisAnalyzer:
         except (json.JSONDecodeError, IOError):
             return []
 
-    def show_score_trends(self):
+    def show_score_trends(self) -> None:
         """Show score trends over time."""
         history = self.get_score_history()
         if not history:
@@ -138,7 +139,7 @@ class BraxisAnalyzer:
 
         print(f"\n{'='*60}\n")
 
-    def analyze(self):
+    def analyze(self) -> None:
         """Analyze the project."""
         self._scan_files()
         self._detect_languages()
@@ -159,7 +160,7 @@ class BraxisAnalyzer:
         self.mcp_servers = self.detect_mcp_servers()
         self._calculate_score()
 
-    def _scan_files(self):
+    def _scan_files(self) -> None:
         """Scan all files in project."""
         ignore_dirs = {'.git', '.venv', 'node_modules', '__pycache__', 'dist', 'build', '.idea', '.vscode'}
         for root, dirs, files in os.walk(self.project_path):
@@ -174,7 +175,7 @@ class BraxisAnalyzer:
                 if file in self.BUILD_FILES:
                     self.build_files.append(file_path)
 
-    def _detect_languages(self):
+    def _detect_languages(self) -> None:
         """Detect languages used in project."""
         for file_path in self.files:
             ext = file_path.suffix.lower()
@@ -183,7 +184,7 @@ class BraxisAnalyzer:
                     self.languages[lang] += 1
                     break
 
-    def _get_primary_language(self):
+    def _get_primary_language(self) -> Optional[str]:
         """Get primary language for the project."""
         if not self.languages:
             return None
