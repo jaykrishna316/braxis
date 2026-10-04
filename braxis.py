@@ -21,6 +21,7 @@ class BraxisAnalyzer:
 
     LANGUAGE_EXTENSIONS = {
         "python": [".py"],
+        "shell": [".sh"],
         "javascript": [".js", ".jsx"],
         "typescript": [".ts", ".tsx"],
         "java": [".java"],
@@ -327,6 +328,17 @@ class BraxisAnalyzer:
                     break
             if not test_frameworks and self.test_files:
                 test_frameworks.add("RSpec")
+        elif primary_lang == "shell":
+            # Detect Bats test framework
+            bats_files = [f for f in self.test_files if f.suffix == ".bats"]
+            if bats_files:
+                test_frameworks.add("Bats")
+            # Check for test/ directory with .bats files
+            test_dir = self.project_path / "test"
+            if test_dir.exists():
+                bats_count = len(list(test_dir.glob("*.bats")))
+                if bats_count > 0 and "Bats" not in test_frameworks:
+                    test_frameworks.add("Bats")
         elif primary_lang == "java":
             if any("pom.xml" in str(f) for f in self.build_files):
                 test_frameworks.add("JUnit")
@@ -685,6 +697,17 @@ bundle exec rspec -v      # Verbose output
 bundle exec rubocop       # Lint with RuboCop
 bundle exec rubocop -a    # Auto-fix issues
 ```"""
+        elif primary_lang == "shell":
+            return """```bash
+make test                 # Run all Bats tests
+make test-<test-name>    # Run specific test
+```
+
+#### Code Quality
+```bash
+shellcheck ./**/*.sh      # Lint shell scripts
+chmod +x ./bin/*         # Ensure scripts executable
+```"""
         elif primary_lang in ["javascript", "typescript"]:
             return """```bash
 npm test                  # Run all tests
@@ -721,6 +744,8 @@ mypy .                    # Type checking (if configured)
             return "cargo build"
         elif primary_lang == "ruby":
             return "bundle install"
+        elif primary_lang == "shell":
+            return "# Add ./bin to your PATH\nexport PATH=\"$PWD/bin:$PATH\""
         elif primary_lang in ["javascript", "typescript"]:
             return "npm install\n# or\nyarn install"
         else:  # Python and others
@@ -752,6 +777,9 @@ cargo test                    # Run all tests"""
         elif primary_lang == "ruby":
             return """bundle exec rubocop -a        # Format and lint code
 bundle exec rspec             # Run all tests"""
+        elif primary_lang == "shell":
+            return """shellcheck ./**/*.sh          # Lint shell scripts
+make test                     # Run all Bats tests"""
         else:
             return """make format                   # Format code (if available)
 make lint                     # Lint check (if available)
@@ -784,6 +812,10 @@ make test                     # Run all tests (if available)"""
             return """5. Run `bundle exec rspec` to verify nothing breaks
 6. Run linter: `bundle exec rubocop`
 7. Format your code: `bundle exec rubocop -a`"""
+        elif primary_lang == "shell":
+            return """5. Run `make test` to verify nothing breaks
+6. Run linter: `shellcheck ./**/*.sh`
+7. Ensure scripts are executable: `chmod +x ./bin/*`"""
         else:
             return """5. Run the appropriate test command to verify nothing breaks
 6. Run code quality checks
@@ -809,6 +841,12 @@ make test                     # Run all tests (if available)"""
 2. Run specific test directory: `bundle exec rspec spec/`
 3. Lint with RuboCop: `bundle exec rubocop`
 4. Auto-fix issues: `bundle exec rubocop -a`"""
+        elif primary_lang == "shell":
+            return """Before committing:
+1. Run the full Bats test suite: `make test`
+2. Lint all shell scripts: `shellcheck ./**/*.sh`
+3. Verify scripts are executable: `ls -la ./bin/`
+4. Test locally to confirm behavior"""
         elif primary_lang in ["javascript", "typescript"]:
             return """Before committing:
 1. Run the full test suite: `npm test` or `yarn test`
@@ -1624,7 +1662,13 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
         )
 
         # Determine setup and commands based on language and build system
-        if primary_lang == "python":
+        if primary_lang == "shell":
+            setup_cmd = None
+            test_cmd = "make test"
+            lint_cmd = "shellcheck ./**/*.sh"
+            format_cmd = None
+            py_version = "N/A"
+        elif primary_lang == "python":
             setup_cmd = "pip install -e . && uv sync --all-groups"
             test_cmd = "pytest"
             lint_cmd = "ruff check ."
@@ -1646,6 +1690,8 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
         # Determine test framework string with appropriate fallback
         if self.test_frameworks:
             test_frameworks_str = ", ".join(sorted(self.test_frameworks))
+        elif primary_lang == "shell":
+            test_frameworks_str = "Bats"
         elif primary_lang == "python":
             test_frameworks_str = "pytest"
         elif self.build_system == "Bun":
