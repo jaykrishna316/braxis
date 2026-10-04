@@ -603,7 +603,7 @@ class BraxisAnalyzer:
             except (OSError, UnicodeDecodeError):
                 pass
 
-        return "3.9+"  # Default fallback
+        return None
 
     def _get_detected_python_tools(self) -> List[str]:
         """Get Python tools that are actually configured in the project."""
@@ -1810,7 +1810,8 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
                         format_cmd = "ruff format ."
                 except (OSError, UnicodeDecodeError):
                     pass
-            py_version = self._detect_python_version()
+            detected_version = self._detect_python_version()
+            py_version = detected_version if detected_version else None
         elif self.build_system == "Bun":
             setup_cmd = "bun install"
             test_cmd = "bun test"
@@ -1825,7 +1826,7 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
             py_version = "N/A"
 
         # Determine test framework string with appropriate fallback
-        if self.test_frameworks:
+        if self.test_frameworks and self.test_frameworks != {"None detected"}:
             test_frameworks_str = ", ".join(sorted(self.test_frameworks))
         elif primary_lang == "shell":
             test_frameworks_str = "shell script tests"

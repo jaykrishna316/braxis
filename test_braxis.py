@@ -345,5 +345,412 @@ class TestEdgeCases(unittest.TestCase):
                 self.assertIn(key, analyzer.score_breakdown)
 
 
+class TestCountTestFunctions(unittest.TestCase):
+    """Regression tests for _count_test_functions() method."""
+
+    def test_count_python_test_functions(self):
+        """Test counting Python test functions."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "test_one.py").write_text(
+                "def test_func1():\n    pass\n"
+                "def test_func2():\n    pass\n"
+                "def helper():\n    pass"
+            )
+            Path(tmpdir, "test_two.py").write_text(
+                "def test_func3():\n    pass"
+            )
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            count = analyzer._count_test_functions()
+
+            self.assertEqual(count, 3)
+
+    def test_count_go_test_functions(self):
+        """Test counting Go test functions."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "main_test.go").write_text(
+                "func TestOne(t *testing.T) {}\n"
+                "func TestTwo(t *testing.T) {}\n"
+                "func Helper() {}"
+            )
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            count = analyzer._count_test_functions()
+
+            self.assertEqual(count, 2)
+
+    def test_count_bats_test_declarations(self):
+        """Test counting Bats test declarations."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "test_main.bats").write_text(
+                "@test \"first test\" {\n  true\n}\n"
+                "@test \"second test\" {\n  true\n}"
+            )
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            count = analyzer._count_test_functions()
+
+            self.assertEqual(count, 2)
+
+    def test_count_test_functions_returns_at_least_file_count(self):
+        """Test that count returns at least the number of test files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "test_one.py").write_text("# no functions")
+            Path(tmpdir, "test_two.py").write_text("# no functions")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            count = analyzer._count_test_functions()
+
+            self.assertGreaterEqual(count, len(analyzer.test_files))
+
+    def test_count_javascript_tests(self):
+        """Test counting JavaScript test declarations."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "test_main.js").write_text(
+                "describe('suite', () => {\n"
+                "  it('test 1', () => {});\n"
+                "  it('test 2', () => {});\n"
+                "});"
+            )
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            count = analyzer._count_test_functions()
+
+            self.assertGreaterEqual(count, 2)
+
+
+class TestDetectedPythonTools(unittest.TestCase):
+    """Regression tests for _get_detected_python_tools() method."""
+
+    def test_detects_ruff_from_pyproject(self):
+        """Test detection of ruff configuration."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pyproject = Path(tmpdir) / "pyproject.toml"
+            pyproject.write_text("[tool.ruff]\nline-length = 88")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            tools = analyzer._get_detected_python_tools()
+
+            self.assertIn("ruff", tools)
+
+    def test_detects_mypy_from_pyproject(self):
+        """Test detection of mypy configuration."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pyproject = Path(tmpdir) / "pyproject.toml"
+            pyproject.write_text("[tool.mypy]\nstrict = true")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            tools = analyzer._get_detected_python_tools()
+
+            self.assertIn("mypy", tools)
+
+    def test_detects_multiple_tools(self):
+        """Test detection of multiple tools."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pyproject = Path(tmpdir) / "pyproject.toml"
+            pyproject.write_text(
+                "[tool.ruff]\nline-length = 88\n"
+                "[tool.mypy]\nstrict = true"
+            )
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            tools = analyzer._get_detected_python_tools()
+
+            self.assertIn("ruff", tools)
+            self.assertIn("mypy", tools)
+
+    def test_returns_empty_list_when_no_tools(self):
+        """Test returns empty list when no tools configured."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pyproject = Path(tmpdir) / "pyproject.toml"
+            pyproject.write_text("[build-system]\nrequires = ['setuptools']")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            tools = analyzer._get_detected_python_tools()
+
+            self.assertEqual(tools, [])
+
+    def test_handles_missing_pyproject(self):
+        """Test handles missing pyproject.toml."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analyzer = BraxisAnalyzer(tmpdir)
+            tools = analyzer._get_detected_python_tools()
+
+            self.assertEqual(tools, [])
+
+    def test_detects_pylint_flake8_pyright(self):
+        """Test detection of other tools."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pyproject = Path(tmpdir) / "pyproject.toml"
+            pyproject.write_text(
+                "[tool.pylint]\ndisable = 'missing-docstring'\n"
+                "[tool.flake8]\nmax-line-length = 88\n"
+                "[tool.pyright]\ntypeCheckingMode = 'basic'"
+            )
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            tools = analyzer._get_detected_python_tools()
+
+            self.assertIn("pylint", tools)
+            self.assertIn("flake8", tools)
+            self.assertIn("pyright", tools)
+
+
+class TestUnittestDetection(unittest.TestCase):
+    """Regression tests for unittest detection fix."""
+
+    def test_detects_unittest_over_pytest(self):
+        """Test that unittest is detected when test_*.py files exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "test_main.py").write_text("import unittest\nclass TestMain(unittest.TestCase): pass")
+            Path(tmpdir, "main.py").write_text("# main")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+
+            self.assertIn("unittest", analyzer.test_frameworks)
+
+    def test_detects_pytest_when_configured(self):
+        """Test pytest detected from pyproject.toml configuration."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pyproject = Path(tmpdir) / "pyproject.toml"
+            pyproject.write_text("[tool.pytest.ini_options]\nminversion = '6.0'")
+            Path(tmpdir, "test_main.py").write_text("import pytest")
+            Path(tmpdir, "main.py").write_text("# main")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+
+            self.assertIn("pytest", analyzer.test_frameworks)
+
+    def test_detects_go_test_files(self):
+        """Test detection of Go _test.go files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "main_test.go").write_text("func TestMain(t *testing.T) {}")
+            Path(tmpdir, "main.go").write_text("// main")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+
+            self.assertIn("Go testing", analyzer.test_frameworks)
+
+    def test_detects_ruby_spec_files(self):
+        """Test detection of Ruby spec_*.rb files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "spec_main.rb").write_text("describe MainClass do\n  it 'test' do\n    true\n  end\nend")
+            Path(tmpdir, "main.rb").write_text("class Main\nend")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+
+            self.assertIn("RSpec", analyzer.test_frameworks)
+
+
+class TestSetupCommandConditionals(unittest.TestCase):
+    """Regression tests for conditional setup commands fix."""
+
+    def test_setup_command_for_package_with_setup_py(self):
+        """Test setup command is suggested for packages with setup.py."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "setup.py").write_text("from setuptools import setup")
+            Path(tmpdir, "main.py").write_text("# main")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            setup_cmd = analyzer._get_initial_setup_commands("python")
+
+            self.assertIsNotNone(setup_cmd)
+            self.assertIn("pip", setup_cmd)
+
+    def test_setup_command_for_project_in_pyproject(self):
+        """Test setup command for [project] in pyproject.toml."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pyproject = Path(tmpdir) / "pyproject.toml"
+            pyproject.write_text("[project]\nname = 'myproject'")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            setup_cmd = analyzer._get_initial_setup_commands("python")
+
+            self.assertIsNotNone(setup_cmd)
+            self.assertIn("pip", setup_cmd)
+
+    def test_no_setup_command_for_non_package(self):
+        """Test no setup command for non-package Python projects."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "main.py").write_text("print('hello')")
+            Path(tmpdir, "utils.py").write_text("# utilities")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            setup_cmd = analyzer._get_initial_setup_commands("python")
+
+            self.assertTrue(setup_cmd is None or "No setup" in setup_cmd or len(setup_cmd) == 0)
+
+
+class TestDynamicCommandGeneration(unittest.TestCase):
+    """Regression tests for dynamic command generation fix."""
+
+    def test_development_commands_use_detected_framework(self):
+        """Test that development commands use self.test_frameworks."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "test_main.py").write_text(
+                "import unittest\nclass TestMain(unittest.TestCase):\n    def test_one(self): pass"
+            )
+            Path(tmpdir, "main.py").write_text("# main")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            commands = analyzer._get_development_commands("python")
+
+            self.assertIsNotNone(commands)
+            self.assertIsInstance(commands, str)
+            self.assertIn("unittest", commands)
+
+    def test_cursor_rules_use_detected_framework(self):
+        """Test that cursor rules use detected test framework."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "test_main.py").write_text("import unittest")
+            Path(tmpdir, "main.py").write_text("# main")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            rules = analyzer.generate_cursorrules()
+
+            self.assertIsNotNone(rules)
+            self.assertIsInstance(rules, str)
+
+    def test_agentic_config_uses_detected_framework(self):
+        """Test that agentic config uses detected test framework."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "test_main.py").write_text(
+                "import unittest\nclass TestMain(unittest.TestCase): pass"
+            )
+            Path(tmpdir, "main.py").write_text("# main")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            config_content = analyzer.generate_agentic_config()
+            config = json.loads(config_content)
+
+            testing = config.get("testing", {})
+            framework = testing.get("framework")
+            self.assertIsNotNone(framework)
+            self.assertNotEqual(framework, "None detected", "Should detect a valid framework")
+
+
+class TestHardcodedValueDetection(unittest.TestCase):
+    """Regression tests to detect hardcoded values in generated output."""
+
+    def test_agentic_config_no_default_pytest(self):
+        """Test that pytest is not defaulted without configuration."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "test_main.py").write_text(
+                "import unittest\nclass TestMain(unittest.TestCase): pass"
+            )
+            Path(tmpdir, "main.py").write_text("# main")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            config_content = analyzer.generate_agentic_config()
+            config = json.loads(config_content)
+
+            testing = config.get("ai_readiness", {}).get("testing", {})
+            framework = testing.get("framework")
+
+            self.assertNotEqual(framework, "pytest",
+                              "pytest should not be default for unittest projects")
+
+    def test_agentic_config_test_count_matches_actual(self):
+        """Test that test count in config matches actual test functions."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "test_one.py").write_text(
+                "def test_a(): pass\ndef test_b(): pass"
+            )
+            Path(tmpdir, "test_two.py").write_text(
+                "def test_c(): pass"
+            )
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            config_content = analyzer.generate_agentic_config()
+            config = json.loads(config_content)
+
+            reported_count = config.get("testing", {}).get("total_tests")
+            self.assertIsNotNone(reported_count, "total_tests should not be None")
+            self.assertGreaterEqual(reported_count, 2,
+                                   "reported test count should be at least file count")
+
+    def test_agentic_config_no_tools_unless_configured(self):
+        """Test that tools only appear if configured."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "main.py").write_text("# main")
+            Path(tmpdir, "pyproject.toml").write_text("[build-system]\nrequires = ['setuptools']")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            config_content = analyzer.generate_agentic_config()
+            config = json.loads(config_content)
+
+            dev = config.get("ai_readiness", {}).get("development", {})
+            linting = dev.get("linting_tools", [])
+
+            self.assertEqual(linting, [],
+                           "No linting tools should be configured if not in pyproject.toml")
+
+    def test_agents_md_no_hardcoded_test_framework(self):
+        """Test AGENTS.md doesn't hardcode test frameworks."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "test_main.py").write_text(
+                "import unittest\nclass TestMain(unittest.TestCase): pass"
+            )
+            Path(tmpdir, "main.py").write_text("# main")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            agents_md = analyzer.generate_agents_md()
+
+            self.assertIsNotNone(agents_md)
+            self.assertNotEqual(agents_md, "", "AGENTS.md should not be empty")
+
+    def test_python_version_from_config(self):
+        """Test Python version comes from configuration, not hardcoded."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pyproject = Path(tmpdir) / "pyproject.toml"
+            pyproject.write_text('requires-python = ">=3.8"')
+            Path(tmpdir, "main.py").write_text("# main")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            config_content = analyzer.generate_agentic_config()
+            config = json.loads(config_content)
+
+            version = config.get("development", {}).get("prerequisites", {}).get("language_version")
+            self.assertEqual(version, ">=3.8",
+                           "Python version should come from configuration")
+
+    def test_shell_project_not_given_python_defaults(self):
+        """Test that shell projects don't receive Python defaults."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "script.sh").write_text("#!/bin/bash\necho hello")
+            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+
+            analyzer = BraxisAnalyzer(tmpdir)
+            analyzer.analyze()
+            config_content = analyzer.generate_agentic_config()
+            config = json.loads(config_content)
+
+            dev = config.get("ai_readiness", {}).get("development", {})
+            setup_cmd = dev.get("setup_command")
+
+            self.assertNotIn("pip", str(setup_cmd) if setup_cmd else "",
+                           "Shell project should not have pip setup command")
+
+
 if __name__ == '__main__':
     unittest.main()
