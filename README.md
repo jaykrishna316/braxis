@@ -52,6 +52,23 @@ Your agents always see current reality
 - ✅ **No Dependencies** - Pure Python, zero external packages (LLM features optional)
 - ✅ **Production-Grade** - Used in real projects, actively maintained
 
+### NEW: AGENTS.md Grading System
+
+Braxis now provides a **community standard for evaluating AGENTS.md quality** with the `braxis grade` command:
+
+```bash
+braxis grade --path AGENTS.md --compare
+```
+
+- **10-dimension rubric** (command clarity, type-checking, linting, boundaries, architecture, PR checklist, CI/CD, anti-patterns, examples, guidance)
+- **0-100 score** with tier classification (Agent-Optimized, Enterprise-Ready, AI-Native, etc.)
+- **Benchmark comparisons** against FastAPI, Airflow, Sentry
+- **Open community standard** — See [AGENTS_GRADING_STANDARD.md](AGENTS_GRADING_STANDARD.md)
+
+**Use case:** Objectively measure and improve your AGENTS.md quality over time.
+
+---
+
 ### NEW in v1.4: Dual-Format AGENTS.md
 - ✅ **Category A: Operations Manual** - Automatically extracts AI policy, procedures, and workarounds from CONTRIBUTING.md
 - ✅ **Category B: Context Guide** - Comprehensive architectural context and agent-understanding
@@ -649,30 +666,78 @@ braxis --version
 
 # Score your project's agent readiness
 braxis score
-braxis score --path /path/to/project  # Score a specific project
+braxis score --project-path /path/to/project
 
 # Generate context files
 braxis generate
-braxis generate --path /path/to/project
+braxis generate --project-path /path/to/project
 
 # Inspect project analysis
 braxis inspect
-braxis inspect --path /path/to/project
+braxis inspect --project-path /path/to/project
 
 # Validate context files exist
 braxis validate
-braxis validate --path /path/to/project
+braxis validate --project-path /path/to/project
 
 # View score history
 braxis history
-braxis history --path /path/to/project
+braxis history --project-path /path/to/project
 braxis history --trends                 # Show trends with emoji indicators
-braxis history --path /path/to/project --trends
+
+# 🎯 NEW: Grade AGENTS.md files against community standard
+braxis grade                            # Grade current project's AGENTS.md
+braxis grade --path path/to/AGENTS.md   # Grade specific AGENTS.md file
+braxis grade --path AGENTS.md --compare # Show comparison with benchmarks
+braxis grade --path AGENTS.md --verbose # Detailed breakdown
 
 # Get LLM-powered recommendations (requires: export ANTHROPIC_API_KEY='sk-ant-...')
 braxis recommendations
-braxis recommendations --path /path/to/project
+braxis recommendations --project-path /path/to/project
 ```
+
+### NEW: Grade AGENTS.md Files
+
+Braxis can now **grade and evaluate AGENTS.md files** against an industry-standard rubric:
+
+```bash
+braxis grade --path AGENTS.md --compare
+```
+
+**Output:**
+```
+==============================================================
+AGENTS.md Grade Report
+==============================================================
+
+Overall Score: 93/100 🟢 Agent-Optimized
+
+Dimension Scores:
+  Command Execution         [█████████░] 9/10 ⭐
+  Type-Checking Coverage    [█████████░] 9/10 ⭐
+  Unified Linting           [█████████░] 9/10 ⭐
+  Agent Boundaries          [██████████] 10/10 ⭐
+  Architecture Docs         [█████████░] 9/10 ⭐
+  PR Checklist              [█████████░] 9/10 ⭐
+  CI/CD Enforcement         [█████████░] 9/10 ⭐
+  Anti-Patterns             [██████████] 10/10 ⭐
+  Example Quality           [██████████] 10/10 ⭐
+  Overall Guidance          [█████████░] 9/10 ⭐
+
+Comparison:
+  Sentry (83/100)   +10 points
+  FastAPI (81/100)  +12 points
+  Braxis (78/100)   +15 points
+```
+
+**Score Tiers:**
+- **90-100** — Agent-Optimized (production-ready, comprehensive)
+- **80-89** — Enterprise-Ready (excellent agent compatibility)
+- **60-79** — AI-Native (good support, some gaps)
+- **30-59** — Agent-Aware (basic compatibility)
+- **0-29** — Not Ready (needs improvements)
+
+**See [AGENTS_GRADING_STANDARD.md](AGENTS_GRADING_STANDARD.md) for the complete rubric and evaluation methodology.**
 
 ---
 
