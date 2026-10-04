@@ -26,14 +26,22 @@ jobs:
           pip install -e .
 
       - name: Run regression test suite
-        run: python3 -m unittest discover -v
+        id: tests
+        run: python3 -m unittest discover -v 2>&1 | tee test-output.txt
 
-      - name: Report test results
+      - name: Parse and report test results
         if: always()
         run: |
           echo "## Regression Test Results" >> $GITHUB_STEP_SUMMARY
-          if [ $? -eq 0 ]; then
-            echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+          if grep -q "FAILED\|ERROR" test-output.txt; then
+            echo "❌ Tests failed" >> $GITHUB_STEP_SUMMARY
+            grep "FAILED\|ERROR" test-output.txt >> $GITHUB_STEP_SUMMARY || true
           else
-            echo "❌ Tests failed - review output above" >> $GITHUB_STEP_SUMMARY
+            TESTS=$(grep -oP "Ran \K[0-9]+" test-output.txt || echo "?")
+            echo "✅ All $TESTS tests passed" >> $GITHUB_STEP_SUMMARY
           fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Full Output" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -20 test-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
