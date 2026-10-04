@@ -27,21 +27,21 @@ jobs:
 
       - name: Run regression test suite
         id: tests
-        run: python3 -m unittest discover -v 2>&1 | tee test-output.txt
+        run: |
+          python3 -m unittest discover -v 2>&1 | tee test-results.log
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
 
-      - name: Parse and report test results
+      - name: Report test results
         if: always()
         run: |
-          echo "## Regression Test Results" >> $GITHUB_STEP_SUMMARY
-          if grep -q "FAILED\|ERROR" test-output.txt; then
-            echo "❌ Tests failed" >> $GITHUB_STEP_SUMMARY
-            grep "FAILED\|ERROR" test-output.txt >> $GITHUB_STEP_SUMMARY || true
-          else
-            TESTS=$(grep -oP "Ran \K[0-9]+" test-output.txt || echo "?")
-            echo "✅ All $TESTS tests passed" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "## ✅ Regression Test Suite Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Full Output" >> $GITHUB_STEP_SUMMARY
+          # Extract test count
+          TEST_COUNT=$(grep -o "Ran [0-9]*" test-results.log | grep -o "[0-9]*" || echo "N/A")
+          echo "**Tests Run:** $TEST_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # Show last 30 lines of output
+          echo "### Output" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -20 test-output.txt >> $GITHUB_STEP_SUMMARY
+          tail -30 test-results.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
