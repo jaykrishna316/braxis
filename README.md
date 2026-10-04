@@ -36,6 +36,56 @@ Your agents always see current reality
 
 ---
 
+## 🔄 Hybrid Automation: Keep Context Files Always Fresh
+
+**The Problem:** Context files get stale the moment your code changes. Manual regeneration is forgotten. Agents read yesterday's documentation.
+
+**The Solution:** Braxis uses **two-layer automation** to ensure context files are never out of sync:
+
+### Layer 1: Local Pre-commit Hook (Immediate Feedback)
+```bash
+./scripts/setup-braxis-hook.sh
+```
+- Runs `braxis generate` before every commit
+- Auto-stages context file updates
+- Catches stale files before they're committed
+- Zero external dependencies (pure bash)
+
+**Example:**
+```
+$ git commit -m "add new feature"
+🤖 Braxis Context Generator (pre-commit hook)
+📝 Regenerating context files...
+📌 Context files updated
+   Staging changes...
+✅ Updated files staged for commit
+```
+
+### Layer 2: Remote GitHub Actions (Safety Net)
+- Triggers automatically on every push to main/develop/master
+- Only on meaningful code changes (src/, tests/, setup.py)
+- Auto-commits context updates if local hook was skipped
+- Posts confirmation comment on PRs
+
+**Result:** Context files are **always fresh**, whether commits come from:
+- Local development (hook catches it immediately)
+- Direct pushes to main (workflow auto-updates)
+- Pull requests (workflow auto-commits before merge)
+
+### Why This Matters
+
+| Scenario | Without Automation | With Hybrid Approach |
+|----------|-------------------|----------------------|
+| Developer adds new feature | ❌ AGENTS.md becomes stale in seconds | ✅ Auto-regenerated on commit |
+| Team member reads code | ❌ Context files are 5+ commits behind | ✅ Always current, always accurate |
+| AI agent analyzes code | ❌ Reads outdated architecture docs | ✅ Gets real-time project insight |
+| New contributor joins | ❌ Reads stale patterns and conventions | ✅ Sees latest project standards |
+| PR review happens | ❌ Comments miss recent changes | ✅ Context reflects actual current code |
+
+**One command. Two layers. Zero manual work.** ✨
+
+---
+
 ## ✨ Key Features
 
 ### Core Features
@@ -155,6 +205,23 @@ git push
 **In Claude Code:** Automatically reads `CLAUDE.md`
 **In Cursor:** Copy `.cursorrules` into Cursor Settings → Rules
 **In any agent:** Reads `AGENTS.md` (universal format)
+
+### Step 7 (Optional): Enable Hybrid Automation
+
+Keep context files automatically fresh on every commit:
+
+```bash
+# Local pre-commit hook (runs on every commit)
+./scripts/setup-braxis-hook.sh
+```
+
+Now:
+- ✅ `braxis generate` runs automatically before commits
+- ✅ Context files update whenever code changes
+- ✅ Updated files are auto-staged for inclusion
+- ✅ GitHub Actions acts as safety net on main branch
+
+See **Hybrid Automation** section above for full details.
 
 ---
 
@@ -301,84 +368,74 @@ Tested on 4 different project sizes:
 
 ## 🚀 Extended Features
 
-### Auto-Update with GitHub Actions
+### Hybrid Automation: Two Layers of Protection
 
-Automatically regenerate context files on every push using GitHub Actions.
+Braxis provides **dual-layer automation** to keep context files always in sync:
 
-Braxis includes a ready-to-use workflow. Copy it to your repo:
-
-```bash
-mkdir -p .github/workflows
-cp /path/to/braxis/.github/workflows/braxis-score.yml .github/workflows/
-git add .github/workflows/braxis-score.yml
-git commit -m "chore: add braxis auto-update workflow"
-git push
-```
-
-Or manually create `.github/workflows/braxis-score.yml`:
-
-```yaml
-name: Braxis Score Check
-
-on:
-  push:
-    branches: [ main, develop ]
-    paths:
-      - '**.py'
-      - 'package.json'
-      - 'pyproject.toml'
-      - 'setup.py'
-
-jobs:
-  score:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      - run: pip install braxis
-      - run: braxis score
-      - run: braxis generate
-      - name: Create Pull Request for updates
-        uses: peter-evans/create-pull-request@v5
-        with:
-          commit-message: 'chore: regenerate braxis context files'
-          title: 'chore: update agent context files'
-          branch: braxis/auto-update
-```
-
-**Result:** Every push automatically regenerates context files and creates a PR if needed. ✨
-
-### Pre-commit Hooks
-
-Validate context files before every commit using pre-commit.
-
-#### For Contributors to Braxis:
+#### Layer 1: Local Pre-commit Hook (Immediate)
 
 ```bash
-pip install pre-commit
-pre-commit install
+./scripts/setup-braxis-hook.sh
 ```
 
-The hooks will run automatically on `git commit`.
+**What it does:**
+- Runs `braxis generate` automatically before every commit
+- Detects if context files changed
+- Auto-stages updated files
+- Pure bash, no external dependencies
 
-#### For Your Projects Using Braxis:
+**Example workflow:**
+```
+$ git commit -m "add new API endpoint"
+🤖 Braxis Context Generator
+📝 Regenerating context files...
+📌 AGENTS.md, CLAUDE.md updated
+✅ Changes staged for commit
+```
 
-Copy the example config to your project:
-
+**To disable temporarily:**
 ```bash
-cp /path/to/braxis/.pre-commit-config.example.yaml .pre-commit-config.yaml
+git commit --no-verify  # Skip hook (not recommended)
 ```
 
-Then install:
+#### Layer 2: Remote GitHub Actions (Safety Net)
+
+Automatically regenerates context files on pushes to main/develop/master when:
+- Source code changes (`src/**`)
+- Test structure changes (`tests/**`)
+- Project config changes (`setup.py`, `pyproject.toml`)
+- Workflow itself changes
+
+**What it does:**
+- Triggers on pushes and pull requests
+- Runs `braxis generate` automatically
+- Commits updates if changes detected
+- Posts confirmation comment on PRs
+
+**For PRs:** Posts comment like "✅ Context files automatically updated"
+**For direct pushes:** Silently commits to main
+
+#### Why Two Layers?
+
+| Scenario | Layer 1 Hook | Layer 2 Actions |
+|----------|-------------|-----------------|
+| Local development | ✅ Catches immediately | - |
+| Forgot to commit locally | ❌ Doesn't run | ✅ Catches on push |
+| PR review | ✅ Already updated | ✅ Double-checks |
+| Direct push to main | ❌ No hook | ✅ Auto-regenerates |
+
+**Result:** Context files are guaranteed to stay in sync, no matter how code is committed.
+
+### Pre-commit Framework (Optional)
+
+For teams using the `pre-commit` framework:
 
 ```bash
 pip install pre-commit
 pre-commit install
 ```
 
-Now braxis will validate your project before each commit! 🔐
+Braxis includes `.pre-commit-config.yaml` configuration for optional framework integration.
 
 ### Score History & Trends
 
