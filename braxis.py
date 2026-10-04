@@ -1789,7 +1789,8 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
         if primary_lang == "shell":
             setup_cmd = None
             test_cmd = "make test"
-            lint_cmd = "shellcheck ./**/*.sh"
+            # Only suggest shellcheck if explicitly configured in project
+            lint_cmd = None
             format_cmd = None
             py_version = "N/A"
         elif primary_lang == "python":
