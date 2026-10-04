@@ -4,11 +4,10 @@ on:
   pull_request:
     branches: [main, develop, master]
     paths:
-      - '**.py'
-      - '**.js'
-      - '**.ts'
       - 'setup.py'
       - 'pyproject.toml'
+      - 'src/**'
+      - 'tests/**'
       - '.github/workflows/braxis-sync.yml'
 
 jobs:
