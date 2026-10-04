@@ -31,4 +31,4 @@ ignore = [
 known-first-party = ["braxis"]
 
 [tool.ruff.format]
-line-length = 100
+docstring-code-line-length = 100
