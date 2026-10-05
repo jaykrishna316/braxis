@@ -2,7 +2,7 @@
 Tests for Braxis Programmatic API, Configuration, and Triggers.
 """
 
-import unittest
+import pytest
 from pathlib import Path
 from braxis_config import (
     BraxisConfig,
@@ -23,7 +23,7 @@ from braxis_api import (
 )
 
 
-class TestBraxisConfig(unittest.TestCase):
+class TestBraxisConfig:
     """Test configuration file handling."""
 
     def test_config_defaults(self):
@@ -74,7 +74,7 @@ class TestBraxisConfig(unittest.TestCase):
         assert config.automation.auto_commit is False
 
 
-class TestSmartTrigger(unittest.TestCase):
+class TestSmartTrigger:
     """Test smart triggering logic."""
 
     def test_trigger_initialization(self):
@@ -174,7 +174,7 @@ class TestSmartTrigger(unittest.TestCase):
         assert metrics.is_trivial_change is False
 
 
-class TestAIReadinessScore(unittest.TestCase):
+class TestAIReadinessScore:
     """Test AI Readiness Score data model."""
 
     def test_score_creation(self):
@@ -235,7 +235,7 @@ class TestAIReadinessScore(unittest.TestCase):
         assert len(dims) == 8
 
 
-class TestGenerationResult(unittest.TestCase):
+class TestGenerationResult:
     """Test generation result data model."""
 
     def test_generation_result_success(self):
@@ -279,7 +279,7 @@ class TestGenerationResult(unittest.TestCase):
         assert "timestamp" in result_dict
 
 
-class TestSuggestion(unittest.TestCase):
+class TestSuggestion:
     """Test improvement suggestion data model."""
 
     def test_suggestion_creation(self):
@@ -312,7 +312,7 @@ class TestSuggestion(unittest.TestCase):
         assert sug_dict["priority"] == "high"
 
 
-class TestContextGenerator(unittest.TestCase):
+class TestContextGenerator:
     """Test context file generation."""
 
     def test_generator_initialization(self):
@@ -331,11 +331,11 @@ class TestContextGenerator(unittest.TestCase):
 
     def test_generator_invalid_path(self):
         """Test generator with invalid project path."""
-        with self.assertRaises(FileNotFoundError):
+        with pytest.raises(FileNotFoundError):
             ContextGenerator(project_path="/nonexistent/path")
 
 
-class TestScoreAnalyzer(unittest.TestCase):
+class TestScoreAnalyzer:
     """Test score analysis."""
 
     def test_analyzer_initialization(self):
@@ -359,14 +359,10 @@ class TestScoreAnalyzer(unittest.TestCase):
             pass
 
 
-class TestMultiRepoAnalyzer(unittest.TestCase):
+class TestMultiRepoAnalyzer:
     """Test multi-repository analysis."""
 
     def test_multi_repo_initialization(self):
         """Test initializing multi-repo analyzer."""
         analyzer = MultiRepoAnalyzer(repos=["repo1", "repo2"])
         assert len(analyzer.repos) == 2
-
-
-if __name__ == "__main__":
-    unittest.main()

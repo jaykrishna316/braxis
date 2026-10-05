@@ -1,896 +1,808 @@
-#!/usr/bin/env python3
 """
 Unit tests for Braxis - AI agent context file generator.
-Uses unittest for compatibility without external dependencies.
 """
 import os
-import sys
 import json
-import unittest
 import tempfile
+import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from braxis import BraxisAnalyzer
 
 
-class TestValidateProjectPath(unittest.TestCase):
+@pytest.fixture
+def tmpdir_cleanup():
+    """Provide a temporary directory that's cleaned up after test."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield tmpdir
+
+
+class TestValidateProjectPath:
     """Tests for project path validation."""
 
-    def test_validate_valid_path(self):
+    def test_validate_valid_path(self, tmpdir_cleanup):
         """Test validation of valid project path."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = BraxisAnalyzer(tmpdir)
-            self.assertEqual(analyzer.project_path, Path(tmpdir).resolve())
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        assert analyzer.project_path == Path(tmpdir_cleanup).resolve()
 
     def test_validate_empty_path(self):
         """Test validation rejects empty path."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             BraxisAnalyzer("")
 
     def test_validate_nonexistent_path(self):
         """Test validation rejects nonexistent path."""
-        with self.assertRaises(FileNotFoundError):
+        with pytest.raises(FileNotFoundError):
             BraxisAnalyzer("/nonexistent/path/12345")
 
     def test_validate_file_not_directory(self):
         """Test validation rejects file path."""
         with tempfile.NamedTemporaryFile() as tmpfile:
-            with self.assertRaises(NotADirectoryError):
+            with pytest.raises(NotADirectoryError):
                 BraxisAnalyzer(tmpfile.name)
 
-    def test_validate_relative_path_conversion(self):
+    def test_validate_relative_path_conversion(self, tmpdir_cleanup):
         """Test that relative paths are converted to absolute."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            original_cwd = os.getcwd()
-            try:
-                os.chdir(tmpdir)
-                analyzer = BraxisAnalyzer(".")
-                self.assertTrue(analyzer.project_path.is_absolute())
-            finally:
-                os.chdir(original_cwd)
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmpdir_cleanup)
+            analyzer = BraxisAnalyzer(".")
+            assert analyzer.project_path.is_absolute()
+        finally:
+            os.chdir(original_cwd)
 
 
-class TestWriteFileSafely(unittest.TestCase):
+class TestWriteFileSafely:
     """Tests for safe file writing functionality."""
 
-    def test_write_file_successfully(self):
+    def test_write_file_successfully(self, tmpdir_cleanup):
         """Test successful file write."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = BraxisAnalyzer(tmpdir)
-            filepath = Path(tmpdir) / "test.txt"
-            content = "Test content"
-            analyzer._write_file_safely(str(filepath), content)
-            self.assertTrue(filepath.exists())
-            self.assertEqual(filepath.read_text(), content)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        filepath = Path(tmpdir_cleanup) / "test.txt"
+        content = "Test content"
+        analyzer._write_file_safely(str(filepath), content)
+        assert filepath.exists()
+        assert filepath.read_text() == content
 
-    def test_write_file_creates_parent_directories(self):
+    def test_write_file_creates_parent_directories(self, tmpdir_cleanup):
         """Test that parent directories are created."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = BraxisAnalyzer(tmpdir)
-            filepath = Path(tmpdir) / "subdir" / "nested" / "test.txt"
-            content = "Test content"
-            analyzer._write_file_safely(str(filepath), content)
-            self.assertTrue(filepath.exists())
-            self.assertEqual(filepath.read_text(), content)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        filepath = Path(tmpdir_cleanup) / "subdir" / "nested" / "test.txt"
+        content = "Test content"
+        analyzer._write_file_safely(str(filepath), content)
+        assert filepath.exists()
+        assert filepath.read_text() == content
 
-    def test_write_file_empty_filepath(self):
+    def test_write_file_empty_filepath(self, tmpdir_cleanup):
         """Test that empty filepath raises error."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = BraxisAnalyzer(tmpdir)
-            with self.assertRaises(ValueError):
-                analyzer._write_file_safely("", "content")
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        with pytest.raises(ValueError):
+            analyzer._write_file_safely("", "content")
 
-    def test_write_file_non_string_content(self):
+    def test_write_file_non_string_content(self, tmpdir_cleanup):
         """Test that non-string content raises error."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = BraxisAnalyzer(tmpdir)
-            filepath = Path(tmpdir) / "test.txt"
-            with self.assertRaises(TypeError):
-                analyzer._write_file_safely(str(filepath), 123)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        filepath = Path(tmpdir_cleanup) / "test.txt"
+        with pytest.raises(TypeError):
+            analyzer._write_file_safely(str(filepath), 123)
 
-    def test_write_file_overwrites_existing(self):
+    def test_write_file_overwrites_existing(self, tmpdir_cleanup):
         """Test that file write overwrites existing file."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = BraxisAnalyzer(tmpdir)
-            filepath = Path(tmpdir) / "test.txt"
-            filepath.write_text("Old content")
-            analyzer._write_file_safely(str(filepath), "New content")
-            self.assertEqual(filepath.read_text(), "New content")
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        filepath = Path(tmpdir_cleanup) / "test.txt"
+        filepath.write_text("Old content")
+        analyzer._write_file_safely(str(filepath), "New content")
+        assert filepath.read_text() == "New content"
 
-    def test_write_file_cleans_temp_file(self):
+    def test_write_file_cleans_temp_file(self, tmpdir_cleanup):
         """Test that temp files are cleaned up."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = BraxisAnalyzer(tmpdir)
-            filepath = Path(tmpdir) / "test.txt"
-            analyzer._write_file_safely(str(filepath), "content")
-            tmp_files = list(Path(tmpdir).glob("*.tmp"))
-            self.assertEqual(len(tmp_files), 0)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        filepath = Path(tmpdir_cleanup) / "test.txt"
+        analyzer._write_file_safely(str(filepath), "content")
+        tmp_files = list(Path(tmpdir_cleanup).glob("*.tmp"))
+        assert len(tmp_files) == 0
 
 
-class TestBraxisAnalyzer(unittest.TestCase):
+class TestBraxisAnalyzer:
     """Tests for BraxisAnalyzer functionality."""
 
-    def test_analyzer_initialization(self):
+    def test_analyzer_initialization(self, tmpdir_cleanup):
         """Test analyzer initialization."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = BraxisAnalyzer(tmpdir)
-            self.assertEqual(analyzer.files, [])
-            self.assertEqual(analyzer.test_files, [])
-            self.assertEqual(analyzer.config_files, [])
-            self.assertEqual(analyzer.build_files, [])
-            self.assertEqual(analyzer.tier, "Not Ready")
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        assert analyzer.files == []
+        assert analyzer.test_files == []
+        assert analyzer.config_files == []
+        assert analyzer.build_files == []
+        assert analyzer.tier == "Not Ready"
 
-    def test_scan_files(self):
+    def test_scan_files(self, tmpdir_cleanup):
         """Test file scanning."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test.py").write_text("# test")
-            Path(tmpdir, "main.py").write_text("# main")
-            Path(tmpdir, "config.json").write_text("{}")
+        Path(tmpdir_cleanup, "test.py").write_text("# test")
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "config.json").write_text("{}")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer._scan_files()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer._scan_files()
 
-            self.assertGreaterEqual(len(analyzer.files), 3)
-            self.assertTrue(any("test.py" in str(f) for f in analyzer.files))
+        assert len(analyzer.files) >= 3
+        assert any("test.py" in str(f) for f in analyzer.files)
 
-    def test_detect_languages(self):
+    def test_detect_languages(self, tmpdir_cleanup):
         """Test language detection."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test.py").write_text("# python")
-            Path(tmpdir, "script.js").write_text("// javascript")
+        Path(tmpdir_cleanup, "test.py").write_text("# python")
+        Path(tmpdir_cleanup, "script.js").write_text("// javascript")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer._scan_files()
-            analyzer._detect_languages()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer._scan_files()
+        analyzer._detect_languages()
 
-            self.assertIn("python", analyzer.languages)
-            self.assertIn("javascript", analyzer.languages)
+        assert "python" in analyzer.languages
+        assert "javascript" in analyzer.languages
 
-    def test_detect_test_files(self):
+    def test_detect_test_files(self, tmpdir_cleanup):
         """Test test file detection."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test_main.py").write_text("# test")
-            Path(tmpdir, "main_test.py").write_text("# test")
-            Path(tmpdir, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "test_main.py").write_text("# test")
+        Path(tmpdir_cleanup, "main_test.py").write_text("# test")
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer._scan_files()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer._scan_files()
 
-            self.assertGreaterEqual(len(analyzer.test_files), 2)
+        assert len(analyzer.test_files) >= 2
 
-    def test_detect_build_system_python(self):
+    def test_detect_build_system_python(self, tmpdir_cleanup):
         """Test Python build system detection."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "setup.py").write_text("# setup")
-            Path(tmpdir, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "setup.py").write_text("# setup")
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer._scan_files()
-            analyzer._detect_build_system()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer._scan_files()
+        analyzer._detect_build_system()
 
-            self.assertTrue(analyzer.build_system in ["Unknown", "Python", "pip"])
+        assert analyzer.build_system in ["Unknown", "Python", "pip"]
 
-    def test_detect_build_system_npm(self):
+    def test_detect_build_system_npm(self, tmpdir_cleanup):
         """Test npm build system detection."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "package.json").write_text("{}")
+        Path(tmpdir_cleanup, "package.json").write_text("{}")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer._scan_files()
-            analyzer._detect_build_system()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer._scan_files()
+        analyzer._detect_build_system()
 
-            self.assertTrue("npm" in analyzer.build_system or "Node" in analyzer.build_system)
+        assert "npm" in analyzer.build_system or "Node" in analyzer.build_system
 
-    def test_detect_build_system_unknown(self):
+    def test_detect_build_system_unknown(self, tmpdir_cleanup):
         """Test unknown build system detection."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer._scan_files()
-            analyzer._detect_build_system()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer._scan_files()
+        analyzer._detect_build_system()
 
-            self.assertEqual(analyzer.build_system, "Unknown")
+        assert analyzer.build_system == "Unknown"
 
-    def test_calculate_score(self):
+    def test_calculate_score(self, tmpdir_cleanup):
         """Test score calculation."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "main.py").write_text("# main")
-            Path(tmpdir, "test.py").write_text("# test")
-            Path(tmpdir, "README.md").write_text("# Readme")
-            Path(tmpdir, "setup.py").write_text("# setup")
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "test.py").write_text("# test")
+        Path(tmpdir_cleanup, "README.md").write_text("# Readme")
+        Path(tmpdir_cleanup, "setup.py").write_text("# setup")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
 
-            self.assertTrue(hasattr(analyzer, "total_score"))
-            self.assertGreaterEqual(analyzer.total_score, 0)
-            self.assertLessEqual(analyzer.total_score, 100)
-            self.assertIn(analyzer.tier, ["Not Ready", "Agent-Aware", "AI-Native", "AI-Native-Plus", "Agent-Optimized"])
+        assert hasattr(analyzer, "total_score")
+        assert analyzer.total_score >= 0
+        assert analyzer.total_score <= 100
+        assert analyzer.tier in ["Not Ready", "Agent-Aware", "AI-Native", "AI-Native-Plus", "Agent-Optimized"]
 
-    def test_generate_agents_md(self):
+    def test_generate_agents_md(self, tmpdir_cleanup):
         """Test AGENTS.md generation."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test.py").write_text("# test")
+        Path(tmpdir_cleanup, "test.py").write_text("# test")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            content = analyzer.generate_agents_md()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        content = analyzer.generate_agents_md()
 
-            self.assertIn("AGENTS.md", content)
-            self.assertIn("Project Overview", content)
+        assert "AGENTS.md" in content
+        assert "Project Overview" in content
 
-    def test_generate_claude_md(self):
+    def test_generate_claude_md(self, tmpdir_cleanup):
         """Test CLAUDE.md generation."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test.py").write_text("# test")
+        Path(tmpdir_cleanup, "test.py").write_text("# test")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            content = analyzer.generate_claude_md()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        content = analyzer.generate_claude_md()
 
-            self.assertIn("CLAUDE.md", content)
-            self.assertIn("Claude Code", content)
+        assert "CLAUDE.md" in content
+        assert "Claude Code" in content
 
-    def test_generate_cursorrules(self):
+    def test_generate_cursorrules(self, tmpdir_cleanup):
         """Test .cursorrules generation."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test.py").write_text("# test")
+        Path(tmpdir_cleanup, "test.py").write_text("# test")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            content = analyzer.generate_cursorrules()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        content = analyzer.generate_cursorrules()
 
-            self.assertIn("Cursor Rules", content)
+        assert "Cursor Rules" in content
 
-    def test_generate_agentic_config(self):
+    def test_generate_agentic_config(self, tmpdir_cleanup):
         """Test .agentic-config.json generation."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test.py").write_text("# test")
+        Path(tmpdir_cleanup, "test.py").write_text("# test")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            content = analyzer.generate_agentic_config()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        content = analyzer.generate_agentic_config()
 
-            config = json.loads(content)
-            self.assertIn("metadata", config)
-            self.assertIn("project", config)
-            self.assertIn("ai_readiness", config)
-            self.assertIn("overall_score", config.get("ai_readiness", {}))
-            self.assertIn("tier", config.get("ai_readiness", {}))
+        config = json.loads(content)
+        assert "metadata" in config
+        assert "project" in config
+        assert "ai_readiness" in config
+        assert "overall_score" in config.get("ai_readiness", {})
+        assert "tier" in config.get("ai_readiness", {})
 
-    def test_analyze_full_workflow(self):
+    def test_analyze_full_workflow(self, tmpdir_cleanup):
         """Test complete analysis workflow."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "main.py").write_text("# main")
-            Path(tmpdir, "test.py").write_text("import unittest")
-            Path(tmpdir, "README.md").write_text("# Project")
-            Path(tmpdir, "setup.py").write_text("# setup")
-            Path(tmpdir, "config.json").write_text("{}")
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "test.py").write_text("import unittest")
+        Path(tmpdir_cleanup, "README.md").write_text("# Project")
+        Path(tmpdir_cleanup, "setup.py").write_text("# setup")
+        Path(tmpdir_cleanup, "config.json").write_text("{}")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
 
-            self.assertGreater(len(analyzer.files), 0)
-            self.assertGreater(len(analyzer.languages), 0)
-            self.assertGreater(analyzer.total_score, 0)
-            self.assertNotEqual(analyzer.tier, "Not Ready")
+        assert len(analyzer.files) > 0
+        assert len(analyzer.languages) > 0
+        assert analyzer.total_score > 0
+        assert analyzer.tier != "Not Ready"
 
 
-class TestEdgeCases(unittest.TestCase):
+class TestEdgeCases:
     """Tests for edge cases and error handling."""
 
-    def test_empty_directory(self):
+    def test_empty_directory(self, tmpdir_cleanup):
         """Test analysis of empty directory."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            self.assertGreater(len(analyzer.files), -1)
-            self.assertGreater(analyzer.total_score, 0)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        assert len(analyzer.files) > -1
+        assert analyzer.total_score > 0
 
-    def test_special_characters_in_path(self):
+    def test_special_characters_in_path(self, tmpdir_cleanup):
         """Test handling of special characters in file paths."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            special_dir = Path(tmpdir) / "test-dir_123"
-            special_dir.mkdir()
+        special_dir = Path(tmpdir_cleanup) / "test-dir_123"
+        special_dir.mkdir()
 
-            analyzer = BraxisAnalyzer(str(special_dir))
-            self.assertEqual(analyzer.project_path, special_dir.resolve())
+        analyzer = BraxisAnalyzer(str(special_dir))
+        assert analyzer.project_path == special_dir.resolve()
 
-    def test_large_file_scanning(self):
+    def test_large_file_scanning(self, tmpdir_cleanup):
         """Test handling of large files."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            large_file = Path(tmpdir) / "large.py"
-            large_file.write_text("# " + "x" * 10000)
+        large_file = Path(tmpdir_cleanup) / "large.py"
+        large_file.write_text("# " + "x" * 10000)
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            self.assertIn(large_file, analyzer.files)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        assert large_file in analyzer.files
 
-    def test_ignored_directories(self):
+    def test_ignored_directories(self, tmpdir_cleanup):
         """Test that common build directories are ignored."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            (Path(tmpdir) / ".git").mkdir()
-            (Path(tmpdir) / ".git" / "config").write_text("git")
-            (Path(tmpdir) / "node_modules").mkdir()
-            (Path(tmpdir) / "node_modules" / "pkg.js").write_text("js")
+        (Path(tmpdir_cleanup) / ".git").mkdir()
+        (Path(tmpdir_cleanup) / ".git" / "config").write_text("git")
+        (Path(tmpdir_cleanup) / "node_modules").mkdir()
+        (Path(tmpdir_cleanup) / "node_modules" / "pkg.js").write_text("js")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer._scan_files()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer._scan_files()
 
-            git_files = [f for f in analyzer.files if ".git" in str(f)]
-            node_files = [f for f in analyzer.files if "node_modules" in str(f)]
+        git_files = [f for f in analyzer.files if ".git" in str(f)]
+        node_files = [f for f in analyzer.files if "node_modules" in str(f)]
 
-            self.assertEqual(len(git_files), 0)
-            self.assertEqual(len(node_files), 0)
+        assert len(git_files) == 0
+        assert len(node_files) == 0
 
-    def test_file_write_with_unicode(self):
+    def test_file_write_with_unicode(self, tmpdir_cleanup):
         """Test writing files with unicode content."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = BraxisAnalyzer(tmpdir)
-            filepath = Path(tmpdir) / "unicode.txt"
-            content = "Unicode test: 你好世界 🚀"
-            analyzer._write_file_safely(str(filepath), content)
-            self.assertEqual(filepath.read_text(encoding='utf-8'), content)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        filepath = Path(tmpdir_cleanup) / "unicode.txt"
+        content = "Unicode test: 你好世界 🚀"
+        analyzer._write_file_safely(str(filepath), content)
+        assert filepath.read_text(encoding='utf-8') == content
 
-    def test_score_breakdown_keys(self):
+    def test_score_breakdown_keys(self, tmpdir_cleanup):
         """Test that score breakdown has expected keys."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test.py").write_text("# test")
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
+        Path(tmpdir_cleanup, "test.py").write_text("# test")
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
 
-            expected_keys = ['Architecture', 'Testing', 'Dependencies', 'Conventions',
-                           'Entry Points', 'Security', 'Build', 'Documentation']
-            for key in expected_keys:
-                self.assertIn(key, analyzer.score_breakdown)
+        expected_keys = ['Architecture', 'Testing', 'Dependencies', 'Conventions',
+                       'Entry Points', 'Security', 'Build', 'Documentation']
+        for key in expected_keys:
+            assert key in analyzer.score_breakdown
 
 
-class TestCountTestFunctions(unittest.TestCase):
+class TestCountTestFunctions:
     """Regression tests for _count_test_functions() method."""
 
-    def test_count_python_test_functions(self):
+    def test_count_python_test_functions(self, tmpdir_cleanup):
         """Test counting Python test functions."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test_one.py").write_text(
-                "def test_func1():\n    pass\n"
-                "def test_func2():\n    pass\n"
-                "def helper():\n    pass"
-            )
-            Path(tmpdir, "test_two.py").write_text(
-                "def test_func3():\n    pass"
-            )
+        Path(tmpdir_cleanup, "test_one.py").write_text(
+            "def test_func1():\n    pass\n"
+            "def test_func2():\n    pass\n"
+            "def helper():\n    pass"
+        )
+        Path(tmpdir_cleanup, "test_two.py").write_text(
+            "def test_func3():\n    pass"
+        )
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            count = analyzer._count_test_functions()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        count = analyzer._count_test_functions()
 
-            self.assertEqual(count, 3)
+        assert count == 3
 
-    def test_count_go_test_functions(self):
+    def test_count_go_test_functions(self, tmpdir_cleanup):
         """Test counting Go test functions."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "main_test.go").write_text(
-                "func TestOne(t *testing.T) {}\n"
-                "func TestTwo(t *testing.T) {}\n"
-                "func Helper() {}"
-            )
+        Path(tmpdir_cleanup, "main_test.go").write_text(
+            "func TestOne(t *testing.T) {}\n"
+            "func TestTwo(t *testing.T) {}\n"
+            "func Helper() {}"
+        )
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            count = analyzer._count_test_functions()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        count = analyzer._count_test_functions()
 
-            self.assertEqual(count, 2)
+        assert count == 2
 
-    def test_count_bats_test_declarations(self):
+    def test_count_bats_test_declarations(self, tmpdir_cleanup):
         """Test counting Bats test declarations."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test_main.bats").write_text(
-                "@test \"first test\" {\n  true\n}\n"
-                "@test \"second test\" {\n  true\n}"
-            )
+        Path(tmpdir_cleanup, "test_main.bats").write_text(
+            "@test \"first test\" {\n  true\n}\n"
+            "@test \"second test\" {\n  true\n}"
+        )
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            count = analyzer._count_test_functions()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        count = analyzer._count_test_functions()
 
-            self.assertEqual(count, 2)
+        assert count == 2
 
-    def test_count_test_functions_returns_at_least_file_count(self):
+    def test_count_test_functions_returns_at_least_file_count(self, tmpdir_cleanup):
         """Test that count returns at least the number of test files."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test_one.py").write_text("# no functions")
-            Path(tmpdir, "test_two.py").write_text("# no functions")
+        Path(tmpdir_cleanup, "test_one.py").write_text("# no functions")
+        Path(tmpdir_cleanup, "test_two.py").write_text("# no functions")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            count = analyzer._count_test_functions()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        count = analyzer._count_test_functions()
 
-            self.assertGreaterEqual(count, len(analyzer.test_files))
+        assert count >= len(analyzer.test_files)
 
-    def test_count_javascript_tests(self):
+    def test_count_javascript_tests(self, tmpdir_cleanup):
         """Test counting JavaScript test declarations."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test_main.js").write_text(
-                "describe('suite', () => {\n"
-                "  it('test 1', () => {});\n"
-                "  it('test 2', () => {});\n"
-                "});"
-            )
+        Path(tmpdir_cleanup, "test_main.js").write_text(
+            "describe('suite', () => {\n"
+            "  it('test 1', () => {});\n"
+            "  it('test 2', () => {});\n"
+            "});"
+        )
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            count = analyzer._count_test_functions()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        count = analyzer._count_test_functions()
 
-            self.assertGreaterEqual(count, 2)
+        assert count >= 2
 
 
-class TestDetectedPythonTools(unittest.TestCase):
+class TestDetectedPythonTools:
     """Regression tests for _get_detected_python_tools() method."""
 
-    def test_detects_ruff_from_pyproject(self):
+    def test_detects_ruff_from_pyproject(self, tmpdir_cleanup):
         """Test detection of ruff configuration."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pyproject = Path(tmpdir) / "pyproject.toml"
-            pyproject.write_text("[tool.ruff]\nline-length = 88")
+        pyproject = Path(tmpdir_cleanup) / "pyproject.toml"
+        pyproject.write_text("[tool.ruff]\nline-length = 88")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            tools = analyzer._get_detected_python_tools()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        tools = analyzer._get_detected_python_tools()
 
-            self.assertIn("ruff", tools)
+        assert "ruff" in tools
 
-    def test_detects_mypy_from_pyproject(self):
+    def test_detects_mypy_from_pyproject(self, tmpdir_cleanup):
         """Test detection of mypy configuration."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pyproject = Path(tmpdir) / "pyproject.toml"
-            pyproject.write_text("[tool.mypy]\nstrict = true")
+        pyproject = Path(tmpdir_cleanup) / "pyproject.toml"
+        pyproject.write_text("[tool.mypy]\nstrict = true")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            tools = analyzer._get_detected_python_tools()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        tools = analyzer._get_detected_python_tools()
 
-            self.assertIn("mypy", tools)
+        assert "mypy" in tools
 
-    def test_detects_multiple_tools(self):
+    def test_detects_multiple_tools(self, tmpdir_cleanup):
         """Test detection of multiple tools."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pyproject = Path(tmpdir) / "pyproject.toml"
-            pyproject.write_text(
-                "[tool.ruff]\nline-length = 88\n"
-                "[tool.mypy]\nstrict = true"
-            )
+        pyproject = Path(tmpdir_cleanup) / "pyproject.toml"
+        pyproject.write_text(
+            "[tool.ruff]\nline-length = 88\n"
+            "[tool.mypy]\nstrict = true"
+        )
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            tools = analyzer._get_detected_python_tools()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        tools = analyzer._get_detected_python_tools()
 
-            self.assertIn("ruff", tools)
-            self.assertIn("mypy", tools)
+        assert "ruff" in tools
+        assert "mypy" in tools
 
-    def test_returns_empty_list_when_no_tools(self):
+    def test_returns_empty_list_when_no_tools(self, tmpdir_cleanup):
         """Test returns empty list when no tools configured."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pyproject = Path(tmpdir) / "pyproject.toml"
-            pyproject.write_text("[build-system]\nrequires = ['setuptools']")
+        pyproject = Path(tmpdir_cleanup) / "pyproject.toml"
+        pyproject.write_text("[build-system]\nrequires = ['setuptools']")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            tools = analyzer._get_detected_python_tools()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        tools = analyzer._get_detected_python_tools()
 
-            self.assertEqual(tools, [])
+        assert tools == []
 
-    def test_handles_missing_pyproject(self):
+    def test_handles_missing_pyproject(self, tmpdir_cleanup):
         """Test handles missing pyproject.toml."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = BraxisAnalyzer(tmpdir)
-            tools = analyzer._get_detected_python_tools()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        tools = analyzer._get_detected_python_tools()
 
-            self.assertEqual(tools, [])
+        assert tools == []
 
-    def test_detects_pylint_flake8_pyright(self):
+    def test_detects_pylint_flake8_pyright(self, tmpdir_cleanup):
         """Test detection of other tools."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pyproject = Path(tmpdir) / "pyproject.toml"
-            pyproject.write_text(
-                "[tool.pylint]\ndisable = 'missing-docstring'\n"
-                "[tool.flake8]\nmax-line-length = 88\n"
-                "[tool.pyright]\ntypeCheckingMode = 'basic'"
-            )
+        pyproject = Path(tmpdir_cleanup) / "pyproject.toml"
+        pyproject.write_text(
+            "[tool.pylint]\ndisable = 'missing-docstring'\n"
+            "[tool.flake8]\nmax-line-length = 88\n"
+            "[tool.pyright]\ntypeCheckingMode = 'basic'"
+        )
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            tools = analyzer._get_detected_python_tools()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        tools = analyzer._get_detected_python_tools()
 
-            self.assertIn("pylint", tools)
-            self.assertIn("flake8", tools)
-            self.assertIn("pyright", tools)
+        assert "pylint" in tools
+        assert "flake8" in tools
+        assert "pyright" in tools
 
 
-class TestUnittestDetection(unittest.TestCase):
+class TestUnittestDetection:
     """Regression tests for unittest detection fix."""
 
-    def test_detects_unittest_over_pytest(self):
+    def test_detects_unittest_over_pytest(self, tmpdir_cleanup):
         """Test that unittest is detected when test_*.py files exist."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test_main.py").write_text("import unittest\nclass TestMain(unittest.TestCase): pass")
-            Path(tmpdir, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "test_main.py").write_text("import unittest\nclass TestMain(unittest.TestCase): pass")
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
 
-            self.assertIn("unittest", analyzer.test_frameworks)
+        assert "unittest" in analyzer.test_frameworks
 
-    def test_detects_pytest_when_configured(self):
+    def test_detects_pytest_when_configured(self, tmpdir_cleanup):
         """Test pytest detected from pyproject.toml configuration."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pyproject = Path(tmpdir) / "pyproject.toml"
-            pyproject.write_text("[tool.pytest.ini_options]\nminversion = '6.0'")
-            Path(tmpdir, "test_main.py").write_text("import pytest")
-            Path(tmpdir, "main.py").write_text("# main")
+        pyproject = Path(tmpdir_cleanup) / "pyproject.toml"
+        pyproject.write_text("[tool.pytest.ini_options]\nminversion = '6.0'")
+        Path(tmpdir_cleanup, "test_main.py").write_text("import pytest")
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
 
-            self.assertIn("pytest", analyzer.test_frameworks)
+        assert "pytest" in analyzer.test_frameworks
 
-    def test_detects_go_test_files(self):
+    def test_detects_go_test_files(self, tmpdir_cleanup):
         """Test detection of Go _test.go files."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "main_test.go").write_text("func TestMain(t *testing.T) {}")
-            Path(tmpdir, "main.go").write_text("// main")
+        Path(tmpdir_cleanup, "main_test.go").write_text("func TestMain(t *testing.T) {}")
+        Path(tmpdir_cleanup, "main.go").write_text("// main")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
 
-            self.assertIn("Go testing", analyzer.test_frameworks)
+        assert "Go testing" in analyzer.test_frameworks
 
-    def test_detects_ruby_spec_files(self):
+    def test_detects_ruby_spec_files(self, tmpdir_cleanup):
         """Test detection of Ruby spec_*.rb files."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "spec_main.rb").write_text("describe MainClass do\n  it 'test' do\n    true\n  end\nend")
-            Path(tmpdir, "main.rb").write_text("class Main\nend")
+        Path(tmpdir_cleanup, "spec_main.rb").write_text("describe MainClass do\n  it 'test' do\n    true\n  end\nend")
+        Path(tmpdir_cleanup, "main.rb").write_text("class Main\nend")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
 
-            self.assertIn("RSpec", analyzer.test_frameworks)
+        assert "RSpec" in analyzer.test_frameworks
 
 
-class TestSetupCommandConditionals(unittest.TestCase):
+class TestSetupCommandConditionals:
     """Regression tests for conditional setup commands fix."""
 
-    def test_setup_command_for_package_with_setup_py(self):
+    def test_setup_command_for_package_with_setup_py(self, tmpdir_cleanup):
         """Test setup command is suggested for packages with setup.py."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "setup.py").write_text("from setuptools import setup")
-            Path(tmpdir, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "setup.py").write_text("from setuptools import setup")
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            setup_cmd = analyzer._get_initial_setup_commands("python")
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        setup_cmd = analyzer._get_initial_setup_commands("python")
 
-            self.assertIsNotNone(setup_cmd)
-            self.assertIn("pip", setup_cmd)
+        assert setup_cmd is not None
+        assert "pip" in setup_cmd
 
-    def test_setup_command_for_project_in_pyproject(self):
+    def test_setup_command_for_project_in_pyproject(self, tmpdir_cleanup):
         """Test setup command for [project] in pyproject.toml."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pyproject = Path(tmpdir) / "pyproject.toml"
-            pyproject.write_text("[project]\nname = 'myproject'")
+        pyproject = Path(tmpdir_cleanup) / "pyproject.toml"
+        pyproject.write_text("[project]\nname = 'myproject'")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            setup_cmd = analyzer._get_initial_setup_commands("python")
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        setup_cmd = analyzer._get_initial_setup_commands("python")
 
-            self.assertIsNotNone(setup_cmd)
-            self.assertIn("pip", setup_cmd)
+        assert setup_cmd is not None
+        assert "pip" in setup_cmd
 
-    def test_no_setup_command_for_non_package(self):
+    def test_no_setup_command_for_non_package(self, tmpdir_cleanup):
         """Test no setup command for non-package Python projects."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "main.py").write_text("print('hello')")
-            Path(tmpdir, "utils.py").write_text("# utilities")
+        Path(tmpdir_cleanup, "main.py").write_text("print('hello')")
+        Path(tmpdir_cleanup, "utils.py").write_text("# utilities")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            setup_cmd = analyzer._get_initial_setup_commands("python")
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        setup_cmd = analyzer._get_initial_setup_commands("python")
 
-            self.assertTrue(setup_cmd is None or "No setup" in setup_cmd or len(setup_cmd) == 0)
+        assert setup_cmd is None or "No setup" in setup_cmd or len(setup_cmd) == 0
 
 
-class TestDynamicCommandGeneration(unittest.TestCase):
+class TestDynamicCommandGeneration:
     """Regression tests for dynamic command generation fix."""
 
-    def test_development_commands_use_detected_framework(self):
+    def test_development_commands_use_detected_framework(self, tmpdir_cleanup):
         """Test that development commands use self.test_frameworks."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test_main.py").write_text(
-                "import unittest\nclass TestMain(unittest.TestCase):\n    def test_one(self): pass"
-            )
-            Path(tmpdir, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "test_main.py").write_text(
+            "import unittest\nclass TestMain(unittest.TestCase):\n    def test_one(self): pass"
+        )
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            commands = analyzer._get_development_commands("python")
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        commands = analyzer._get_development_commands("python")
 
-            self.assertIsNotNone(commands)
-            self.assertIsInstance(commands, str)
-            self.assertIn("unittest", commands)
+        assert commands is not None
+        assert isinstance(commands, str)
+        assert "unittest" in commands
 
-    def test_cursor_rules_use_detected_framework(self):
+    def test_cursor_rules_use_detected_framework(self, tmpdir_cleanup):
         """Test that cursor rules use detected test framework."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test_main.py").write_text("import unittest")
-            Path(tmpdir, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "test_main.py").write_text("import unittest")
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            rules = analyzer.generate_cursorrules()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        rules = analyzer.generate_cursorrules()
 
-            self.assertIsNotNone(rules)
-            self.assertIsInstance(rules, str)
+        assert rules is not None
+        assert isinstance(rules, str)
 
-    def test_agentic_config_uses_detected_framework(self):
+    def test_agentic_config_uses_detected_framework(self, tmpdir_cleanup):
         """Test that agentic config uses detected test framework."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test_main.py").write_text(
-                "import unittest\nclass TestMain(unittest.TestCase): pass"
-            )
-            Path(tmpdir, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "test_main.py").write_text(
+            "import unittest\nclass TestMain(unittest.TestCase): pass"
+        )
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            config_content = analyzer.generate_agentic_config()
-            config = json.loads(config_content)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        config_content = analyzer.generate_agentic_config()
+        config = json.loads(config_content)
 
-            testing = config.get("testing", {})
-            framework = testing.get("framework")
-            self.assertIsNotNone(framework)
-            self.assertNotEqual(framework, "None detected", "Should detect a valid framework")
+        testing = config.get("testing", {})
+        framework = testing.get("framework")
+        assert framework is not None
+        assert framework != "None detected"
 
 
-class TestHardcodedValueDetection(unittest.TestCase):
+class TestHardcodedValueDetection:
     """Regression tests to detect hardcoded values in generated output."""
 
-    def test_agentic_config_no_default_pytest(self):
+    def test_agentic_config_no_default_pytest(self, tmpdir_cleanup):
         """Test that pytest is not defaulted without configuration."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test_main.py").write_text(
-                "import unittest\nclass TestMain(unittest.TestCase): pass"
-            )
-            Path(tmpdir, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "test_main.py").write_text(
+            "import unittest\nclass TestMain(unittest.TestCase): pass"
+        )
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            config_content = analyzer.generate_agentic_config()
-            config = json.loads(config_content)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        config_content = analyzer.generate_agentic_config()
+        config = json.loads(config_content)
 
-            testing = config.get("ai_readiness", {}).get("testing", {})
-            framework = testing.get("framework")
+        testing = config.get("ai_readiness", {}).get("testing", {})
+        framework = testing.get("framework")
 
-            self.assertNotEqual(framework, "pytest",
-                              "pytest should not be default for unittest projects")
+        assert framework != "pytest"
 
-    def test_agentic_config_test_count_matches_actual(self):
+    def test_agentic_config_test_count_matches_actual(self, tmpdir_cleanup):
         """Test that test count in config matches actual test functions."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test_one.py").write_text(
-                "def test_a(): pass\ndef test_b(): pass"
-            )
-            Path(tmpdir, "test_two.py").write_text(
-                "def test_c(): pass"
-            )
+        Path(tmpdir_cleanup, "test_one.py").write_text(
+            "def test_a(): pass\ndef test_b(): pass"
+        )
+        Path(tmpdir_cleanup, "test_two.py").write_text(
+            "def test_c(): pass"
+        )
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            config_content = analyzer.generate_agentic_config()
-            config = json.loads(config_content)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        config_content = analyzer.generate_agentic_config()
+        config = json.loads(config_content)
 
-            reported_count = config.get("testing", {}).get("total_tests")
-            self.assertIsNotNone(reported_count, "total_tests should not be None")
-            self.assertGreaterEqual(reported_count, 2,
-                                   "reported test count should be at least file count")
+        reported_count = config.get("testing", {}).get("total_tests")
+        assert reported_count is not None
+        assert reported_count >= 2
 
-    def test_agentic_config_no_tools_unless_configured(self):
+    def test_agentic_config_no_tools_unless_configured(self, tmpdir_cleanup):
         """Test that tools only appear if configured."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "main.py").write_text("# main")
-            Path(tmpdir, "pyproject.toml").write_text("[build-system]\nrequires = ['setuptools']")
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "pyproject.toml").write_text("[build-system]\nrequires = ['setuptools']")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            config_content = analyzer.generate_agentic_config()
-            config = json.loads(config_content)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        config_content = analyzer.generate_agentic_config()
+        config = json.loads(config_content)
 
-            dev = config.get("ai_readiness", {}).get("development", {})
-            linting = dev.get("linting_tools", [])
+        dev = config.get("ai_readiness", {}).get("development", {})
+        linting = dev.get("linting_tools", [])
 
-            self.assertEqual(linting, [],
-                           "No linting tools should be configured if not in pyproject.toml")
+        assert linting == []
 
-    def test_agents_md_no_hardcoded_test_framework(self):
+    def test_agents_md_no_hardcoded_test_framework(self, tmpdir_cleanup):
         """Test AGENTS.md doesn't hardcode test frameworks."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test_main.py").write_text(
-                "import unittest\nclass TestMain(unittest.TestCase): pass"
-            )
-            Path(tmpdir, "main.py").write_text("# main")
+        Path(tmpdir_cleanup, "test_main.py").write_text(
+            "import unittest\nclass TestMain(unittest.TestCase): pass"
+        )
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            agents_md = analyzer.generate_agents_md()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        agents_md = analyzer.generate_agents_md()
 
-            self.assertIsNotNone(agents_md)
-            self.assertNotEqual(agents_md, "", "AGENTS.md should not be empty")
+        assert agents_md is not None
+        assert agents_md != ""
 
-    def test_python_version_from_config(self):
+    def test_python_version_from_config(self, tmpdir_cleanup):
         """Test Python version comes from configuration, not hardcoded."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pyproject = Path(tmpdir) / "pyproject.toml"
-            pyproject.write_text('requires-python = ">=3.8"')
-            Path(tmpdir, "main.py").write_text("# main")
+        pyproject = Path(tmpdir_cleanup) / "pyproject.toml"
+        pyproject.write_text('requires-python = ">=3.8"')
+        Path(tmpdir_cleanup, "main.py").write_text("# main")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            config_content = analyzer.generate_agentic_config()
-            config = json.loads(config_content)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        config_content = analyzer.generate_agentic_config()
+        config = json.loads(config_content)
 
-            version = config.get("development", {}).get("prerequisites", {}).get("language_version")
-            self.assertEqual(version, ">=3.8",
-                           "Python version should come from configuration")
+        version = config.get("development", {}).get("prerequisites", {}).get("language_version")
+        assert version == ">=3.8"
 
-    def test_shell_project_not_given_python_defaults(self):
+    def test_shell_project_not_given_python_defaults(self, tmpdir_cleanup):
         """Test that shell projects don't receive Python defaults."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "script.sh").write_text("#!/bin/bash\necho hello")
-            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+        Path(tmpdir_cleanup, "script.sh").write_text("#!/bin/bash\necho hello")
+        Path(tmpdir_cleanup, "test.bats").write_text("@test 'test' { true }")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            config_content = analyzer.generate_agentic_config()
-            config = json.loads(config_content)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        config_content = analyzer.generate_agentic_config()
+        config = json.loads(config_content)
 
-            dev = config.get("ai_readiness", {}).get("development", {})
-            setup_cmd = dev.get("setup_command")
+        dev = config.get("ai_readiness", {}).get("development", {})
+        setup_cmd = dev.get("setup_command")
 
-            self.assertNotIn("pip", str(setup_cmd) if setup_cmd else "",
-                           "Shell project should not have pip setup command")
+        assert "pip" not in str(setup_cmd) if setup_cmd else True
 
 
-class TestRegression_HardcodingFixes(unittest.TestCase):
+class TestRegression_HardcodingFixes:
     """Regression tests for hardcoding issues fixed in Braxis."""
 
-    def test_shell_project_package_manager_is_none(self):
+    def test_shell_project_package_manager_is_none(self, tmpdir_cleanup):
         """Test that shell projects have None as package manager (Issue 1)."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "bin").mkdir()
-            Path(tmpdir, "bin/script").write_text("#!/bin/bash\necho hello")
-            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+        Path(tmpdir_cleanup, "bin").mkdir()
+        Path(tmpdir_cleanup, "bin/script").write_text("#!/bin/bash\necho hello")
+        Path(tmpdir_cleanup, "test.bats").write_text("@test 'test' { true }")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            config_content = analyzer.generate_agentic_config()
-            config = json.loads(config_content)
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        config_content = analyzer.generate_agentic_config()
+        config = json.loads(config_content)
 
-            pkg_mgr = config.get("development", {}).get("prerequisites", {}).get("package_manager")
-            self.assertIsNone(pkg_mgr, "Shell project should have None as package manager")
+        pkg_mgr = config.get("development", {}).get("prerequisites", {}).get("package_manager")
+        assert pkg_mgr is None
 
-    def test_agents_md_shell_package_manager_not_listed(self):
+    def test_agents_md_shell_package_manager_not_listed(self, tmpdir_cleanup):
         """Test that AGENTS.md doesn't list package manager for shell projects (Issue 2)."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "bin").mkdir()
-            Path(tmpdir, "bin/script").write_text("#!/bin/bash\necho hello")
-            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+        Path(tmpdir_cleanup, "bin").mkdir()
+        Path(tmpdir_cleanup, "bin/script").write_text("#!/bin/bash\necho hello")
+        Path(tmpdir_cleanup, "test.bats").write_text("@test 'test' { true }")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            agents_md = analyzer.generate_agents_md()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        agents_md = analyzer.generate_agents_md()
 
-            self.assertNotIn("**Package Manager:** pip", agents_md,
-                           "Shell project AGENTS.md should not list pip as package manager")
-            self.assertNotIn("**Package Manager:** npm", agents_md,
-                           "Shell project AGENTS.md should not list npm as package manager")
+        assert "**Package Manager:** pip" not in agents_md
+        assert "**Package Manager:** npm" not in agents_md
 
-    def test_agents_md_code_style_shell_specific(self):
+    def test_agents_md_code_style_shell_specific(self, tmpdir_cleanup):
         """Test that AGENTS.md has Shell-specific code style (Issue 3)."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "bin").mkdir()
-            Path(tmpdir, "bin/script").write_text("#!/bin/bash\necho hello")
-            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+        Path(tmpdir_cleanup, "bin").mkdir()
+        Path(tmpdir_cleanup, "bin/script").write_text("#!/bin/bash\necho hello")
+        Path(tmpdir_cleanup, "test.bats").write_text("@test 'test' { true }")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            agents_md = analyzer.generate_agents_md()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        agents_md = analyzer.generate_agents_md()
 
-            self.assertIn("snake_case", agents_md,
-                         "Shell project should have snake_case naming convention")
-            self.assertIn("exit status", agents_md,
-                         "Shell project should mention exit status checking")
+        assert "snake_case" in agents_md
+        assert "exit status" in agents_md
 
-    def test_shellcheck_command_comprehensive_paths(self):
+    def test_shellcheck_command_comprehensive_paths(self, tmpdir_cleanup):
         """Test that shellcheck command includes comprehensive paths (Issue 4)."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "bin").mkdir()
-            Path(tmpdir, "bin/script").write_text("#!/bin/bash\necho hello")
-            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+        Path(tmpdir_cleanup, "bin").mkdir()
+        Path(tmpdir_cleanup, "bin/script").write_text("#!/bin/bash\necho hello")
+        Path(tmpdir_cleanup, "test.bats").write_text("@test 'test' { true }")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            agents_md = analyzer.generate_agents_md()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        agents_md = analyzer.generate_agents_md()
 
-            # Check that shellcheck includes the comprehensive paths
-            self.assertIn("./bin/*", agents_md,
-                         "shellcheck command should include ./bin/*")
-            self.assertIn("./libexec/*", agents_md,
-                         "shellcheck command should include ./libexec/*")
-            self.assertIn("./plugins/*/bin/*", agents_md,
-                         "shellcheck command should include ./plugins/*/bin/*")
+        assert "./bin/*" in agents_md
+        assert "./libexec/*" in agents_md
+        assert "./plugins/*/bin/*" in agents_md
 
-    def test_claude_md_agents_import_not_in_code_fence(self):
+    def test_claude_md_agents_import_not_in_code_fence(self, tmpdir_cleanup):
         """Test that CLAUDE.md doesn't put @AGENTS.md in code fence (Issue 5)."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "test.py").write_text("# test")
+        Path(tmpdir_cleanup, "test.py").write_text("# test")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            claude_md = analyzer.generate_claude_md()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        claude_md = analyzer.generate_claude_md()
 
-            # @AGENTS.md should NOT be inside ```code fence```
-            self.assertNotIn("```\n@AGENTS.md", claude_md,
-                           "CLAUDE.md should not have @AGENTS.md in code fence")
-            self.assertIn("\n@AGENTS.md\n", claude_md,
-                         "CLAUDE.md should have @AGENTS.md without code fence")
+        assert "```\n@AGENTS.md" not in claude_md
+        assert "\n@AGENTS.md\n" in claude_md
 
-    def test_cursorrules_shell_specific_naming_convention(self):
+    def test_cursorrules_shell_specific_naming_convention(self, tmpdir_cleanup):
         """Test that .cursorrules has Shell-specific naming convention (Issue 6)."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "bin").mkdir()
-            Path(tmpdir, "bin/script").write_text("#!/bin/bash\necho hello")
-            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+        Path(tmpdir_cleanup, "bin").mkdir()
+        Path(tmpdir_cleanup, "bin/script").write_text("#!/bin/bash\necho hello")
+        Path(tmpdir_cleanup, "test.bats").write_text("@test 'test' { true }")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            cursorrules = analyzer.generate_cursorrules()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        cursorrules = analyzer.generate_cursorrules()
 
-            self.assertIn("snake_case", cursorrules,
-                         ".cursorrules should specify snake_case for shell")
-            self.assertIn("shellcheck", cursorrules,
-                         ".cursorrules should mention shellcheck for shell")
+        assert "snake_case" in cursorrules
+        assert "shellcheck" in cursorrules
 
-    def test_cursorrules_test_command_language_specific(self):
+    def test_cursorrules_test_command_language_specific(self, tmpdir_cleanup):
         """Test that .cursorrules uses language-specific test commands (Issue 7)."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "bin").mkdir()
-            Path(tmpdir, "bin/script").write_text("#!/bin/bash\necho hello")
-            Path(tmpdir, "test.bats").write_text("@test 'test' { true }")
+        Path(tmpdir_cleanup, "bin").mkdir()
+        Path(tmpdir_cleanup, "bin/script").write_text("#!/bin/bash\necho hello")
+        Path(tmpdir_cleanup, "test.bats").write_text("@test 'test' { true }")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
-            cursorrules = analyzer.generate_cursorrules()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
+        cursorrules = analyzer.generate_cursorrules()
 
-            # For shell projects with Bats, should use make test, not pytest
-            self.assertIn("make test", cursorrules,
-                         ".cursorrules should use 'make test' for shell projects")
-            # Should NOT have pytest for shell projects
-            self.assertNotIn("pytest", cursorrules,
-                           ".cursorrules should not use pytest for shell projects")
+        assert "make test" in cursorrules
+        assert "pytest" not in cursorrules
 
 
-class TestAutomationVerification(unittest.TestCase):
+class TestAutomationVerification:
     """Tests to verify automation and context regeneration."""
 
-    def test_automation_triggers_context_regeneration(self):
+    def test_automation_triggers_context_regeneration(self, tmpdir_cleanup):
         """Verify that code changes trigger context file regeneration."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "src").mkdir()
-            Path(tmpdir, "src/main.py").write_text("print('hello')")
+        Path(tmpdir_cleanup, "src").mkdir()
+        Path(tmpdir_cleanup, "src/main.py").write_text("print('hello')")
 
-            analyzer = BraxisAnalyzer(tmpdir)
-            analyzer.analyze()
+        analyzer = BraxisAnalyzer(tmpdir_cleanup)
+        analyzer.analyze()
 
-            # Verify analyzer can detect Python projects
-            self.assertIn("python", analyzer.languages,
-                         "Analyzer should detect Python language")
-            # Verify AGENTS.md gets generated
-            agents_md = analyzer.generate_agents_md()
-            self.assertIn("Python", agents_md,
-                         "AGENTS.md should mention Python language")
-
-
-if __name__ == '__main__':
-    unittest.main()
+        assert "python" in analyzer.languages
+        agents_md = analyzer.generate_agents_md()
+        assert "Python" in agents_md

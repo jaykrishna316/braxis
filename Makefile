@@ -1,11 +1,22 @@
-.PHONY: test lint format check clean help
+.PHONY: test lint format check clean help coverage
 
 ## Development Targets
 
 test:
-	@echo "Running tests..."
-	python test_braxis.py
+	@echo "Running tests with pytest..."
+	pytest -v
 	@echo "✅ All tests passed"
+
+coverage:
+	@echo "Running tests with coverage..."
+	coverage run -m pytest -v
+	@echo ""
+	@echo "Coverage Report:"
+	coverage report
+	@echo ""
+	@echo "Generating HTML coverage report..."
+	coverage html
+	@echo "✅ Coverage report generated (htmlcov/index.html)"
 
 lint:
 	@echo "Running type-checker..."
@@ -37,7 +48,8 @@ clean:
 help:
 	@echo "Braxis Development Targets:"
 	@echo ""
-	@echo "  make test       Run unit tests (python test_braxis.py)"
+	@echo "  make test       Run unit tests with pytest"
+	@echo "  make coverage   Run tests with coverage reporting"
 	@echo "  make lint       Run type-checker + linter + format check"
 	@echo "  make format     Auto-format code with ruff"
 	@echo "  make check      Run tests + lint (comprehensive check)"
@@ -46,5 +58,6 @@ help:
 	@echo ""
 	@echo "Recommended workflow:"
 	@echo "  1. make check       # Verify everything passes"
-	@echo "  2. git commit       # Commit changes"
-	@echo "  3. git push         # Push to remote"
+	@echo "  2. make coverage    # Check test coverage"
+	@echo "  3. git commit       # Commit changes"
+	@echo "  4. git push         # Push to remote"
