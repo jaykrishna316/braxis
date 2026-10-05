@@ -455,7 +455,7 @@ with open("org-metrics.json", "w") as f:
     json.dump(summary, f, indent=2)
 ```
 
-**See [API_GUIDE.md](API_GUIDE.md) for complete documentation.**
+**See [docs/development/API_GUIDE.md](docs/development/API_GUIDE.md) for complete documentation.**
 
 ---
 
@@ -592,6 +592,20 @@ make test           # Unit tests
 make lint           # Type-check + lint
 make format         # Auto-format
 ```
+
+---
+
+## Documentation
+
+All project documentation is organized in the [docs/](docs/) directory:
+
+- **[docs/](docs/README.md)** - Documentation index and navigation
+- **[docs/development/](docs/development/)** - API guide and testing setup
+- **[docs/architecture/](docs/architecture/)** - Design decisions and implementation details
+- **[docs/analysis/](docs/analysis/)** - Research findings and competitive analysis
+- **[docs/release/](docs/release/)** - Release process and roadmap
+
+For more details, see [docs/README.md](docs/README.md).
 
 ---
 
