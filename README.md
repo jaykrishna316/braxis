@@ -194,7 +194,7 @@ Evaluate your AGENTS.md quality against industry standards:
 ```bash
 braxis grade --path AGENTS.md --compare
 ```
-Get a 0-100 score with 10-dimension rubric and benchmarks against FastAPI, Sentry, Airflow.
+Get a 0-100 score with 10-dimension rubric and benchmarks against Enterprise Web Framework A, Enterprise Monitoring Platform, Enterprise Orchestration Tool.
 
 ### Dual-Format Context Files (v1.4)
 - **Category A: Operations Manual** - Automatically extracted from CONTRIBUTING.md (AI policies, procedures, workarounds)
