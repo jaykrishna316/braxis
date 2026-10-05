@@ -6,7 +6,7 @@ This document captures specific patterns and best practices from top repositorie
 
 ## What We Can Learn From Each Category
 
-### Frontend Frameworks (React, Vue, Angular)
+### Frontend Frameworks (Enterprise UI Framework, Enterprise Frontend Framework B, Angular)
 
 **Repos Analyzed:** facebook/react, vuejs/vue, angular/angular
 
@@ -31,7 +31,7 @@ This document captures specific patterns and best practices from top repositorie
 
 ---
 
-### Backend Frameworks (Express, Flask, Django)
+### Backend Frameworks (Express, Flask, Enterprise Web Framework B)
 
 **Repos Analyzed:** expressjs/express, pallets/flask, django/django
 
@@ -55,7 +55,7 @@ This document captures specific patterns and best practices from top repositorie
 
 ---
 
-### Data Science/ML Projects (pandas, TensorFlow, PyTorch)
+### Data Science/ML Projects (pandas, Enterprise ML Framework, PyTorch)
 
 **Repos Analyzed:** pandas-dev/pandas, pytorch/pytorch, tensorflow/tensorflow
 
@@ -88,7 +88,7 @@ This document captures specific patterns and best practices from top repositorie
 
 ### DevOps/Infrastructure Tools (Terraform, Ansible)
 
-**Repos Analyzed:** hashicorp/terraform, kubernetes/kubernetes
+**Repos Analyzed:** hashicorp/terraform, Enterprise Infrastructure Platform
 
 **Common Patterns:**
 - Infrastructure-as-Code language specifics
@@ -193,7 +193,7 @@ When we scored vue.js and express.js without context files:
 | Gradle multi-module | Spring Boot | ❌ No |
 | Rust workspaces | tensorflow-rust | ❌ No |
 | Maven multi-module | Large Java projects | ❌ No |
-| Go modules | Kubernetes | ❌ No |
+| Go modules | Enterprise Infrastructure Platform | ❌ No |
 | Scala Mill | Scala projects | ❌ No |
 | Cargo workspaces | Large Rust projects | ❌ No |
 
@@ -205,25 +205,25 @@ When we scored vue.js and express.js without context files:
 
 ### What High-Star Repos Actually Do
 
-**Frontend Projects (React, Vue, Angular):**
+**Frontend Projects (Enterprise UI Framework, Enterprise Frontend Framework B, Angular):**
 - Multiple test frameworks: Jest, Mocha, RSpec
 - Integration tests with E2E (Cypress, Playwright)
 - Component testing standards
 - Visual regression testing
 
-**Backend Projects (Express, Django, Flask):**
+**Backend Projects (Express, Enterprise Web Framework B, Flask):**
 - Unit test framework (pytest, Jest, unittest)
 - Integration test patterns
 - Database mocking strategies
 - Load testing setup
 
-**Data Science (pandas, TensorFlow):**
+**Data Science (pandas, Enterprise ML Framework):**
 - Extensive benchmarking (asv_bench, go bench)
 - Performance regression detection
 - Numerical accuracy testing
 - CI/CD with GPU support
 
-**DevOps Tools (Terraform, Kubernetes):**
+**DevOps Tools (Terraform, Enterprise Infrastructure Platform):**
 - Integration testing with real infrastructure
 - Acceptance testing patterns
 - Provider validation tests
@@ -244,7 +244,7 @@ When we scored vue.js and express.js without context files:
 ### Implicit Conventions in Top Repos
 
 **Function/Variable Naming:**
-- React: PascalCase components, camelCase functions
+- Enterprise UI Framework: PascalCase components, camelCase functions
 - Go: CamelCase (no underscore)
 - Python: snake_case variables, PascalCase classes
 - Rust: snake_case functions, SCREAMING_SNAKE_CASE constants

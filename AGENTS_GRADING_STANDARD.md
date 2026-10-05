@@ -22,13 +22,13 @@ AGENTS.md files are critical for AI agent effectiveness. This standard provides 
 
 **For repositories WITH formal AGENTS.md files:**
 - Score reflects actual quality of documented agent guidance
-- Fair to compare Braxis vs Sentry vs FastAPI directly
+- Fair to compare Braxis vs Enterprise Monitoring Platform vs Enterprise Web Framework A directly
 - 3 repositories in this category (as of Oct 2026)
 
 **For repositories WITHOUT formal AGENTS.md files:**
 - Score reflects "AI readiness" (likelihood guidance exists but is scattered)
 - Not directly comparable to AGENTS.md-first projects
-- Example: Django has excellent agent guidance *scattered across docs* but no consolidated AGENTS.md file
+- Example: Enterprise Web Framework B has excellent agent guidance *scattered across docs* but no consolidated AGENTS.md file
 - Score reflects this architectural choice, not guidance quality
 
 **v1.1 will propose** separate scoring tracks:
@@ -64,13 +64,13 @@ See [EXPERT_REVIEW_FRAMEWORK.md](./EXPERT_REVIEW_FRAMEWORK.md) for feedback on t
    - How to ship code safely to production
    - Rollback, monitoring, incident response
    - Language/framework agnostic
-   - *Why it matters*: Critical for enterprise projects (Django, Kubernetes, TensorFlow)
+   - *Why it matters*: Critical for enterprise projects (Enterprise Web Framework B, Enterprise Infrastructure Platform, Enterprise ML Framework)
 
 2. **Enterprise Scalability & Multi-tenancy** (0-10)
    - Guidance for high-scale or multi-tenant systems
    - Architectural patterns for scaling
    - Data isolation, performance considerations
-   - *Why it matters*: Sentry, Airflow excel here but v1.0 misses it
+   - *Why it matters*: Enterprise Monitoring Platform, Enterprise Orchestration Tool excel here but v1.0 misses it
 
 3. **Security & Hardening** (0-10)
    - Secure defaults, CVE response, compliance
@@ -80,7 +80,7 @@ See [EXPERT_REVIEW_FRAMEWORK.md](./EXPERT_REVIEW_FRAMEWORK.md) for feedback on t
 4. **Integration & Extensibility** (0-10)
    - Plugin architecture, SDK documentation
    - How external developers contribute
-   - *Why it matters*: Kubernetes, Django, FastAPI, React excel here
+   - *Why it matters*: Enterprise Infrastructure Platform, Enterprise Web Framework B, Enterprise Web Framework A, Enterprise UI Framework excel here
 
 ### Reweighting Under Review
 
@@ -129,9 +129,9 @@ Current dimensions may need rebalancing:
 | Repo | Score | Command | Notes |
 |------|-------|---------|-------|
 | **Braxis** | **9/10** | `make test`, `make lint` | Single-word, abstracts environment |
-| FastAPI | 9/10 | `uv run pytest`, `uv run mypy` | Clear but requires uv knowledge |
-| Sentry | 8/10 | `prek run`, `prek run -q` | Abstracted but less discoverable |
-| Airflow | 7/10 | `breeze run pytest`, complex flags | Requires Breeze knowledge |
+| Enterprise Web Framework A | 9/10 | `uv run pytest`, `uv run mypy` | Clear but requires uv knowledge |
+| Enterprise Monitoring Platform | 8/10 | `prek run`, `prek run -q` | Abstracted but less discoverable |
+| Enterprise Orchestration Tool | 7/10 | `breeze run pytest`, complex flags | Requires Breeze knowledge |
 
 ---
 
@@ -163,9 +163,9 @@ Current dimensions may need rebalancing:
 | Repo | Score | Coverage | Notes |
 |------|-------|----------|-------|
 | **Braxis** | **9/10** | 12+ public methods, 100% of public API | mypy.ini strict = true |
-| FastAPI | 10/10 | Entire codebase, strict mode | Industry standard |
-| Airflow | 8/10 | Per-distribution, some exemptions | Complex codebase |
-| Sentry | 9/10 | Core + API layers | Partial coverage |
+| Enterprise Web Framework A | 10/10 | Entire codebase, strict mode | Industry standard |
+| Enterprise Orchestration Tool | 8/10 | Per-distribution, some exemptions | Complex codebase |
+| Enterprise Monitoring Platform | 9/10 | Core + API layers | Partial coverage |
 
 ---
 
@@ -197,9 +197,9 @@ Current dimensions may need rebalancing:
 | Repo | Score | Command | Coverage |
 |------|-------|---------|----------|
 | **Braxis** | **9/10** | `make lint` | mypy + ruff check + ruff format |
-| Sentry | 9/10 | `prek run -q` | Single command, wrapped |
-| FastAPI | 8/10 | Separate: `uv run mypy`, `uv run ruff` | Clear but not unified |
-| Airflow | 7/10 | `prek run --from-ref main` | Complex flags |
+| Enterprise Monitoring Platform | 9/10 | `prek run -q` | Single command, wrapped |
+| Enterprise Web Framework A | 8/10 | Separate: `uv run mypy`, `uv run ruff` | Clear but not unified |
+| Enterprise Orchestration Tool | 7/10 | `prek run --from-ref main` | Complex flags |
 
 ---
 
@@ -231,9 +231,9 @@ Current dimensions may need rebalancing:
 | Repo | Score | CAN DO | MUST NOT | Quality |
 |------|-------|--------|----------|---------|
 | **Braxis** | **10/10** | 5 patterns | 8 patterns | With impact analysis |
-| Sentry | 9/10 | 4 patterns | 6 patterns | Some implicit |
-| FastAPI | 9/10 | 3 patterns | 5 patterns | Clear but brief |
-| Airflow | 8/10 | Architectural boundaries | 4 patterns | Mostly implicit |
+| Enterprise Monitoring Platform | 9/10 | 4 patterns | 6 patterns | Some implicit |
+| Enterprise Web Framework A | 9/10 | 3 patterns | 5 patterns | Clear but brief |
+| Enterprise Orchestration Tool | 8/10 | Architectural boundaries | 4 patterns | Mostly implicit |
 
 ---
 
@@ -266,9 +266,9 @@ Current dimensions may need rebalancing:
 | Repo | Score | Sections | Notes |
 |------|-------|----------|-------|
 | **Braxis** | **8/10** | Components + Principles + Structure | No diagrams yet |
-| Sentry | 9/10 | Multi-tenant, Silo, Hybrid cloud | With diagrams |
-| Airflow | 9/10 | Scheduler/Worker/Processor | Clear boundaries |
-| FastAPI | 8/10 | Minimal (single-package) | Still comprehensive |
+| Enterprise Monitoring Platform | 9/10 | Multi-tenant, Silo, Hybrid cloud | With diagrams |
+| Enterprise Orchestration Tool | 9/10 | Scheduler/Worker/Processor | Clear boundaries |
+| Enterprise Web Framework A | 8/10 | Minimal (single-package) | Still comprehensive |
 
 ---
 
@@ -302,9 +302,9 @@ Current dimensions may need rebalancing:
 | Repo | Score | Items | Format |
 |------|-------|-------|--------|
 | **Braxis** | **9/10** | 8 items | Numbered checklist |
-| Sentry | 9/10 | 10+ items | Some implicit |
-| FastAPI | 8/10 | ~5 items | Scattered across docs |
-| Airflow | 8/10 | 6 items | Newsfragments required |
+| Enterprise Monitoring Platform | 9/10 | 10+ items | Some implicit |
+| Enterprise Web Framework A | 8/10 | ~5 items | Scattered across docs |
+| Enterprise Orchestration Tool | 8/10 | 6 items | Newsfragments required |
 
 ---
 
@@ -338,9 +338,9 @@ Current dimensions may need rebalancing:
 | Repo | Score | Coverage | Matrix |
 |------|-------|----------|--------|
 | **Braxis** | **8/10** | Python 3.8-3.12, all checks | 5 versions |
-| Sentry | 9/10 | Multiple job types | Extensive |
-| Airflow | 9/10 | Extensive matrix testing | Very comprehensive |
-| FastAPI | 8/10 | Basic CI | Limited matrix |
+| Enterprise Monitoring Platform | 9/10 | Multiple job types | Extensive |
+| Enterprise Orchestration Tool | 9/10 | Extensive matrix testing | Very comprehensive |
+| Enterprise Web Framework A | 8/10 | Basic CI | Limited matrix |
 
 ---
 
@@ -372,9 +372,9 @@ Current dimensions may need rebalancing:
 | Repo | Score | Count | Quality |
 |------|-------|-------|---------|
 | **Braxis** | **10/10** | 10 patterns | With impact analysis |
-| Sentry | 9/10 | 10 patterns | Some implicit |
-| FastAPI | 9/10 | 9 patterns | Clear but brief |
-| Airflow | 8/10 | 9 patterns | Mostly implicit |
+| Enterprise Monitoring Platform | 9/10 | 10 patterns | Some implicit |
+| Enterprise Web Framework A | 9/10 | 9 patterns | Clear but brief |
+| Enterprise Orchestration Tool | 8/10 | 9 patterns | Mostly implicit |
 
 ---
 
@@ -406,9 +406,9 @@ Current dimensions may need rebalancing:
 | Repo | Score | Examples | Coverage |
 |------|-------|----------|----------|
 | **Braxis** | **8/10** | Language + framework detection | Good starter patterns |
-| Sentry | 9/10 | API endpoints + Celery tasks | Production patterns |
-| FastAPI | 9/10 | Dependency injection + validation | Framework-specific |
-| Airflow | 8/10 | Custom operators + decorators | Distributed patterns |
+| Enterprise Monitoring Platform | 9/10 | API endpoints + Celery tasks | Production patterns |
+| Enterprise Web Framework A | 9/10 | Dependency injection + validation | Framework-specific |
+| Enterprise Orchestration Tool | 8/10 | Custom operators + decorators | Distributed patterns |
 
 ---
 
@@ -521,10 +521,10 @@ Dimension Scores:
  10. Overall Guidance          [████████░░] 9/10 ⭐
 
 Comparison:
-  Sentry (83/100)     -5 points
-  FastAPI (81/100)    -3 points
+  Enterprise Monitoring Platform (83/100)     -5 points
+  Enterprise Web Framework A (81/100)    -3 points
   Braxis (78/100)      =  (baseline)
-  Airflow (72/100)    +6 points
+  Enterprise Orchestration Tool (72/100)    +6 points
 
 Top Strengths:
   • Agent Boundaries (10/10) — Explicit "CAN DO" + "MUST NOT"
@@ -568,7 +568,7 @@ Submit a pull request with:
 
 ### v1.0 (October 2026)
 - Initial release with 10 dimensions
-- Benchmarked against FastAPI, Airflow, Sentry
+- Benchmarked against Enterprise Web Framework A, Enterprise Orchestration Tool, Enterprise Monitoring Platform
 - Braxis achieves 78/100 on own standard
 
 ---

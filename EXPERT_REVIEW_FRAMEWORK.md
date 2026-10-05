@@ -46,7 +46,7 @@ If you're considering reviewing this standard, we ask you to evaluate:
 
 **Question 4: What dimensions are underrepresented?**
 
-Based on the top 10 repos (Braxis, Sentry, FastAPI, Django, Airflow, Next.js, Vue.js, Kubernetes, TensorFlow, React), which of these matter but aren't scored?
+Based on the top 10 repos (Braxis, Enterprise Monitoring Platform, Enterprise Web Framework A, Enterprise Web Framework B, Enterprise Orchestration Tool, Enterprise Frontend Framework A, Enterprise Frontend Framework B, Enterprise Infrastructure Platform, Enterprise ML Framework, Enterprise UI Framework), which of these matter but aren't scored?
 
 - [ ] **Production Deployment Guides** (how to ship code safely)
 - [ ] **Enterprise Scalability** (handling multi-tenancy, high scale)
@@ -71,7 +71,7 @@ Problems:
 - Repos scored 65-78 not because guidance is bad, but because it's scattered
 
 Options:
-- A) Score only repos with formal AGENTS.md files (only 3: Braxis, Sentry, FastAPI)
+- A) Score only repos with formal AGENTS.md files (only 3: Braxis, Enterprise Monitoring Platform, Enterprise Web Framework A)
 - B) Create separate scoring: "AGENTS.md Quality" (repos with files) + "AI Readiness Score" (any repo)
 - C) Keep current approach but reframe as "likelihood project documents AI agent guidance"
 - D) Other: ________________
@@ -120,8 +120,8 @@ Expertise (languages, frameworks, roles): ___________________________
 Current score validity: 1-5 (1=completely biased, 5=objective and fair)
 ```
 Braxis (93/100): ___
-FastAPI (81/100): ___
-Sentry (83/100): ___
+Enterprise Web Framework A (81/100): ___
+Enterprise Monitoring Platform (83/100): ___
 ```
 
 Likelihood of recommending this as community standard: 1-5
@@ -153,11 +153,11 @@ We'll synthesize feedback and propose v1.1 (unbiased) within 4 weeks.
 
 ## Reviewers We're Seeking
 
-- **FastAPI team**: Validate if scoring reflects your actual standards
-- **Sentry team**: Is the enterprise scalability dimension fair?
-- **Airflow maintainers**: Is agent guidance scoring reflect complex projects?
-- **Django community**: What matters for agent-ready documentation?
-- **Kubernetes/TensorFlow teams**: Is the standard applicable to large projects?
+- **Enterprise Web Framework A team**: Validate if scoring reflects your actual standards
+- **Enterprise Monitoring Platform team**: Is the enterprise scalability dimension fair?
+- **Enterprise Orchestration Tool maintainers**: Is agent guidance scoring reflect complex projects?
+- **Enterprise Web Framework B community**: What matters for agent-ready documentation?
+- **Enterprise Infrastructure Platform/Enterprise ML Framework teams**: Is the standard applicable to large projects?
 - **Independent AI engineers**: Do these dimensions feel objective?
 
 ---
@@ -185,7 +185,7 @@ We'll synthesize feedback and propose v1.1 (unbiased) within 4 weeks.
 
 This framework exists because **we acknowledged bias in v1.0**. Braxis will not resist critical feedback, even if it lowers our own score. The goal is an objective standard, not defending Braxis's position.
 
-If v1.1 results in Braxis scoring 70/100 and FastAPI scoring 95/100, we'll celebrate it as a win for the community.
+If v1.1 results in Braxis scoring 70/100 and Enterprise Web Framework A scoring 95/100, we'll celebrate it as a win for the community.
 
 ---
 

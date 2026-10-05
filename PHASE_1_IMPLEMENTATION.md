@@ -21,7 +21,7 @@
   - **Type D**: Scoring Heuristics — Are algorithms objective?
 
 - Submission template for reviewers
-- List of target reviewers (FastAPI, Sentry, Airflow, Django teams, etc.)
+- List of target reviewers (Enterprise Web Framework A, Enterprise Monitoring Platform, Enterprise Orchestration Tool, Enterprise Web Framework B teams, etc.)
 - 4-week timeline: collect reviews → synthesize → publish v1.1
 
 **Key Innovation**: We're explicitly asking experts if *Braxis scoring highest is justified*, not assuming it is.
@@ -40,9 +40,9 @@
 - Added "Proposed v1.1 Changes" section:
   - **4 new dimensions under expert review**:
     - Production Deployment Guides (why it matters: enterprise-critical)
-    - Enterprise Scalability & Multi-tenancy (why: Sentry/Airflow excel here)
+    - Enterprise Scalability & Multi-tenancy (why: Enterprise Monitoring Platform/Enterprise Orchestration Tool excel here)
     - Security & Hardening (why: critical for AI-native systems)
-    - Integration & Extensibility (why: Kubernetes/Django/React excel here)
+    - Integration & Extensibility (why: Enterprise Infrastructure Platform/Enterprise Web Framework B/Enterprise UI Framework excel here)
   
   - **Reweighting concerns identified**:
     - Dimension 2 (Type-Checking): Too Python-centric?
@@ -62,17 +62,17 @@
 ⚠️ Methodology Note: Fair vs. Unfair Comparisons
   ├─ Fair Comparison (3 repos with AGENTS.md):
   │   ├─ Braxis: 93/100 ✅
-  │   ├─ Sentry: 83/100 ✅
-  │   └─ FastAPI: 81/100 ✅
+  │   ├─ Enterprise Monitoring Platform: 83/100 ✅
+  │   └─ Enterprise Web Framework A: 81/100 ✅
   │
   ├─ "AI Readiness Score" (7 repos without AGENTS.md):
-  │   ├─ Django: 78/100 (guidance in CONTRIBUTING.md, scattered)
-  │   ├─ Next.js: 75/100 (embedded in docs)
-  │   ├─ Vue.js: 72/100 (in contributing guide)
-  │   ├─ Airflow: 72/100 (complex, scattered guidance)
-  │   ├─ Kubernetes: 70/100 (multiple docs)
-  │   ├─ TensorFlow: 68/100 (contribution + API patterns)
-  │   └─ React: 65/100 (minimal guidance)
+  │   ├─ Enterprise Web Framework B: 78/100 (guidance in CONTRIBUTING.md, scattered)
+  │   ├─ Enterprise Frontend Framework A: 75/100 (embedded in docs)
+  │   ├─ Enterprise Frontend Framework B: 72/100 (in contributing guide)
+  │   ├─ Enterprise Orchestration Tool: 72/100 (complex, scattered guidance)
+  │   ├─ Enterprise Infrastructure Platform: 70/100 (multiple docs)
+  │   ├─ Enterprise ML Framework: 68/100 (contribution + API patterns)
+  │   └─ Enterprise UI Framework: 65/100 (minimal guidance)
   │
   └─ Caveat: These scores reflect "likelihood to find agent guidance",
      not actual quality of guidance
@@ -99,7 +99,7 @@ Even after Phase 1, bias still exists:
 ## How to Proceed
 
 ### For Braxis Team
-1. Send EXPERT_REVIEW_FRAMEWORK.md to target reviewers (FastAPI, Sentry, etc.)
+1. Send EXPERT_REVIEW_FRAMEWORK.md to target reviewers (Enterprise Web Framework A, Enterprise Monitoring Platform, etc.)
 2. Set deadline: November 1, 2026 (4 weeks for feedback)
 3. Synthesize reviews → propose v1.1 changes
 
