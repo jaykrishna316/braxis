@@ -43,6 +43,7 @@ class BraxisAnalyzer:
         "pyproject.toml",
         "setup.py",
         "Makefile",
+        "CMakeLists.txt",
         "build.gradle",
         "pom.xml",
         "Cargo.toml",
@@ -212,8 +213,29 @@ class BraxisAnalyzer:
         # Return language with most files
         return max(self.languages.items(), key=lambda x: x[1])[0]
 
+    def _extract_build_system_requires(self, content: str) -> str:
+        """Extract requires field from [build-system] section of pyproject.toml."""
+        try:
+            in_build_system = False
+            for line in content.split('\n'):
+                line_stripped = line.strip()
+                if line_stripped == "[build-system]":
+                    in_build_system = True
+                elif line_stripped.startswith("[") and in_build_system:
+                    break
+                elif in_build_system and line_stripped.startswith("requires"):
+                    return line_stripped
+        except Exception:
+            pass
+        return ""
+
     def _detect_build_system(self) -> None:
         """Detect build system, prioritized by primary language."""
+        # Check for CMake first (high priority for C/C++ projects)
+        if any(f.name == "CMakeLists.txt" for f in self.build_files):
+            self.build_system = "CMake"
+            return
+
         primary_lang = self._get_primary_language()
         build_system = "Unknown"
 
@@ -233,13 +255,15 @@ class BraxisAnalyzer:
                     try:
                         content = pyproject.read_text()
                         if "build-system" in content:
-                            if "hatchling" in content.lower():
+                            # Extract requires field for accurate detection
+                            requires = self._extract_build_system_requires(content)
+                            if "hatchling" in requires.lower():
                                 build_system = "Python (hatchling)"
-                            elif "pdm" in content.lower():
+                            elif "pdm" in requires.lower():
                                 build_system = "Python (pdm)"
-                            elif "flit" in content.lower():
+                            elif "flit" in requires.lower():
                                 build_system = "Python (flit)"
-                            elif "poetry" in content.lower():
+                            elif "poetry" in requires.lower():
                                 build_system = "Python (poetry)"
                             else:
                                 build_system = "Python (setuptools)"
@@ -277,6 +301,43 @@ class BraxisAnalyzer:
 
         self.build_system = build_system
 
+    def _detect_cpp_test_frameworks(self) -> set[str]:
+        """Detect C++ test frameworks by scanning source files and CMakeLists.txt."""
+        frameworks = set()
+
+        # Check CMakeLists.txt for CTest and test references
+        cmake = self.project_path / "CMakeLists.txt"
+        if cmake.exists():
+            try:
+                cmake_content = cmake.read_text()
+                if "enable_testing()" in cmake_content or "add_test(" in cmake_content:
+                    frameworks.add("CTest")
+            except (OSError, UnicodeDecodeError):
+                pass
+
+        # Sample C++ source files for test framework includes
+        cpp_extensions = {".cpp", ".cc", ".cxx", ".h", ".hpp"}
+        content_samples = []
+        for f in self.files:
+            if f.suffix in cpp_extensions and len(content_samples) < 30:
+                try:
+                    content_samples.append(f.read_text()[:2000])
+                except (OSError, UnicodeDecodeError):
+                    pass
+
+        for content in content_samples:
+            if "#include <gtest/gtest.h>" in content or "TEST()" in content:
+                frameworks.add("Google Test")
+                break
+            elif "#include <catch2/catch.hpp>" in content or "CATCH_TEST_CASE" in content:
+                frameworks.add("Catch2")
+                break
+            elif "#include <boost/test" in content:
+                frameworks.add("Boost.Test")
+                break
+
+        return frameworks
+
     def _detect_test_framework(self) -> None:
         """Detect test framework, language-aware."""
         test_frameworks = set()
@@ -286,6 +347,9 @@ class BraxisAnalyzer:
         if primary_lang == "go":
             # Go uses built-in testing package
             test_frameworks.add("Go testing")
+        elif primary_lang in ["c", "cpp"]:
+            cpp_frameworks = self._detect_cpp_test_frameworks()
+            test_frameworks.update(cpp_frameworks)
         elif primary_lang == "python":
             # Check pyproject.toml for pytest config
             pyproject = self.project_path / "pyproject.toml"
