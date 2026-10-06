@@ -377,6 +377,32 @@ class BraxisRegressionTest:
 
         return all_passed
 
+    def test_nested_package_json_ignored(self):
+        """Ensure nested package.json doesn't override root-level build system."""
+        print("\n[TEST 9] Nested Build Files Ignored (Package.json Override)")
+        print("=" * 60)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+
+            (tmpdir / "main.c").write_text("int main() { return 0; }")
+            (tmpdir / "Makefile").write_text("build:\n\tgcc main.c\n")
+
+            (tmpdir / "examples").mkdir()
+            (tmpdir / "examples" / "node").mkdir()
+            (tmpdir / "examples" / "node" / "package.json").write_text('{"name": "example"}')
+
+            output = self.run_braxis_command("inspect --path .", str(tmpdir))
+
+            has_makefile = "Makefile" in output
+            no_npm = "npm" not in output.lower()
+
+            passed = has_makefile and no_npm
+            reason = f"Makefile found: {has_makefile}, npm absent: {no_npm}"
+            self.test_result("Nested package.json doesn't override Makefile", passed, reason)
+
+            return passed
+
     def run_all_tests(self):
         """Run the complete test suite."""
         print("\n" + "=" * 70)
@@ -393,6 +419,7 @@ class BraxisRegressionTest:
             self.test_critical_files_detection()
             self.test_no_generic_content()
             self.test_config_json_completeness()
+            self.test_nested_package_json_ignored()
         except Exception as e:
             print(f"\nFATAL ERROR: {e}")
             import traceback

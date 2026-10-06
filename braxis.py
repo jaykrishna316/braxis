@@ -185,6 +185,7 @@ class BraxisAnalyzer:
         }
         for root, dirs, files in os.walk(self.project_path):
             dirs[:] = [d for d in dirs if d not in ignore_dirs]
+            is_root = Path(root) == self.project_path
             for file in files:
                 file_path = Path(root) / file
                 self.files.append(file_path)
@@ -192,7 +193,7 @@ class BraxisAnalyzer:
                     self.test_files.append(file_path)
                 if file in self.CONFIG_FILES:
                     self.config_files.append(file_path)
-                if file in self.BUILD_FILES:
+                if file in self.BUILD_FILES and is_root:
                     self.build_files.append(file_path)
 
     def _detect_languages(self) -> None:
