@@ -403,6 +403,128 @@ class BraxisRegressionTest:
 
             return passed
 
+    def test_cmake_detection(self):
+        """Ensure CMake is correctly detected for C/C++ projects."""
+        print("\n[TEST 10] CMake Build System Detection (P0 Fix)")
+        print("=" * 60)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+
+            # Create realistic CMake project
+            (tmpdir / "CMakeLists.txt").write_text("""
+cmake_minimum_required(VERSION 3.10)
+project(MyProject)
+enable_testing()
+add_test(MyTest test_runner)
+""")
+            (tmpdir / "main.cpp").write_text("int main() { return 0; }")
+
+            output = self.run_braxis_command("inspect --path .", str(tmpdir))
+
+            has_cmake = "CMake" in output
+            no_unknown = "Unknown" not in output or "CMake" in output
+
+            passed = has_cmake and no_unknown
+            reason = f"CMake found: {has_cmake}, not unknown: {no_unknown}"
+            self.test_result("CMake build system correctly detected", passed, reason)
+
+            return passed
+
+    def test_cpp_test_frameworks(self):
+        """Ensure C++ test frameworks are correctly detected."""
+        print("\n[TEST 11] C++ Test Framework Detection (P0 Fix)")
+        print("=" * 60)
+
+        all_passed = True
+
+        # Test Google Test detection
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "CMakeLists.txt").write_text("cmake_minimum_required(VERSION 3.10)\nproject(Test)")
+            (tmpdir / "test.cpp").write_text("#include <gtest/gtest.h>\nTEST(T, T) { }")
+
+            output = self.run_braxis_command("inspect --path .", str(tmpdir))
+            has_gtest = "Google Test" in output or "gtest" in output.lower()
+            self.test_result("Google Test framework detected", has_gtest)
+            all_passed = all_passed and has_gtest
+
+        # Test Catch2 detection
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "CMakeLists.txt").write_text("cmake_minimum_required(VERSION 3.10)\nproject(Test)")
+            (tmpdir / "test.cpp").write_text("#include <catch2/catch.hpp>\nTEST_CASE(\"T\") { }")
+
+            output = self.run_braxis_command("inspect --path .", str(tmpdir))
+            has_catch2 = "Catch2" in output or "catch" in output.lower()
+            self.test_result("Catch2 framework detected", has_catch2)
+            all_passed = all_passed and has_catch2
+
+        return all_passed
+
+    def test_python_build_systems(self):
+        """Ensure modern Python build systems (Poetry, Hatch, PDM) are correctly detected."""
+        print("\n[TEST 12] Python Build System Detection (P0 Fix)")
+        print("=" * 60)
+
+        all_passed = True
+
+        # Test Poetry detection
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "pyproject.toml").write_text("""
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "test"
+""")
+            (tmpdir / "main.py").write_text("print('test')")
+
+            output = self.run_braxis_command("inspect --path .", str(tmpdir))
+            has_poetry = "poetry" in output.lower()
+            self.test_result("Poetry build system detected", has_poetry)
+            all_passed = all_passed and has_poetry
+
+        # Test Hatch detection
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "pyproject.toml").write_text("""
+[build-system]
+requires = ["hatchling>=1.0.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "test"
+""")
+            (tmpdir / "main.py").write_text("print('test')")
+
+            output = self.run_braxis_command("inspect --path .", str(tmpdir))
+            has_hatch = "hatch" in output.lower()
+            self.test_result("Hatch build system detected", has_hatch)
+            all_passed = all_passed and has_hatch
+
+        # Test PDM detection
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "pyproject.toml").write_text("""
+[build-system]
+requires = ["pdm-backend>=1.0.0"]
+build-backend = "pdm.backend"
+
+[project]
+name = "test"
+""")
+            (tmpdir / "main.py").write_text("print('test')")
+
+            output = self.run_braxis_command("inspect --path .", str(tmpdir))
+            has_pdm = "pdm" in output.lower()
+            self.test_result("PDM build system detected", has_pdm)
+            all_passed = all_passed and has_pdm
+
+        return all_passed
+
     def run_all_tests(self):
         """Run the complete test suite."""
         print("\n" + "=" * 70)
@@ -420,6 +542,9 @@ class BraxisRegressionTest:
             self.test_no_generic_content()
             self.test_config_json_completeness()
             self.test_nested_package_json_ignored()
+            self.test_cmake_detection()
+            self.test_cpp_test_frameworks()
+            self.test_python_build_systems()
         except Exception as e:
             print(f"\nFATAL ERROR: {e}")
             import traceback
