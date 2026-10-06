@@ -67,6 +67,8 @@ class BraxisAnalyzer:
         self.monorepo_type: Optional[str] = None
         self.monorepo_subsystems: List[Dict[str, str]] = []
         self.mcp_servers: List[Dict[str, Any]] = []
+        # Fix #3: Test framework detection
+        self.test_frameworks: Dict[str, List[str]] = {}
 
     def _validate_project_path(self, project_path: str) -> Path:
         """Validate and normalize project path."""
@@ -156,7 +158,8 @@ class BraxisAnalyzer:
         self._scan_files()
         self._detect_languages()
         self._detect_build_system()
-        self._detect_test_framework()
+        # FIX #3: Use new universal test framework detection
+        self.test_frameworks = self._detect_test_frameworks()
         self._detect_conventions()
         self._identify_critical_files()
         # Detect project structure, Python version, and repository URL
@@ -965,18 +968,11 @@ make test                     # Run all tests (if available)"""
         doc_score = 8 if readme_exists else 3
         scores["Documentation"] = doc_score
         self.score_breakdown = scores
-        total_score = sum(scores.values())
+
+        # FIX #1: Use dynamic scoring instead of hardcoded tier logic
+        total_score = self._calculate_ai_readiness_score()
         self.total_score = total_score
-        if total_score >= 90:
-            self.tier = "Agent-Optimized"
-        elif total_score >= 80:
-            self.tier = "AI-Native-Plus"
-        elif total_score >= 60:
-            self.tier = "AI-Native"
-        elif total_score >= 30:
-            self.tier = "Agent-Aware"
-        else:
-            self.tier = "Not Ready"
+        self.tier = self._get_tier_from_score(total_score)
         self._save_score_to_history()
 
     def _write_file_safely(self, filepath: str, content: str) -> None:
@@ -1013,7 +1009,14 @@ make test                     # Run all tests (if available)"""
         print("\nDetected:")
         print(f" Languages: {', '.join(self.languages.keys()) if self.languages else 'None'}")
         print(f" Build System: {self.build_system}")
-        print(f" Test Frameworks: {', '.join(self.test_frameworks)}")
+        # Format test frameworks dict as readable list
+        if self.test_frameworks:
+            fw_list = []
+            for lang, frameworks in self.test_frameworks.items():
+                fw_list.extend(frameworks)
+            print(f" Test Frameworks: {', '.join(fw_list) if fw_list else 'None detected'}")
+        else:
+            print(f" Test Frameworks: None detected")
         print(f" Test Files: {len(self.test_files)}")
         print(f" Critical Files: {len(self.critical_files)}")
         print("\nRecommendations:")
@@ -1028,6 +1031,206 @@ make test                     # Run all tests (if available)"""
         print("\nNext Step:")
         print(" braxis generate")
         print(f"\n{'=' * 60}\n")
+
+    def _calculate_ai_readiness_score(self) -> int:
+        """
+        FIX #1: Calculate AI readiness score (0-100) using universal, dynamic metrics.
+        Works for ANY repo type without hardcoding.
+        """
+        score = 0
+
+        # Factor 1: Test Coverage (0-30 points) - Universal metric
+        test_ratio = len(self.test_files) / max(len(self.files), 1)
+        if len(self.files) < 20:
+            test_score = 0  # Too few files to have meaningful tests
+        else:
+            test_score = min(30, int(test_ratio * 100))
+        score += test_score
+
+        # Factor 2: Language Diversity (0-20 points) - Works for all stacks
+        lang_count = len(self.languages)
+        if lang_count == 0:
+            lang_score = 0  # No languages = not a code repo
+        elif lang_count == 1:
+            lang_score = 5  # Single language acceptable for many projects
+        elif lang_count == 2:
+            lang_score = 10  # Good: polyglot basics
+        else:
+            lang_score = 20  # Excellent: true polyglot
+        score += lang_score
+
+        # Factor 3: Build System Complexity (0-20 points)
+        if self.build_system == "Unknown":
+            build_score = 0  # No build system detected
+        elif self.build_system in ["Python (pip)", "npm/Node.js", "Makefile"]:
+            build_score = 10  # Simple/standard build
+        elif self.build_system in ["CMake", "Maven", "Gradle", "Cargo", "Go (modules)", "Go (Makefile)", "Rust (cargo)"]:
+            build_score = 15  # Advanced build system
+        elif self.build_system.startswith("Python"):
+            build_score = 12  # Python modern tooling
+        else:
+            build_score = 10  # Unknown but present
+        score += build_score
+
+        # Factor 4: Documentation (0-15 points) - Universal quality indicator
+        doc_score = 0
+        has_readme = any(f.name.lower() == "readme.md" for f in self.files)
+        has_contributing = any("contributing" in f.name.lower() for f in self.files)
+        has_license = any(f.name.upper() in ["LICENSE", "LICENSE.MD"] for f in self.files)
+
+        if has_readme:
+            doc_score += 5
+        if has_contributing:
+            doc_score += 5
+        if has_license:
+            doc_score += 5
+        score += min(15, doc_score)
+
+        # Factor 5: Critical Files & Structure (0-15 points)
+        critical_score = min(15, len(self.critical_files) * 2)
+        score += critical_score
+
+        return min(100, score)
+
+    def _get_tier_from_score(self, score: int) -> str:
+        """
+        FIX #1: Convert numerical score to tier using universal mapping.
+        Works for ANY repo regardless of type.
+        """
+        if score < 40:
+            return "Not Ready"
+        elif score < 60:
+            return "AI-Native"
+        elif score < 80:
+            return "AI-Native-Plus"
+        else:
+            return "Agent-Optimized"
+
+    def _detect_test_frameworks(self) -> Dict[str, List[str]]:
+        """
+        FIX #3: Detect test frameworks across ANY language.
+        Universal detection that works for all tech stacks.
+        """
+        frameworks: Dict[str, List[str]] = {}
+
+        # Sample test files to check content
+        sample_test_files = self.test_files[:30]  # Check up to 30 test files
+
+        for test_file in sample_test_files:
+            try:
+                content = test_file.read_text(errors='ignore')
+
+                # ============ PYTHON ============
+                if test_file.suffix == '.py':
+                    if 'pytest' not in frameworks.get('python', []):
+                        if 'import pytest' in content or 'from pytest' in content:
+                            frameworks.setdefault('python', []).append('pytest')
+                    if 'unittest' not in frameworks.get('python', []):
+                        if 'import unittest' in content:
+                            frameworks.setdefault('python', []).append('unittest')
+                    if 'hypothesis' not in frameworks.get('python', []):
+                        if 'import hypothesis' in content:
+                            frameworks.setdefault('python', []).append('hypothesis')
+
+                # ============ JAVASCRIPT/TYPESCRIPT ============
+                if test_file.suffix in ['.js', '.ts', '.jsx', '.tsx']:
+                    if 'jest' not in frameworks.get('javascript', []):
+                        if 'jest' in content or '@jest' in content:
+                            frameworks.setdefault('javascript', []).append('jest')
+                    if 'mocha' not in frameworks.get('javascript', []):
+                        if ('mocha' in content) or ('describe(' in content and 'it(' in content):
+                            frameworks.setdefault('javascript', []).append('mocha')
+                    if 'vitest' not in frameworks.get('javascript', []):
+                        if 'vitest' in content:
+                            frameworks.setdefault('javascript', []).append('vitest')
+                    if 'cypress' not in frameworks.get('javascript', []):
+                        if 'cypress' in content or "cy.visit" in content:
+                            frameworks.setdefault('javascript', []).append('cypress')
+                    if 'playwright' not in frameworks.get('javascript', []):
+                        if 'playwright' in content:
+                            frameworks.setdefault('javascript', []).append('playwright')
+
+                # ============ C/C++ ============
+                if test_file.suffix in ['.cpp', '.cc', '.cxx', '.h', '.hpp']:
+                    if 'gtest' not in frameworks.get('cpp', []):
+                        if '#include <gtest/gtest.h>' in content or '#include "gtest/gtest.h"' in content:
+                            frameworks.setdefault('cpp', []).append('gtest')
+                    if 'catch2' not in frameworks.get('cpp', []):
+                        if '#include <catch2/catch.hpp>' in content or 'CATCH_TEST_CASE' in content:
+                            frameworks.setdefault('cpp', []).append('catch2')
+                    if 'doctest' not in frameworks.get('cpp', []):
+                        if '#include <doctest/doctest.h>' in content:
+                            frameworks.setdefault('cpp', []).append('doctest')
+                    if 'boost' not in frameworks.get('cpp', []):
+                        if '#include <boost/test' in content:
+                            frameworks.setdefault('cpp', []).append('boost-test')
+
+                # ============ GO ============
+                if test_file.suffix == '.go':
+                    if 'testing' not in frameworks.get('go', []):
+                        if 'testing.T' in content and 'func Test' in content:
+                            frameworks.setdefault('go', []).append('testing')
+                    if 'testify' not in frameworks.get('go', []):
+                        if 'testify' in content:
+                            frameworks.setdefault('go', []).append('testify')
+
+                # ============ RUST ============
+                if test_file.suffix == '.rs':
+                    if 'rust-builtin' not in frameworks.get('rust', []):
+                        if '#[cfg(test)]' in content:
+                            frameworks.setdefault('rust', []).append('rust-builtin')
+                    if 'criterion' not in frameworks.get('rust', []):
+                        if 'use criterion' in content:
+                            frameworks.setdefault('rust', []).append('criterion')
+
+            except Exception:
+                pass
+
+        # Also check package manager configs for framework hints
+        # ============ PYTHON: pyproject.toml ============
+        pyproject = self.project_path / "pyproject.toml"
+        if pyproject.exists():
+            try:
+                content = pyproject.read_text()
+                if '[tool.pytest' in content and 'pytest' not in frameworks.get('python', []):
+                    frameworks.setdefault('python', []).append('pytest')
+            except:
+                pass
+
+        # ============ JAVASCRIPT: package.json ============
+        package_json = self.project_path / "package.json"
+        if package_json.exists():
+            try:
+                pkg = json.loads(package_json.read_text())
+                deps = {**pkg.get('devDependencies', {}),
+                       **pkg.get('dependencies', {})}
+
+                if 'jest' in deps and 'jest' not in frameworks.get('javascript', []):
+                    frameworks.setdefault('javascript', []).append('jest')
+                if 'mocha' in deps and 'mocha' not in frameworks.get('javascript', []):
+                    frameworks.setdefault('javascript', []).append('mocha')
+                if 'vitest' in deps and 'vitest' not in frameworks.get('javascript', []):
+                    frameworks.setdefault('javascript', []).append('vitest')
+                if 'cypress' in deps and 'cypress' not in frameworks.get('javascript', []):
+                    frameworks.setdefault('javascript', []).append('cypress')
+                if 'playwright' in deps and 'playwright' not in frameworks.get('javascript', []):
+                    frameworks.setdefault('javascript', []).append('playwright')
+            except:
+                pass
+
+        # ============ JAVA: pom.xml ============
+        pom = self.project_path / "pom.xml"
+        if pom.exists():
+            try:
+                content = pom.read_text()
+                if '<artifactId>junit' in content:
+                    frameworks.setdefault('java', []).append('junit')
+                if '<artifactId>testng' in content:
+                    frameworks.setdefault('java', []).append('testng')
+            except:
+                pass
+
+        return frameworks
 
     def _extract_gotchas_from_contributing(self) -> List[str]:
         """v1.3.1: Extract warnings and gotchas from CONTRIBUTING.md."""
@@ -1883,7 +2086,10 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
     # ============================================================================
 
     def detect_monorepo_type(self) -> Optional[str]:
-        """Detect monorepo platform: pnpm, uv, yarn, npm workspaces, or lerna."""
+        """
+        FIX #2: Detect monorepo platform with validation that subsystems actually exist.
+        Universal detection that works for any monorepo type without false positives.
+        """
         monorepo_indicators = {
             "pnpm": "pnpm-workspace.yaml",
             "uv": "pyproject.toml",  # Check for [tool.uv.workspaces]
@@ -1895,20 +2101,122 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
         for monorepo_type, indicator_file in monorepo_indicators.items():
             file_path = self.project_path / indicator_file
             if file_path.exists():
-                if monorepo_type == "pnpm" and "pnpm-workspace" in file_path.name:
-                    return "pnpm"
-                elif monorepo_type == "lerna":
-                    return "lerna"
-                elif monorepo_type in ("uv", "yarn", "npm"):
-                    # Check content for workspaces configuration
-                    try:
-                        content = file_path.read_text()
-                        if "workspaces" in content or "[tool.uv.workspaces]" in content:
-                            return monorepo_type
-                    except (OSError, UnicodeDecodeError):
-                        pass
+                try:
+                    content = file_path.read_text()
+
+                    # === PNPM ===
+                    if monorepo_type == "pnpm" and "pnpm-workspace" in file_path.name:
+                        # Validate: Check if packages field exists and paths have directories
+                        if "packages:" in content:
+                            subsystems = self._get_pnpm_subsystems(content)
+                            if subsystems:  # Only return if subsystems actually found
+                                return "pnpm"
+
+                    # === LERNA ===
+                    elif monorepo_type == "lerna":
+                        # Validate: Check if packages field exists in lerna.json
+                        try:
+                            lerna_config = json.loads(content)
+                            if "packages" in lerna_config and lerna_config["packages"]:
+                                # Verify at least one package directory exists
+                                if self._validate_package_dirs(lerna_config["packages"]):
+                                    return "lerna"
+                        except json.JSONDecodeError:
+                            pass
+
+                    # === UV (Python) ===
+                    elif monorepo_type == "uv" and "[tool.uv.workspaces]" in content:
+                        # Validate: Check if members field exists
+                        if "members" in content:
+                            subsystems = self._get_uv_subsystems(content)
+                            if subsystems:
+                                return "uv"
+
+                    # === YARN/NPM (JavaScript) ===
+                    elif monorepo_type in ("yarn", "npm"):
+                        # Validate: Check for actual workspaces config and verify dirs exist
+                        if "workspaces" in content:
+                            try:
+                                pkg_json = json.loads(content)
+                                workspaces = pkg_json.get("workspaces", [])
+                                if isinstance(workspaces, list):
+                                    if self._validate_package_dirs(workspaces):
+                                        return monorepo_type
+                                elif isinstance(workspaces, dict):
+                                    paths = workspaces.get("packages", [])
+                                    if self._validate_package_dirs(paths):
+                                        return monorepo_type
+                            except json.JSONDecodeError:
+                                pass
+
+                except (OSError, UnicodeDecodeError):
+                    pass
 
         return None
+
+    def _validate_package_dirs(self, patterns: List[str]) -> bool:
+        """
+        FIX #2: Validate that at least one package directory from patterns exists.
+        Returns True only if actual subsystems found, preventing false positives.
+        """
+        from pathlib import PurePath
+        import fnmatch
+
+        for pattern in patterns:
+            # Handle glob patterns like "packages/*" or "apps/**"
+            if '*' in pattern:
+                # Remove trailing /* for directory checks
+                base_pattern = pattern.rstrip('/*')
+                base_path = self.project_path / base_pattern
+
+                # Check if base pattern directory exists
+                if base_path.exists() and base_path.is_dir():
+                    # Check if directory has subdirectories (packages)
+                    subdirs = [d for d in base_path.iterdir() if d.is_dir() and not d.name.startswith('.')]
+                    if subdirs:
+                        return True
+            else:
+                # Exact path match
+                pkg_path = self.project_path / pattern
+                if pkg_path.exists() and pkg_path.is_dir():
+                    return True
+
+        return False
+
+    def _get_pnpm_subsystems(self, workspace_content: str) -> List[str]:
+        """Extract subsystem paths from pnpm-workspace.yaml."""
+        subsystems = []
+        for line in workspace_content.split('\n'):
+            line = line.strip()
+            if line.startswith('- '):
+                pattern = line[2:].strip().strip("'\"")
+                # Validate pattern exists
+                if '*' in pattern:
+                    base = pattern.split('*')[0].rstrip('/')
+                    if base and (self.project_path / base).exists():
+                        subsystems.append(base)
+        return subsystems
+
+    def _get_uv_subsystems(self, pyproject_content: str) -> List[str]:
+        """Extract subsystem paths from pyproject.toml [tool.uv.workspaces] section."""
+        subsystems = []
+        in_workspaces = False
+        for line in pyproject_content.split('\n'):
+            if '[tool.uv.workspaces]' in line:
+                in_workspaces = True
+            elif line.startswith('[') and in_workspaces:
+                break
+            elif in_workspaces and 'members' in line:
+                # Extract members array: members = ["pkg1", "pkg2"]
+                members_str = line.split('=', 1)[1].strip()
+                try:
+                    members = json.loads(members_str)
+                    for member in members:
+                        if (self.project_path / member).exists():
+                            subsystems.append(member)
+                except:
+                    pass
+        return subsystems
 
     def get_monorepo_subsystems(self) -> List[Dict[str, str]]:
         """Identify subsystems in a monorepo (api, web, packages, etc.)."""
