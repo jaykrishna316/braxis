@@ -1249,8 +1249,8 @@ We respect this expertise and recommend **keeping it**.
 
 Even if you choose to keep your existing AGENTS.md now, **installing Braxis enables continuous auto-updates that respect your custom work**:
 
-- **When:** On every code push (automatic) + weekly safety check
-- **What happens:** Braxis regenerates all 4 files using `--smart-merge`
+- **When:** On significant code changes (src files, architecture, dependencies) + weekly safety check
+- **What happens:** Braxis regenerates all 4 files using `--smart-merge` (skips trivial changes like docs/comments)
 - **Your sections:** Automatically preserved (Skills, Governance, Package Domains, API Reference, etc.)
 - **New content:** Auto-discovered architecture, test frameworks, entry points stay current
 - **How:** Creates a PR for review - you always see the changes before merging
@@ -1270,13 +1270,15 @@ We've generated new context files based on current code analysis:
 
 > **How Option A Works with Auto-Updates:**
 >
-> When you install Braxis (via the GitHub Actions workflow), it runs `braxis generate --smart-merge` on every code push:
-> 1. Braxis analyzes your current codebase
-> 2. **Automatically preserves** your custom sections (Skills, Governance, Architecture notes, etc.)
-> 3. **Adds new auto-discovered content** (updated entry points, test frameworks, etc.)
-> 4. Creates a PR for you to review before merging
+> When you install Braxis (via the GitHub Actions workflow), it intelligently regenerates on significant changes:
+> 1. **Detects** significant code changes (source files, architecture, dependencies)
+> 2. **Skips** trivial changes (docs, comments, formatting) to avoid noise
+> 3. **Regenerates** context files when it matters using `--smart-merge`
+> 4. **Automatically preserves** your custom sections (Skills, Governance, Architecture notes, etc.)
+> 5. **Adds new auto-discovered content** (updated entry points, test frameworks, etc.)
+> 6. Creates a PR for you to review before merging
 >
-> **Your custom AGENTS.md sections stay yours.** Braxis just keeps the auto-discovered parts fresh with your code changes.
+> **Your custom AGENTS.md sections stay yours.** Braxis just keeps the auto-discovered parts fresh when your code actually changes.
 
 **Option B: Review New Sections**
 - Look at our generated AGENTS.md
@@ -1303,11 +1305,41 @@ on:
   push:
     branches: [main, master, devel]
   schedule:
-    - cron: '0 0 * * 0'  # Weekly
+    - cron: '0 0 * * 0'  # Weekly fallback
 
 jobs:
-  update-context:
+  detect-changes:
+    name: Check for Significant Changes
     runs-on: ubuntu-latest
+    outputs:
+      significant: ${{ steps.check.outputs.significant }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Detect Significant Changes
+        id: check
+        run: |
+          python3 -c "
+          import subprocess, os
+          files = subprocess.run(['git', 'diff', '--name-only', 'origin/main...HEAD'],
+                               capture_output=True, text=True).stdout.split()
+
+          # Source code changes = regenerate
+          src_changes = any(f.endswith(('.py', '.js', '.ts', '.java', '.go')) for f in files)
+          build_changes = any('package.json' in f or 'setup.py' in f for f in files)
+          struct_changes = any('src/' in f or 'lib/' in f or 'packages/' in f for f in files)
+
+          significant = src_changes or build_changes or struct_changes
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('significant=' + str(significant).lower())
+          "
+
+  update-context:
+    name: Update AI Context Files
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.significant == 'true' || github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v3
       - run: pip install braxis
@@ -1320,12 +1352,13 @@ jobs:
 ```
 
 **Why this matters:**
-- Runs on every code push (immediate) + weekly safety check
-- Regenerates all 4 files automatically
+- Detects significant code changes (source files, architecture, dependencies)
+- Skips regeneration for trivial changes (docs, comments, formatting)
+- Regenerates on every code push (when it matters) + weekly safety check
 - Uses `--smart-merge` to preserve your hand-written sections
 - Creates PRs for you to review and merge
-- Keeps AI readiness score current
-- **Zero manual maintenance**
+- Keeps AI readiness score current without noise
+- **Zero manual maintenance, minimal PR spam**
 
 ## Next Steps
 
