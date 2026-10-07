@@ -1081,13 +1081,21 @@ Refer to the scoped file when working in that directory."""
         return sections
 
     def generate_pr_description(self):
-        """Generate PR description for Braxis context files with auto-update messaging."""
+        """Generate PR description for Braxis context files - unified messaging for both cases.
+
+        Case 1 (no existing files): "Here are fresh files + install Braxis to keep them auto-updated"
+        Case 2 (existing files):    "Here are recommended sections from yours + install Braxis to keep everything auto-updated"
+
+        Both cases end with the same value: Install Braxis for continuous auto-updates
+        """
         existing = self.detect_existing_agents_md()
-
         ai_readiness = f"{self.total_score}/100 ({self.tier})"
-        summary = f"""# Braxis: AI Context Files + Continuous Auto-Update Capability
 
-This PR adds AI-ready context files to {self.project_path.name}:
+        # ALWAYS start with: We generated these files
+        summary = f"""# Braxis: AI Context Files + Continuous Auto-Update
+
+We've analyzed {self.project_path.name} and generated AI-ready context files:
+
 - **AGENTS.md** — AI agent guidance + architecture documentation
 - **CLAUDE.md** — Quick reference router to AGENTS.md
 - **.cursorrules** — IDE/Claude Code conventions
@@ -1095,90 +1103,57 @@ This PR adds AI-ready context files to {self.project_path.name}:
 
 **AI Readiness Score:** {ai_readiness}
 
-## The Real Value: Auto-Update Capability
-
-While these files are useful as-is, the **real power is automated updates**. As your codebase evolves, Braxis keeps context files fresh:
-
-```bash
-# Add to your CI, pre-commit hook, or GitHub Actions
-braxis generate --smart-merge
-```
-
-**What this enables:**
-- ✅ AGENTS.md refreshes when your architecture changes
-- ✅ AI readiness score tracked over time (see trends)
-- ✅ New test frameworks auto-detected and documented
-- ✅ Entry points auto-discovered
-- ✅ Zero manual maintenance of context files
+---
 """
 
-        # Add situation-specific guidance
-        if existing and existing['score'] >= 50:
+        # CASE 1: No existing MD files
+        if not existing:
             summary += f"""
-## Your Situation ({self.project_path.name})
+## What You're Getting
 
-We detected your project has an **excellent existing AGENTS.md** (quality score: {existing['score']}/100).
+Fresh, automatically-generated AI context files for {self.project_path.name}:
 
-Your file includes valuable custom content:
+```
+Project:         {self.project_path.name}
+Languages:       {', '.join(self.languages.keys()) if self.languages else 'Unknown'}
+Build System:    {self.build_system or 'Unknown'}
+Test Frameworks: {', '.join(self.test_frameworks) if self.test_frameworks else 'Unknown'}
+AI Readiness:    {ai_readiness}
+Total Files:     {len(self.files)}
+Test Files:      {len(self.test_files)}
 """
-            # Highlight what they have
-            for section_name in existing['sections']:
-                if section_name in ['Skills', 'Package Domain', 'Key Entry Point', 'Gotcha', 'Governance']:
-                    summary += f"- ✅ **{section_name}** — Hand-maintained expertise\n"
+            if self.monorepo_type:
+                summary += f"Monorepo Type:   {self.monorepo_type.upper()} with {len(self.monorepo_subsystems)} subsystems\n"
+            summary += "```\n"
 
             summary += """
-This is exactly the kind of **hand-maintained expertise** that deserves preservation.
+## How to Use These Files
 
-## Your Options
+1. **Review this PR** to see what we auto-discovered about your project
+2. **Accept the PR** to add all 4 files to your repo
+3. **Customize if needed** for your specific project requirements
 
-### Option A: Accept All Files (Replace Yours)
-- Use our generated AGENTS.md
-- You get fresh AI readiness scoring
-- Auto-discovered architecture and entry points
+## Keep Them Fresh: Install Braxis for Auto-Updates
 
-**Downside:** You lose your excellent custom content.
+These files are valuable today. But their **real power is staying in sync** with your code as it evolves.
 
-### Option B: Keep Your AGENTS.md + Accept the Other 3 Files ⭐ Recommended
-- ✅ Keep your custom AGENTS.md (your expertise)
-- ✅ Accept CLAUDE.md (router and quick commands)
-- ✅ Accept .cursorrules (IDE conventions)
-- ✅ Accept .agentic-config.json (agent config)
+Every time your codebase changes:
+- New test frameworks get auto-detected
+- Architecture documentation stays current
+- AI readiness score tracks improvements automatically
+- Entry points update as files move
 
-**Best of both worlds** — your expertise + our auto-discovery.
+### Setup Automatic Updates (Recommended)
 
-### Option C: Custom Merge
-- Take elements from our AGENTS.md (AI readiness scoring, entry points)
-- Merge into your existing file manually
-- We can assist with the merge if helpful
-"""
-        else:
-            summary += """
-## Your Options
-
-### Option A: Accept All Files ⭐ Recommended
-- Use our generated AGENTS.md for complete AI context
-- Get AI readiness scoring and auto-discovery
-- Foundation for ongoing auto-updates
-
-### Option B: Customize After Merge
-- Accept all files
-- Customize to your project's specific needs
-- Install auto-update for maintenance-free freshness
-"""
-
-        # Always include the auto-update workflow
-        summary += """
-## The Real Win: Continuous Updates
-
-Regardless of which option you choose, **install Braxis for ongoing freshness:**
+Add this GitHub Actions workflow to keep your AI context files fresh:
 
 ```yaml
 # .github/workflows/ai-context.yml
-name: Update AI Context
+name: Auto-Update AI Context Files
 
 on:
   push:
-    branches: [main, master, devel]  # Adjust for your default branch
+    branches: [main, master]
   schedule:
     - cron: '0 0 * * 0'  # Weekly
 
@@ -1196,56 +1171,132 @@ jobs:
           branch: braxis/auto-update
 ```
 
-**This workflow:**
-- Runs weekly (or on every commit to main)
-- Regenerates context files
-- Uses `--smart-merge` to preserve your custom sections
-- Creates a PR for review
-- AI readiness score updates automatically
-"""
-
-        # Add what we found
-        summary += f"""
-## What Braxis Found (For Reference)
-
-```
-Project:        {self.project_path.name}
-Languages:      {', '.join(self.languages.keys()) if self.languages else 'Unknown'}
-Build System:   {self.build_system or 'Unknown'}
-Test Frameworks: {', '.join(self.test_frameworks) if self.test_frameworks else 'Unknown'}
-AI Readiness:   {ai_readiness}
-
-Total Files:    {len(self.files)}
-Test Files:     {len(self.test_files)}
-Critical Files: {len(self.critical_files)}
-"""
-
-        if self.monorepo_type:
-            summary += f"Monorepo Type:  {self.monorepo_type.upper()} with {len(self.monorepo_subsystems)} subsystems\n"
-
-        summary += """```
-
-## Test Plan
-
-- [ ] Review the generated AGENTS.md to see what we discovered
-- [ ] Decide which option (A, B, or C) works for your project
-- [ ] If accepting files, verify no merge conflicts
-- [ ] Optionally: Set up auto-update workflow for continuous freshness
-- [ ] Verify AI agents can access the context files
+**Once installed, Braxis will:**
+- ✅ Regenerate files weekly (or on every commit)
+- ✅ Preserve any custom sections you add
+- ✅ Create PRs for review - never commits directly
+- ✅ Keep AI readiness score current
+- ✅ Require zero manual maintenance
 
 ## Next Steps
 
-1. **Immediate:** Review this PR, choose your option (A/B/C)
-2. **Short-term:** Merge with chosen approach
-3. **Long-term:** Install Braxis for auto-updates (highly recommended)
+1. **Short-term:** Merge this PR to add the 4 files
+2. **Long-term:** Install the GitHub Actions workflow above for auto-updates
+3. **Ongoing:** Your AI agents will always have fresh context
+"""
 
-## Questions?
+        # CASE 2: Existing high-quality MD files
+        else:
+            summary += f"""
+## We Detected Your Existing Files (Quality Score: {existing['score']}/100)
 
-- **About the files?** See the diff below
-- **About auto-update?** Check [Braxis docs](https://github.com/jaykrishna316/braxis#auto-update)
-- **About AI readiness scoring?** See AGENTS.md Category B section
+You already have valuable custom content in your existing AGENTS.md:
+"""
+            # List what they have
+            custom_sections = [s for s in existing['sections']
+                             if s in ['Skills', 'Package Domain', 'Key Entry Point', 'Gotcha', 'Governance', 'API Reference']]
+            if custom_sections:
+                for section in custom_sections:
+                    summary += f"- ✅ **{section}** — Hand-written expertise\n"
+            else:
+                summary += f"- ✅ Custom AGENTS.md with {len(existing['sections'])} sections\n"
+
+            summary += f"""
+We respect this expertise and recommend **keeping it**.
+
+## What This PR Suggests
+
+We've generated new context files based on current code analysis:
+
+### Recommended Approach
+
+**Option A (Recommended): Keep Your Files + Get Auto-Update Capability**
+- ✅ Keep your existing, hand-maintained AGENTS.md
+- ✅ Accept our CLAUDE.md + .cursorrules + .agentic-config.json
+- ✅ Install Braxis so these files auto-update going forward
+
+**Option B: Review New Sections**
+- Look at our generated AGENTS.md
+- Copy any sections you find valuable
+- Merge them into your existing file manually
+- Install Braxis for auto-updates
+
+**Option C: Accept All Files**
+- Use our generated versions
+- Customize them after merge
+- Install Braxis for auto-updates
+
+## Keep Everything Auto-Updated: Install Braxis
+
+The real value isn't these initial files—it's **keeping your AI context fresh automatically** as your codebase evolves.
+
+Whether you choose Option A, B, or C, install this GitHub Actions workflow:
+
+```yaml
+# .github/workflows/ai-context.yml
+name: Auto-Update AI Context Files
+
+on:
+  push:
+    branches: [main, master, devel]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly
+
+jobs:
+  update-context:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: pip install braxis
+      - run: braxis generate --smart-merge --path .
+      - uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: 'chore: auto-update AI context files'
+          title: 'Auto: Update AI context files'
+          branch: braxis/auto-update
+```
+
+**Why this matters:**
+- Runs weekly (or on main commits)
+- Regenerates all 4 files automatically
+- Uses `--smart-merge` to preserve your hand-written sections
+- Creates PRs for you to review and merge
+- Keeps AI readiness score current
+- **Zero manual maintenance**
+
+## Next Steps
+
+1. **Choose your option** (A, B, or C above)
+2. **Merge this PR** with your choice
+3. **Install the workflow** for automatic updates
+4. Your AI context stays fresh going forward
+"""
+
+        # ALWAYS end with the unified call to action
+        summary += f"""
 
 ---
+
+## Summary: The Value Braxis Provides
+
+**Immediate:** Fresh AI context files (or validation of your existing ones)
+**Ongoing:** Automatic updates keep context in sync with code changes
+
+### To Keep Your AI Context Files Up-to-Date
+
+✅ **Install Braxis** (add the GitHub Actions workflow above)
+
+This ensures:
+- Your AGENTS.md, CLAUDE.md, .cursorrules, and .agentic-config.json stay current
+- AI agents always have accurate project information
+- No manual updates needed - Braxis handles it automatically
+- AI readiness score tracked over time
+
+---
+
+**Questions?**
+- See [Braxis docs](https://github.com/jaykrishna316/braxis) for more info
+- Check the AI readiness breakdown in the generated AGENTS.md
 
 **Generated by [Braxis](https://github.com/jaykrishna316/braxis)** — Keeping AI agents in sync with your code
 """
