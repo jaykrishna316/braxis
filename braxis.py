@@ -1213,7 +1213,7 @@ jobs:
 ```
 
 **Once installed, Braxis will:**
-- ✅ Regenerate files weekly (or on every commit)
+- ✅ Regenerate files on every code push (plus weekly safety check)
 - ✅ Preserve any custom sections you add
 - ✅ Create PRs for review - never commits directly
 - ✅ Keep AI readiness score current
@@ -1249,13 +1249,13 @@ We respect this expertise and recommend **keeping it**.
 
 Even if you choose to keep your existing AGENTS.md now, **installing Braxis enables continuous auto-updates that respect your custom work**:
 
-- **When:** Weekly (or on every commit)
+- **When:** On every code push (automatic) + weekly safety check
 - **What happens:** Braxis regenerates all 4 files using `--smart-merge`
 - **Your sections:** Automatically preserved (Skills, Governance, Package Domains, API Reference, etc.)
 - **New content:** Auto-discovered architecture, test frameworks, entry points stay current
 - **How:** Creates a PR for review - you always see the changes before merging
 
-**This is the real value:** Your custom expertise stays intact, but the auto-generated parts stay fresh with your code.
+**This is the real value:** Your custom expertise stays intact, but the auto-generated parts stay fresh with your code changes.
 
 ## What This PR Suggests
 
@@ -1270,13 +1270,13 @@ We've generated new context files based on current code analysis:
 
 > **How Option A Works with Auto-Updates:**
 >
-> When you install Braxis (via the GitHub Actions workflow), it runs `braxis generate --smart-merge` weekly:
+> When you install Braxis (via the GitHub Actions workflow), it runs `braxis generate --smart-merge` on every code push:
 > 1. Braxis analyzes your current codebase
 > 2. **Automatically preserves** your custom sections (Skills, Governance, Architecture notes, etc.)
 > 3. **Adds new auto-discovered content** (updated entry points, test frameworks, etc.)
 > 4. Creates a PR for you to review before merging
 >
-> **Your custom AGENTS.md sections stay yours.** Braxis just keeps the auto-discovered parts fresh.
+> **Your custom AGENTS.md sections stay yours.** Braxis just keeps the auto-discovered parts fresh with your code changes.
 
 **Option B: Review New Sections**
 - Look at our generated AGENTS.md
@@ -1320,7 +1320,7 @@ jobs:
 ```
 
 **Why this matters:**
-- Runs weekly (or on main commits)
+- Runs on every code push (immediate) + weekly safety check
 - Regenerates all 4 files automatically
 - Uses `--smart-merge` to preserve your hand-written sections
 - Creates PRs for you to review and merge
