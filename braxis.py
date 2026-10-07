@@ -1013,6 +1013,116 @@ Refer to the scoped file when working in that directory."""
 
         return env_section if env_info else ""
 
+    def detect_existing_agents_md(self):
+        """Detect and score existing AGENTS.md for merge decisions."""
+        agents_path = self.project_path / 'AGENTS.md'
+        if not agents_path.exists():
+            return None
+
+        try:
+            content = agents_path.read_text()
+            return {
+                'exists': True,
+                'path': agents_path,
+                'content': content,
+                'score': self._score_agents_md(content),
+                'sections': self._extract_sections(content)
+            }
+        except (IOError, UnicodeDecodeError):
+            return None
+
+    def _score_agents_md(self, content):
+        """Score existing AGENTS.md on completeness and customization."""
+        score = 0
+
+        # Check for custom sections beyond standard auto-generated ones
+        custom_indicators = [
+            'Skills',           # Meteor-style skills
+            'Package Domain',   # Custom domain mapping
+            'Key Entry Point',  # Strategic files
+            'Gotcha',          # Project-specific warnings
+            'Governance',      # Roles/processes
+            'Notes',           # Custom context
+        ]
+
+        for indicator in custom_indicators:
+            if indicator.lower() in content.lower():
+                score += 15
+
+        # Score on section count and completeness
+        section_count = content.count('##')
+        score += min(section_count * 5, 25)
+
+        # Check if it's hand-written (has detailed examples, not generic templates)
+        if len(content) > 2000:
+            score += 10
+
+        return min(score, 100)
+
+    def _extract_sections(self, content):
+        """Extract custom sections from AGENTS.md."""
+        lines = content.split('\n')
+        sections = {}
+        current_section = None
+        current_content = []
+
+        for line in lines:
+            if line.startswith('##') and not line.startswith('###'):
+                if current_section:
+                    sections[current_section] = '\n'.join(current_content).strip()
+                current_section = line.replace('##', '').strip()
+                current_content = []
+            elif current_section:
+                current_content.append(line)
+
+        if current_section:
+            sections[current_section] = '\n'.join(current_content).strip()
+
+        return sections
+
+    def merge_agents_md(self, existing, new_content):
+        """
+        Intelligently merge existing custom sections with new auto-generated content.
+        Preserves hand-maintained sections that score high on customization.
+        """
+        if not existing or existing['score'] < 40:
+            # Existing file is low quality, replace entirely
+            return new_content
+
+        # High-quality existing file - preserve custom sections
+        preserved_sections = [
+            'Skills', 'Package Domain', 'Key Entry Point',
+            'Gotcha', 'Governance', 'Notes', 'Contributing Guidelines',
+            'API Reference', 'Architecture Diagram'
+        ]
+
+        merged_lines = []
+        new_lines = new_content.split('\n')
+        existing_sections = existing['sections']
+
+        # Preserve header
+        merged_lines.append(new_lines[0])  # Title
+        merged_lines.append('')
+
+        # Insert preserved custom sections before auto-generated content
+        for section_name in preserved_sections:
+            if section_name in existing_sections:
+                merged_lines.append(f'## {section_name}')
+                merged_lines.append('')
+                merged_lines.append(existing_sections[section_name])
+                merged_lines.append('')
+                merged_lines.append('---')
+                merged_lines.append('')
+
+        # Append new content (Category A and B sections)
+        merged_lines.extend(new_lines[1:])
+
+        # Add preservation note
+        merged_content = '\n'.join(merged_lines)
+        merged_content += '\n\n> **Note:** This file was regenerated while preserving custom sections from the previous version.\n'
+
+        return merged_content
+
     def generate_agents_md(self):
         """v1.4: Generate dual-format AGENTS.md with Category A (Operations) + Category B (Context)."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
@@ -1900,6 +2010,8 @@ def main():
                         help='Command to run')
     parser.add_argument('--path', default='.', help='Project path')
     parser.add_argument('--trends', action='store_true', help='Show score trends')
+    parser.add_argument('--smart-merge', action='store_true',
+                        help='Intelligently merge existing custom sections with new content (preserve hand-maintained sections)')
     args = parser.parse_args()
 
     if not args.command or args.command not in ['generate', 'score', 'inspect', 'validate', 'history']:
@@ -1947,7 +2059,24 @@ def main():
                     analyzer._write_file_safely(file_path, content)
                     print(f"* {file_path}")
             else:
-                analyzer._write_file_safely('AGENTS.md', analyzer.generate_agents_md())
+                # v1.5: Smart merge logic for AGENTS.md
+                new_agents_md = analyzer.generate_agents_md()
+                if args.smart_merge:
+                    existing = analyzer.detect_existing_agents_md()
+                    if existing and existing['score'] >= 40:
+                        print(f"  Smart merge: Preserving {len(existing['sections'])} custom sections (quality score: {existing['score']}/100)")
+                        agents_md_content = analyzer.merge_agents_md(existing, new_agents_md)
+                    else:
+                        agents_md_content = new_agents_md
+                else:
+                    # Check if existing file would be lost and warn user
+                    existing = analyzer.detect_existing_agents_md()
+                    if existing and existing['score'] >= 50:
+                        print(f"  ℹ️  Existing AGENTS.md has custom content (quality: {existing['score']}/100)")
+                        print(f"     Use --smart-merge to preserve custom sections")
+                    agents_md_content = new_agents_md
+
+                analyzer._write_file_safely('AGENTS.md', agents_md_content)
                 print("* AGENTS.md")
 
             analyzer._write_file_safely('CLAUDE.md', analyzer.generate_claude_md())
