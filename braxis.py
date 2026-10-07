@@ -1080,6 +1080,45 @@ Refer to the scoped file when working in that directory."""
 
         return sections
 
+    def _format_score_breakdown(self):
+        """Format the score breakdown for PR description."""
+        if not self.score_breakdown:
+            return ""
+
+        breakdown_text = "\n### AI Readiness Score Breakdown\n\n"
+        breakdown_text += "| Category | Score | Status |\n"
+        breakdown_text += "|----------|-------|--------|\n"
+
+        # Define max scores and emojis for each category
+        max_scores = {
+            'Architecture': 20,
+            'Testing': 15,
+            'Dependencies': 12,
+            'Conventions': 10,
+            'Entry Points': 10,
+            'Security': 15,
+            'Build': 10,
+            'Documentation': 8,
+        }
+
+        for category, score in self.score_breakdown.items():
+            max_score = max_scores.get(category, 100)
+            percentage = (score / max_score * 100) if max_score > 0 else 0
+
+            if percentage >= 80:
+                status = "✅ Strong"
+            elif percentage >= 60:
+                status = "⚠️ Fair"
+            elif percentage >= 40:
+                status = "⚠️ Needs Work"
+            else:
+                status = "❌ Weak"
+
+            breakdown_text += f"| {category} | {score}/{max_score} | {status} |\n"
+
+        breakdown_text += f"\n**Total: {self.total_score}/100** ({self.tier})\n"
+        return breakdown_text
+
     def generate_pr_description(self):
         """Generate PR description for Braxis context files - unified messaging for both cases.
 
@@ -1090,6 +1129,7 @@ Refer to the scoped file when working in that directory."""
         """
         existing = self.detect_existing_agents_md()
         ai_readiness = f"{self.total_score}/100 ({self.tier})"
+        score_breakdown = self._format_score_breakdown()
 
         # ALWAYS start with: We generated these files
         summary = f"""# Braxis: AI Context Files + Continuous Auto-Update
@@ -1103,6 +1143,7 @@ We've analyzed {self.project_path.name} and generated AI-ready context files:
 
 **AI Readiness Score:** {ai_readiness}
 
+{score_breakdown}
 ---
 """
 
