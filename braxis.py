@@ -1219,11 +1219,24 @@ jobs:
 - ✅ Keep AI readiness score current
 - ✅ Require zero manual maintenance
 
+### 💡 Even If You Reject This PR
+
+Not ready to add these files to your repo? **You can still benefit from Braxis:**
+
+- ✅ Install just the GitHub Actions workflow (skip the file commit)
+- ✅ Braxis will generate context files on your machine/CI system
+- ✅ Use them for local AI agent guidance without repo changes
+- ✅ When ready, the files are ready to merge - no wasted setup
+
+**The workflow is flexible - use what helps you most.**
+
 ## Next Steps
 
-1. **Short-term:** Merge this PR to add the 4 files
+1. **Short-term:** Merge this PR to add the 4 files (recommended) OR just use the workflow
 2. **Long-term:** Install the GitHub Actions workflow above for auto-updates
 3. **Ongoing:** Your AI agents will always have fresh context
+
+**Note:** The workflow works with or without accepting these files.
 """
 
         # CASE 2: Existing high-quality MD files
@@ -1360,12 +1373,28 @@ jobs:
 - Keeps AI readiness score current without noise
 - **Zero manual maintenance, minimal PR spam**
 
+### 💡 Even If You Reject This PR
+
+Choosing not to merge this PR? **Installing Braxis still helps:**
+
+- ✅ Your existing AGENTS.md stays unchanged
+- ✅ Braxis auto-detects your custom file using smart-merge
+- ✅ Weekly auto-updates keep your context fresh (no noise, only significant changes)
+- ✅ Your hand-written sections are always preserved
+- ✅ New auto-discovered content integrates smoothly
+
+**The decision is yours on the files, but the workflow benefit is always available.**
+
+Even repo owners who prefer their own AGENTS.md can benefit from continuous updates that respect their choices.
+
 ## Next Steps
 
 1. **Choose your option** (A, B, or C above)
-2. **Merge this PR** with your choice
+2. **Merge this PR** with your choice (or decline it)
 3. **Install the workflow** for automatic updates
 4. Your AI context stays fresh going forward
+
+**Note:** Installing the Braxis workflow works whether you merge this PR or not.
 """
 
         # ALWAYS end with the unified call to action
