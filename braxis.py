@@ -1245,6 +1245,18 @@ You already have valuable custom content in your existing AGENTS.md:
             summary += f"""
 We respect this expertise and recommend **keeping it**.
 
+### ⭐ The Real Win: Auto-Update While Preserving Your Work
+
+Even if you choose to keep your existing AGENTS.md now, **installing Braxis enables continuous auto-updates that respect your custom work**:
+
+- **When:** Weekly (or on every commit)
+- **What happens:** Braxis regenerates all 4 files using `--smart-merge`
+- **Your sections:** Automatically preserved (Skills, Governance, Package Domains, API Reference, etc.)
+- **New content:** Auto-discovered architecture, test frameworks, entry points stay current
+- **How:** Creates a PR for review - you always see the changes before merging
+
+**This is the real value:** Your custom expertise stays intact, but the auto-generated parts stay fresh with your code.
+
 ## What This PR Suggests
 
 We've generated new context files based on current code analysis:
@@ -1255,6 +1267,16 @@ We've generated new context files based on current code analysis:
 - ✅ Keep your existing, hand-maintained AGENTS.md
 - ✅ Accept our CLAUDE.md + .cursorrules + .agentic-config.json
 - ✅ Install Braxis so these files auto-update going forward
+
+> **How Option A Works with Auto-Updates:**
+>
+> When you install Braxis (via the GitHub Actions workflow), it runs `braxis generate --smart-merge` weekly:
+> 1. Braxis analyzes your current codebase
+> 2. **Automatically preserves** your custom sections (Skills, Governance, Architecture notes, etc.)
+> 3. **Adds new auto-discovered content** (updated entry points, test frameworks, etc.)
+> 4. Creates a PR for you to review before merging
+>
+> **Your custom AGENTS.md sections stay yours.** Braxis just keeps the auto-discovered parts fresh.
 
 **Option B: Review New Sections**
 - Look at our generated AGENTS.md
