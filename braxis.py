@@ -1013,51 +1013,70 @@ Refer to the scoped file when working in that directory."""
 
         return env_section if env_info else ""
 
-    def detect_existing_agents_md(self):
-        """Detect and score existing AGENTS.md for merge decisions."""
-        agents_path = self.project_path / 'AGENTS.md'
-        if not agents_path.exists():
+    def detect_existing_file(self, filename):
+        """Generic: Detect and score existing file for merge decisions."""
+        file_path = self.project_path / filename
+        if not file_path.exists():
             return None
 
         try:
-            content = agents_path.read_text()
+            content = file_path.read_text()
+            score = self._score_file_quality(content, filename)
             return {
                 'exists': True,
-                'path': agents_path,
+                'path': file_path,
                 'content': content,
-                'score': self._score_agents_md(content),
-                'sections': self._extract_sections(content)
+                'score': score,
+                'sections': self._extract_sections(content) if filename.endswith('.md') else {}
             }
         except (IOError, UnicodeDecodeError):
             return None
 
-    def _score_agents_md(self, content):
-        """Score existing AGENTS.md on completeness and customization."""
+    def detect_existing_agents_md(self):
+        """Detect and score existing AGENTS.md for merge decisions."""
+        return self.detect_existing_file('AGENTS.md')
+
+    def _score_file_quality(self, content, filename):
+        """Score file quality for hand-written vs auto-generated content."""
         score = 0
 
-        # Check for custom sections beyond standard auto-generated ones
+        # Base score on file length (hand-written content tends to be longer)
+        if len(content) > 500:
+            score += 20
+        if len(content) > 1500:
+            score += 15
+        if len(content) > 3000:
+            score += 10
+
+        # Check for custom/meaningful content patterns
         custom_indicators = [
-            'Skills',           # Meteor-style skills
-            'Package Domain',   # Custom domain mapping
-            'Key Entry Point',  # Strategic files
-            'Gotcha',          # Project-specific warnings
-            'Governance',      # Roles/processes
-            'Notes',           # Custom context
+            'Skills', 'Package Domain', 'Key Entry Point',
+            'Gotcha', 'Governance', 'Notes', 'Contributing Guidelines',
+            'API Reference', 'Architecture Diagram'
         ]
 
         for indicator in custom_indicators:
             if indicator.lower() in content.lower():
-                score += 15
+                score += 10
 
-        # Score on section count and completeness
+        # Bonus for code examples (indicates hand-written)
+        if '```' in content:
+            score += 15
+
+        # Penalty for generic/template text
+        generic_patterns = ['TODO', 'FIXME', '...', '[Your', 'Replace this']
+        generic_count = sum(1 for p in generic_patterns if p in content)
+        score -= generic_count * 5
+
+        # Section count bonus
         section_count = content.count('##')
-        score += min(section_count * 5, 25)
+        score += min(section_count * 3, 15)
 
-        # Check if it's hand-written (has detailed examples, not generic templates)
-        if len(content) > 2000:
-            score += 10
+        return min(max(score, 0), 100)
 
-        return min(score, 100)
+    def _score_agents_md(self, content):
+        """Score existing AGENTS.md on completeness and customization."""
+        return self._score_file_quality(content, 'AGENTS.md')
 
     def _extract_sections(self, content):
         """Extract custom sections from AGENTS.md."""
@@ -1427,48 +1446,61 @@ This ensures:
 """
         return summary
 
-    def merge_agents_md(self, existing, new_content):
+    def merge_file_content(self, filename, existing, new_content):
         """
-        Intelligently merge existing custom sections with new auto-generated content.
-        Preserves hand-maintained sections that score high on customization.
+        Intelligently merge existing custom content with new auto-generated content.
+        Works for any text file: AGENTS.md, CLAUDE.md, .cursorrules, .agentic-config.json
         """
         if not existing or existing['score'] < 40:
             # Existing file is low quality, replace entirely
             return new_content
 
-        # High-quality existing file - preserve custom sections
-        preserved_sections = [
-            'Skills', 'Package Domain', 'Key Entry Point',
-            'Gotcha', 'Governance', 'Notes', 'Contributing Guidelines',
-            'API Reference', 'Architecture Diagram'
-        ]
+        # For Markdown files (.md), preserve custom sections
+        if filename.endswith('.md'):
+            preserved_sections = [
+                'Skills', 'Package Domain', 'Key Entry Point',
+                'Gotcha', 'Governance', 'Notes', 'Contributing Guidelines',
+                'API Reference', 'Architecture Diagram'
+            ]
 
-        merged_lines = []
-        new_lines = new_content.split('\n')
-        existing_sections = existing['sections']
+            merged_lines = []
+            new_lines = new_content.split('\n')
+            existing_sections = existing['sections']
 
-        # Preserve header
-        merged_lines.append(new_lines[0])  # Title
-        merged_lines.append('')
-
-        # Insert preserved custom sections before auto-generated content
-        for section_name in preserved_sections:
-            if section_name in existing_sections:
-                merged_lines.append(f'## {section_name}')
-                merged_lines.append('')
-                merged_lines.append(existing_sections[section_name])
-                merged_lines.append('')
-                merged_lines.append('---')
+            # Preserve header
+            if new_lines:
+                merged_lines.append(new_lines[0])  # Title
                 merged_lines.append('')
 
-        # Append new content (Category A and B sections)
-        merged_lines.extend(new_lines[1:])
+            # Insert preserved custom sections before auto-generated content
+            for section_name in preserved_sections:
+                if section_name in existing_sections:
+                    merged_lines.append(f'## {section_name}')
+                    merged_lines.append('')
+                    merged_lines.append(existing_sections[section_name])
+                    merged_lines.append('')
+                    merged_lines.append('---')
+                    merged_lines.append('')
 
-        # Add preservation note
-        merged_content = '\n'.join(merged_lines)
-        merged_content += '\n\n> **Note:** This file was regenerated while preserving custom sections from the previous version.\n'
+            # Append new content
+            merged_lines.extend(new_lines[1:] if len(new_lines) > 1 else [])
 
-        return merged_content
+            # Add preservation note
+            merged_content = '\n'.join(merged_lines)
+            merged_content += '\n\n> **Note:** This file was regenerated while preserving custom sections from the previous version.\n'
+            return merged_content
+
+        # For config files (.cursorrules, .agentic-config.json), do simple preservation
+        # If existing file is high quality, keep it as-is
+        if existing['score'] >= 60:
+            return existing['content']
+        else:
+            # Low-medium quality: return new generated content
+            return new_content
+
+    def merge_agents_md(self, existing, new_content):
+        """Merge for AGENTS.md (delegates to generic merge_file_content)."""
+        return self.merge_file_content('AGENTS.md', existing, new_content)
 
     def generate_agents_md(self):
         """v1.4: Generate dual-format AGENTS.md with Category A (Operations) + Category B (Context)."""
@@ -2426,11 +2458,58 @@ def main():
                 analyzer._write_file_safely('AGENTS.md', agents_md_content)
                 print("* AGENTS.md")
 
-            analyzer._write_file_safely('CLAUDE.md', analyzer.generate_claude_md())
+            # Smart-merge for CLAUDE.md
+            new_claude_md = analyzer.generate_claude_md()
+            if args.smart_merge:
+                existing_claude = analyzer.detect_existing_file('CLAUDE.md')
+                if existing_claude and existing_claude['score'] >= 40:
+                    print(f"  Smart merge: Preserving CLAUDE.md (quality score: {existing_claude['score']}/100)")
+                    claude_md_content = analyzer.merge_file_content('CLAUDE.md', existing_claude, new_claude_md)
+                else:
+                    claude_md_content = new_claude_md
+            else:
+                existing_claude = analyzer.detect_existing_file('CLAUDE.md')
+                if existing_claude and existing_claude['score'] >= 50:
+                    print(f"  ℹ️  Existing CLAUDE.md has custom content (quality: {existing_claude['score']}/100)")
+                    print(f"     Use --smart-merge to preserve it")
+                claude_md_content = new_claude_md
+            analyzer._write_file_safely('CLAUDE.md', claude_md_content)
             print("* CLAUDE.md")
-            analyzer._write_file_safely('.cursorrules', analyzer.generate_cursorrules())
+
+            # Smart-merge for .cursorrules
+            new_cursorrules = analyzer.generate_cursorrules()
+            if args.smart_merge:
+                existing_cursorrules = analyzer.detect_existing_file('.cursorrules')
+                if existing_cursorrules and existing_cursorrules['score'] >= 40:
+                    print(f"  Smart merge: Preserving .cursorrules (quality score: {existing_cursorrules['score']}/100)")
+                    cursorrules_content = analyzer.merge_file_content('.cursorrules', existing_cursorrules, new_cursorrules)
+                else:
+                    cursorrules_content = new_cursorrules
+            else:
+                existing_cursorrules = analyzer.detect_existing_file('.cursorrules')
+                if existing_cursorrules and existing_cursorrules['score'] >= 50:
+                    print(f"  ℹ️  Existing .cursorrules has custom content (quality: {existing_cursorrules['score']}/100)")
+                    print(f"     Use --smart-merge to preserve it")
+                cursorrules_content = new_cursorrules
+            analyzer._write_file_safely('.cursorrules', cursorrules_content)
             print("* .cursorrules")
-            analyzer._write_file_safely('.agentic-config.json', analyzer.generate_agentic_config())
+
+            # Smart-merge for .agentic-config.json
+            new_agentic_config = analyzer.generate_agentic_config()
+            if args.smart_merge:
+                existing_agentic = analyzer.detect_existing_file('.agentic-config.json')
+                if existing_agentic and existing_agentic['score'] >= 40:
+                    print(f"  Smart merge: Preserving .agentic-config.json (quality score: {existing_agentic['score']}/100)")
+                    agentic_config_content = analyzer.merge_file_content('.agentic-config.json', existing_agentic, new_agentic_config)
+                else:
+                    agentic_config_content = new_agentic_config
+            else:
+                existing_agentic = analyzer.detect_existing_file('.agentic-config.json')
+                if existing_agentic and existing_agentic['score'] >= 50:
+                    print(f"  ℹ️  Existing .agentic-config.json has custom content (quality: {existing_agentic['score']}/100)")
+                    print(f"     Use --smart-merge to preserve it")
+                agentic_config_content = new_agentic_config
+            analyzer._write_file_safely('.agentic-config.json', agentic_config_content)
             print("* .agentic-config.json")
 
             # v1.1: Report MCP and monorepo info
