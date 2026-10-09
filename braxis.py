@@ -163,11 +163,11 @@ class BraxisAnalyzer:
         if self.monorepo_type:
             self.monorepo_subsystems = self.get_monorepo_subsystems()
         self.mcp_servers = self.detect_mcp_servers()
-        # v2.1: Detect project domains
-        self.detected_domain = self._detect_project_domain()
+        # v2.1: Detect project domains (must detect patterns BEFORE classifying domain)
         self.agent_patterns = self._detect_agent_patterns()
         self.ecommerce_patterns = self._detect_ecommerce_patterns()
         self.ml_patterns = self._detect_ml_patterns()
+        self.detected_domain = self._detect_project_domain()
         self._calculate_score()
 
     def _scan_files(self):
