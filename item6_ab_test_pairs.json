@@ -1,0 +1,227 @@
+{
+  "timestamp": "2026-10-09T04:21:44.756920",
+  "study": "Item #6: Real-Analysis vs Template A/B Test",
+  "total_pairs": 10,
+  "pairs": [
+    {
+      "pair_id": "pair_01",
+      "task_type": "SECURITY",
+      "task_title": "Sanitize file paths in output",
+      "control_task": {
+        "pair_id": "pair_01",
+        "task_id": "SECURITY_002_control",
+        "type": "SECURITY",
+        "title": "Sanitize file paths in output",
+        "context_method": "template",
+        "description": "When displaying file paths in analysis output, ensure no sensitive paths are exposed"
+      },
+      "treatment_task": {
+        "pair_id": "pair_01",
+        "task_id": "SECURITY_002_treatment",
+        "type": "SECURITY",
+        "title": "Sanitize file paths in output",
+        "context_method": "real_analysis",
+        "description": "When displaying file paths in analysis output, ensure no sensitive paths are exposed"
+      },
+      "randomization_order": "treatment_first"
+    },
+    {
+      "pair_id": "pair_02",
+      "task_type": "ADD_ENDPOINT",
+      "task_title": "Add 'braxis benchmark' command",
+      "control_task": {
+        "pair_id": "pair_02",
+        "task_id": "ADD_COMMAND_003_control",
+        "type": "ADD_ENDPOINT",
+        "title": "Add 'braxis benchmark' command",
+        "context_method": "template",
+        "description": "Add command to run security scanning benchmark against test cases"
+      },
+      "treatment_task": {
+        "pair_id": "pair_02",
+        "task_id": "ADD_COMMAND_003_treatment",
+        "type": "ADD_ENDPOINT",
+        "title": "Add 'braxis benchmark' command",
+        "context_method": "real_analysis",
+        "description": "Add command to run security scanning benchmark against test cases"
+      },
+      "randomization_order": "treatment_first"
+    },
+    {
+      "pair_id": "pair_03",
+      "task_type": "FIX_BUG",
+      "task_title": "Fix: Confidence level display formatting",
+      "control_task": {
+        "pair_id": "pair_03",
+        "task_id": "FIX_BUG_002_control",
+        "type": "FIX_BUG",
+        "title": "Fix: Confidence level display formatting",
+        "context_method": "template",
+        "description": "When displaying confidence levels (e.g., '72%'), sometimes formatting is inconsistent. Ensure all confidence metrics use 2 decimal places."
+      },
+      "treatment_task": {
+        "pair_id": "pair_03",
+        "task_id": "FIX_BUG_002_treatment",
+        "type": "FIX_BUG",
+        "title": "Fix: Confidence level display formatting",
+        "context_method": "real_analysis",
+        "description": "When displaying confidence levels (e.g., '72%'), sometimes formatting is inconsistent. Ensure all confidence metrics use 2 decimal places."
+      },
+      "randomization_order": "treatment_first"
+    },
+    {
+      "pair_id": "pair_04",
+      "task_type": "FIX_BUG",
+      "task_title": "Fix: Complexity detection missing FastAPI custom wrappers",
+      "control_task": {
+        "pair_id": "pair_04",
+        "task_id": "FIX_BUG_001_control",
+        "type": "FIX_BUG",
+        "title": "Fix: Complexity detection missing FastAPI custom wrappers",
+        "context_method": "template",
+        "description": "Braxis doesn't detect FastAPI when used via internal wrapper (e.g., 'from my_fastapi_wrapper import FastAPI'). Add detection for indirect imports."
+      },
+      "treatment_task": {
+        "pair_id": "pair_04",
+        "task_id": "FIX_BUG_001_treatment",
+        "type": "FIX_BUG",
+        "title": "Fix: Complexity detection missing FastAPI custom wrappers",
+        "context_method": "real_analysis",
+        "description": "Braxis doesn't detect FastAPI when used via internal wrapper (e.g., 'from my_fastapi_wrapper import FastAPI'). Add detection for indirect imports."
+      },
+      "randomization_order": "treatment_first"
+    },
+    {
+      "pair_id": "pair_05",
+      "task_type": "ADD_TEST",
+      "task_title": "Add tests for context relevance correlation",
+      "control_task": {
+        "pair_id": "pair_05",
+        "task_id": "ADD_TEST_003_control",
+        "type": "ADD_TEST",
+        "title": "Add tests for context relevance correlation",
+        "context_method": "template",
+        "description": "Add tests verifying context relevance score correlates with agent task success"
+      },
+      "treatment_task": {
+        "pair_id": "pair_05",
+        "task_id": "ADD_TEST_003_treatment",
+        "type": "ADD_TEST",
+        "title": "Add tests for context relevance correlation",
+        "context_method": "real_analysis",
+        "description": "Add tests verifying context relevance score correlates with agent task success"
+      },
+      "randomization_order": "control_first"
+    },
+    {
+      "pair_id": "pair_06",
+      "task_type": "ADD_ENDPOINT",
+      "task_title": "Add 'braxis template' command",
+      "control_task": {
+        "pair_id": "pair_06",
+        "task_id": "ADD_COMMAND_004_control",
+        "type": "ADD_ENDPOINT",
+        "title": "Add 'braxis template' command",
+        "context_method": "template",
+        "description": "Add command to generate template-based context (for A/B testing)"
+      },
+      "treatment_task": {
+        "pair_id": "pair_06",
+        "task_id": "ADD_COMMAND_004_treatment",
+        "type": "ADD_ENDPOINT",
+        "title": "Add 'braxis template' command",
+        "context_method": "real_analysis",
+        "description": "Add command to generate template-based context (for A/B testing)"
+      },
+      "randomization_order": "control_first"
+    },
+    {
+      "pair_id": "pair_07",
+      "task_type": "ADD_ENDPOINT",
+      "task_title": "Add 'braxis score' command",
+      "control_task": {
+        "pair_id": "pair_07",
+        "task_id": "ADD_COMMAND_001_control",
+        "type": "ADD_ENDPOINT",
+        "title": "Add 'braxis score' command",
+        "context_method": "template",
+        "description": "Add a new subcommand 'braxis score' that displays the AI readiness score for the current project"
+      },
+      "treatment_task": {
+        "pair_id": "pair_07",
+        "task_id": "ADD_COMMAND_001_treatment",
+        "type": "ADD_ENDPOINT",
+        "title": "Add 'braxis score' command",
+        "context_method": "real_analysis",
+        "description": "Add a new subcommand 'braxis score' that displays the AI readiness score for the current project"
+      },
+      "randomization_order": "control_first"
+    },
+    {
+      "pair_id": "pair_08",
+      "task_type": "ADD_TEST",
+      "task_title": "Add tests for complexity formula edge cases",
+      "control_task": {
+        "pair_id": "pair_08",
+        "task_id": "ADD_TEST_001_control",
+        "type": "ADD_TEST",
+        "title": "Add tests for complexity formula edge cases",
+        "context_method": "template",
+        "description": "Add test cases for complexity estimation with edge cases: 0 files, extremely large repos, monorepos"
+      },
+      "treatment_task": {
+        "pair_id": "pair_08",
+        "task_id": "ADD_TEST_001_treatment",
+        "type": "ADD_TEST",
+        "title": "Add tests for complexity formula edge cases",
+        "context_method": "real_analysis",
+        "description": "Add test cases for complexity estimation with edge cases: 0 files, extremely large repos, monorepos"
+      },
+      "randomization_order": "control_first"
+    },
+    {
+      "pair_id": "pair_09",
+      "task_type": "SECURITY",
+      "task_title": "Add input validation to repo path parameter",
+      "control_task": {
+        "pair_id": "pair_09",
+        "task_id": "SECURITY_001_control",
+        "type": "SECURITY",
+        "title": "Add input validation to repo path parameter",
+        "context_method": "template",
+        "description": "Ensure repo_path parameter is validated before analysis: must exist, must be readable, must not be outside current user's home dir"
+      },
+      "treatment_task": {
+        "pair_id": "pair_09",
+        "task_id": "SECURITY_001_treatment",
+        "type": "SECURITY",
+        "title": "Add input validation to repo path parameter",
+        "context_method": "real_analysis",
+        "description": "Ensure repo_path parameter is validated before analysis: must exist, must be readable, must not be outside current user's home dir"
+      },
+      "randomization_order": "control_first"
+    },
+    {
+      "pair_id": "pair_10",
+      "task_type": "REFACTOR",
+      "task_title": "Extract security scanning into separate module",
+      "control_task": {
+        "pair_id": "pair_10",
+        "task_id": "REFACTOR_002_control",
+        "type": "REFACTOR",
+        "title": "Extract security scanning into separate module",
+        "context_method": "template",
+        "description": "Move security scanning logic from braxis.py into security.py module"
+      },
+      "treatment_task": {
+        "pair_id": "pair_10",
+        "task_id": "REFACTOR_002_treatment",
+        "type": "REFACTOR",
+        "title": "Extract security scanning into separate module",
+        "context_method": "real_analysis",
+        "description": "Move security scanning logic from braxis.py into security.py module"
+      },
+      "randomization_order": "control_first"
+    }
+  ]
+}
