@@ -4,7 +4,7 @@ Context file for AI agents working on braxis.
 
 **Dual Format**: This file combines Category A (Operations Manual) and Category B (Context Guide) for comprehensive agent guidance.
 
-**Domain Detected:** Generic (Based on codebase patterns)
+**Domain Detected:** Ml / Training (Based on codebase patterns)
 
 ## Project Overview
 
@@ -14,13 +14,50 @@ braxis is a Python project using Python (setuptools).
 - **Primary Language:** Python
 - **Build System:** Python (setuptools)
 - **Test Framework:** unittest
-- **Total Files:** 35
-- **Test Files:** 1
-- **AI Readiness Score:** 65/100 (AI-Native)
+- **Total Files:** 60
+- **Test Files:** 15
+- **AI Readiness Score:** 70/100 (AI-Native-Plus)
 
 ---
 
 
+
+## 🧠 Machine Learning Architecture
+
+This is a machine learning or model training system.
+
+### Key Components
+
+- **Data Pipeline:** Data loading, preprocessing, augmentation
+- **Model Definition:** Architecture, hyperparameters, checkpoints
+- **Training Loop:** Loss calculation, gradient updates, validation
+- **Inference:** Model predictions, batch processing, latency optimization
+- **Evaluation:** Metrics, benchmarks, comparison to baselines
+
+### Critical Areas
+
+1. **Data Leakage:** Ensure train/test/validation splits are isolated
+2. **Reproducibility:** Set random seeds; version datasets and models
+3. **Resource Management:** Monitor memory, GPU usage during training
+4. **Versioning:** Track model checkpoints, hyperparameters, and results
+5. **Evaluation Rigor:** Use proper metrics; avoid optimizing to test set
+
+### Testing Strategy
+
+- **Data Pipeline Tests:** Verify shape, type, and value ranges
+- **Model Tests:** Check predictions with synthetic/known inputs
+- **Training Tests:** Verify loss decreases on toy datasets
+- **Inference Tests:** Check latency and memory usage
+- **Regression Tests:** Compare results against baseline models
+
+
+
+### Detected Frameworks
+
+| Framework | Version | Detection Type |
+|-----------|---------|-----------------|
+| pytest | unknown | Direct import |
+| unittest | unknown | Direct import |
 
 
 
@@ -42,7 +79,7 @@ This section provides architectural context and agent-understanding for the code
 braxis/
 ├── setup.py
 ├── src/                  # Source code
-├── tests/                # Test suite (1 files)
+├── tests/                # Test suite (15 files)
 └── README.md             # Project documentation
 ```
 
@@ -50,7 +87,7 @@ braxis/
 
 #### Key Components
 - **Main Entry:** Standard layout
-- **Test Suite:** 1 test files
+- **Test Suite:** 15 test files
 - **Build Configuration:** setup.py
 
 #### Design Principles
@@ -65,8 +102,7 @@ braxis/
 
 | Directory | Purpose |
 |-----------|----------|
-| `src/` or project root | Main source code |
-| `tests/` or `test/` | Test suite |
+| `tests/` | Test suite |
 
 
 ### Development Workflow
@@ -110,7 +146,7 @@ mypy .                    # Type checking (if configured)
 ### Testing Strategy
 
 **Framework:** unittest
-**Test Files:** 1 found
+**Test Files:** 15 found
 
 Before committing:
 1. Run the full test suite: `pytest`
