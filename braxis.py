@@ -62,6 +62,9 @@ class BraxisAnalyzer:
         self.agent_patterns = []
         self.ecommerce_patterns = []
         self.ml_patterns = []
+        # v2.2 features: Framework detection
+        self.frameworks = {}
+        self.framework_detection_depth = 1  # 0=fast, 1=balanced (default), 2=deep
 
     def _validate_project_path(self, project_path):
         """Validate and normalize project path."""
@@ -150,6 +153,7 @@ class BraxisAnalyzer:
         self._detect_languages()
         self._detect_build_system()
         self._detect_test_framework()
+        self._detect_frameworks()  # v2.2: Framework detection
         self._detect_conventions()
         self._identify_critical_files()
         # Detect project structure, Python version, and repository URL
@@ -395,6 +399,55 @@ class BraxisAnalyzer:
                 test_frameworks.add("None detected")
 
         self.test_frameworks = test_frameworks
+
+    def _detect_frameworks(self):
+        """Detect frameworks using AST-based analysis."""
+        try:
+            from framework_detector import FrameworkDetector, JavaScriptFrameworkDetector
+        except ImportError:
+            # Framework detector not available, skip
+            return
+
+        primary_lang = self._get_primary_language()
+
+        if primary_lang == 'python':
+            try:
+                detector = FrameworkDetector(str(self.project_path))
+                self.frameworks = detector.detect_frameworks(
+                    scan_depth=self.framework_detection_depth
+                )
+            except Exception:
+                # Detection failed silently, frameworks will be empty
+                pass
+
+        elif primary_lang in ['javascript', 'typescript']:
+            try:
+                detector = JavaScriptFrameworkDetector(str(self.project_path))
+                self.frameworks = detector.detect_frameworks()
+            except Exception:
+                pass
+
+    def _generate_frameworks_section(self):
+        """Generate frameworks section for AGENTS.md."""
+        if not self.frameworks:
+            return ""
+
+        table_rows = []
+        for framework, info in sorted(self.frameworks.items()):
+            detection_type = "Direct import" if info.get('direct', False) else "Wrapped/Re-exported"
+            version = info.get('version', 'unknown')
+            table_rows.append(f"| {framework} | {version} | {detection_type} |")
+
+        if not table_rows:
+            return ""
+
+        return f"""### Detected Frameworks
+
+| Framework | Version | Detection Type |
+|-----------|---------|-----------------|
+{chr(10).join(table_rows)}
+
+"""
 
     def _detect_naming_patterns(self):
         """Detect actual naming conventions used in the codebase."""
@@ -1969,6 +2022,9 @@ This is a machine learning or model training system.
         ml_domain_section = self._generate_ml_domain_section()
         domain_sections = agent_domain_section + ecommerce_domain_section + ml_domain_section
 
+        # v2.2: Generate frameworks section
+        frameworks_section = self._generate_frameworks_section()
+
         return f"""# AGENTS.md
 
 Context file for AI agents working on {self.project_path.name}.
@@ -1994,6 +2050,8 @@ Context file for AI agents working on {self.project_path.name}.
 {category_a_section}
 
 {domain_sections}
+
+{frameworks_section}
 
 ## 🏗️ Architecture & Context Guide
 
@@ -3175,6 +3233,8 @@ def main():
     parser.add_argument('--trends', action='store_true', help='Show score trends')
     parser.add_argument('--smart-merge', action='store_true',
                         help='Intelligently merge existing custom sections with new content (preserve hand-maintained sections)')
+    parser.add_argument('--framework-detection', choices=['fast', 'balanced', 'deep'], default='balanced',
+                        help='Framework detection strategy (fast=pattern, balanced=AST, deep=AST+wrappers)')
     args = parser.parse_args()
 
     if not args.command or args.command not in ['generate', 'score', 'inspect', 'validate', 'history']:
@@ -3204,6 +3264,9 @@ def main():
 
     try:
         analyzer = BraxisAnalyzer(args.path)
+        # Map framework detection strategy to depth
+        detection_depth_map = {'fast': 0, 'balanced': 1, 'deep': 2}
+        analyzer.framework_detection_depth = detection_depth_map.get(args.framework_detection, 1)
         analyzer.analyze()
     except (ValueError, FileNotFoundError, NotADirectoryError) as e:
         print(f"Error: {e}", file=sys.stderr)
