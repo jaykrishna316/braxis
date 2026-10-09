@@ -161,7 +161,9 @@ Braxis complexity metrics (file count, py files, CI/CD presence) + formula → a
 
 ---
 
-## Item #3 - Benchmark Against Semgrep/CodeQL/Bandit
+## COMPLETED: Item #3 - Benchmark Against Semgrep/CodeQL/Bandit
+
+**Status:** ✅ DONE (2026-10-09)
 
 **Priority:** HIGH  
 **Effort:** 80 hours  
@@ -876,4 +878,4 @@ For the full backlog:
 ---
 
 *Last updated: 2026-10-09*  
-*Status: 4/10 complete (35%), frameworks ready for 2/10 items, 220 hours of validation work completed*
+*Status: 5/10 complete (50%), 300 hours of validation/benchmark work completed, 2/10 frameworks ready*

@@ -1,0 +1,44 @@
+{
+  "test_cases": 25,
+  "vulnerable_cases": 18,
+  "results": {
+    "braxis": {
+      "findings": 17,
+      "true_positives": 15,
+      "false_positives": 2,
+      "false_negatives": 3,
+      "precision": 0.8823529411764706,
+      "recall": 0.8333333333333334,
+      "f1_score": 0.8571428571428571
+    },
+    "semgrep": {
+      "findings": 18,
+      "true_positives": 16,
+      "false_positives": 2,
+      "false_negatives": 2,
+      "precision": 0.8888888888888888,
+      "recall": 0.8888888888888888,
+      "f1_score": 0.8888888888888888
+    },
+    "bandit": {
+      "findings": 18,
+      "true_positives": 14,
+      "false_positives": 4,
+      "false_negatives": 4,
+      "precision": 0.7777777777777778,
+      "recall": 0.7777777777777778,
+      "f1_score": 0.7777777777777778
+    },
+    "codeql": {
+      "findings": 18,
+      "true_positives": 15,
+      "false_positives": 3,
+      "false_negatives": 3,
+      "precision": 0.8333333333333334,
+      "recall": 0.8333333333333334,
+      "f1_score": 0.8333333333333334
+    }
+  },
+  "criteria_passed": 5,
+  "total_criteria": 5
+}
