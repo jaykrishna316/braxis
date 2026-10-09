@@ -3029,6 +3029,12 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
             for s in subsystems
         ])
 
+        # v2.2: Include Category A extraction in monorepo root context
+        category_a_content = self._extract_category_a_content()
+        category_a_section = self._format_category_a_section(category_a_content)
+
+        category_a_block = f"{category_a_section}\n---\n\n" if category_a_section else ""
+
         return f"""# {self.project_path.name} - Agent Context
 
 {self.project_path.name} is a {monorepo_type} monorepo with {len(subsystems)} major subsystems.
@@ -3044,6 +3050,8 @@ Scoped files contain subsystem-specific rules and conventions.
 - **Root AGENTS.md**: General patterns, monorepo gotchas, architecture overview
 - **Subsystem AGENTS.md**: Backend, frontend, CLI, etc. - specific rules per subsystem
 - **Feature AGENTS.md**: Deep dives for complex features (if present)
+
+{category_a_block}
 
 ## Subsystems
 
