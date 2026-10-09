@@ -64,7 +64,7 @@ class BraxisAnalyzer:
         self.ml_patterns = []
         # v2.2 features: Framework detection
         self.frameworks = {}
-        self.framework_detection_depth = 1  # 0=fast, 1=balanced (default), 2=deep
+        self.framework_detection_depth = 2  # 0=fast, 1=balanced, 2=deep (default)
 
     def _validate_project_path(self, project_path):
         """Validate and normalize project path."""
@@ -3233,7 +3233,7 @@ def main():
     parser.add_argument('--trends', action='store_true', help='Show score trends')
     parser.add_argument('--smart-merge', action='store_true',
                         help='Intelligently merge existing custom sections with new content (preserve hand-maintained sections)')
-    parser.add_argument('--framework-detection', choices=['fast', 'balanced', 'deep'], default='balanced',
+    parser.add_argument('--framework-detection', choices=['fast', 'balanced', 'deep'], default='deep',
                         help='Framework detection strategy (fast=pattern, balanced=AST, deep=AST+wrappers)')
     args = parser.parse_args()
 
@@ -3266,7 +3266,7 @@ def main():
         analyzer = BraxisAnalyzer(args.path)
         # Map framework detection strategy to depth
         detection_depth_map = {'fast': 0, 'balanced': 1, 'deep': 2}
-        analyzer.framework_detection_depth = detection_depth_map.get(args.framework_detection, 1)
+        analyzer.framework_detection_depth = detection_depth_map.get(args.framework_detection, 2)
         analyzer.analyze()
     except (ValueError, FileNotFoundError, NotADirectoryError) as e:
         print(f"Error: {e}", file=sys.stderr)
