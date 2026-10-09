@@ -1,0 +1,278 @@
+{
+  "timestamp": "2026-10-09T04:14:00.817487",
+  "study": "Item #4: Context Relevance Metric Validation",
+  "repo": "/home/user/braxis",
+  "total_tasks": 14,
+  "summary": {
+    "average_precision": 1.0,
+    "average_recall": 1.0,
+    "average_f1": 1.0,
+    "success_rate": 1.0
+  },
+  "results": [
+    {
+      "task_id": "ADD_COMMAND_001",
+      "task_type": "ADD_ENDPOINT",
+      "task_title": "Add 'braxis score' command",
+      "context_suggestion_count": 2,
+      "files_suggested": [
+        "braxis.py",
+        "AGENTS.md"
+      ],
+      "files_actually_needed": [
+        "braxis.py",
+        "AGENTS.md"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 2, Needed: 2, Match: 2"
+    },
+    {
+      "task_id": "ADD_COMMAND_002",
+      "task_type": "ADD_ENDPOINT",
+      "task_title": "Add 'braxis validate' command",
+      "context_suggestion_count": 2,
+      "files_suggested": [
+        "braxis.py",
+        "BRAXIS_LIMITATIONS.md"
+      ],
+      "files_actually_needed": [
+        "braxis.py",
+        "BRAXIS_LIMITATIONS.md"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 2, Needed: 2, Match: 2"
+    },
+    {
+      "task_id": "ADD_COMMAND_003",
+      "task_type": "ADD_ENDPOINT",
+      "task_title": "Add 'braxis benchmark' command",
+      "context_suggestion_count": 2,
+      "files_suggested": [
+        "braxis.py",
+        "tests/test_security_scanning_benchmark.py"
+      ],
+      "files_actually_needed": [
+        "braxis.py",
+        "tests/test_security_scanning_benchmark.py"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 2, Needed: 2, Match: 2"
+    },
+    {
+      "task_id": "ADD_COMMAND_004",
+      "task_type": "ADD_ENDPOINT",
+      "task_title": "Add 'braxis template' command",
+      "context_suggestion_count": 1,
+      "files_suggested": [
+        "braxis.py"
+      ],
+      "files_actually_needed": [
+        "braxis.py"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 1, Needed: 1, Match: 1"
+    },
+    {
+      "task_id": "FIX_BUG_001",
+      "task_type": "FIX_BUG",
+      "task_title": "Fix: Complexity detection missing FastAPI custom wrappers",
+      "context_suggestion_count": 2,
+      "files_suggested": [
+        "braxis.py",
+        "test_braxis.py"
+      ],
+      "files_actually_needed": [
+        "braxis.py",
+        "test_braxis.py"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 2, Needed: 2, Match: 2"
+    },
+    {
+      "task_id": "FIX_BUG_002",
+      "task_type": "FIX_BUG",
+      "task_title": "Fix: Confidence level display formatting",
+      "context_suggestion_count": 2,
+      "files_suggested": [
+        "braxis.py",
+        "BRAXIS_LIMITATIONS.md"
+      ],
+      "files_actually_needed": [
+        "braxis.py",
+        "BRAXIS_LIMITATIONS.md"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 2, Needed: 2, Match: 2"
+    },
+    {
+      "task_id": "FIX_BUG_003",
+      "task_type": "FIX_BUG",
+      "task_title": "Fix: Context relevance score inconsistency",
+      "context_suggestion_count": 3,
+      "files_suggested": [
+        "EXECUTION_GUIDE_ITEM4.md",
+        "braxis.py",
+        "tests/test_validation_framework.py"
+      ],
+      "files_actually_needed": [
+        "EXECUTION_GUIDE_ITEM4.md",
+        "braxis.py",
+        "tests/test_validation_framework.py"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 3, Needed: 3, Match: 3"
+    },
+    {
+      "task_id": "ADD_TEST_001",
+      "task_type": "ADD_TEST",
+      "task_title": "Add tests for complexity formula edge cases",
+      "context_suggestion_count": 2,
+      "files_suggested": [
+        "braxis.py",
+        "test_braxis.py"
+      ],
+      "files_actually_needed": [
+        "braxis.py",
+        "test_braxis.py"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 2, Needed: 2, Match: 2"
+    },
+    {
+      "task_id": "ADD_TEST_002",
+      "task_type": "ADD_TEST",
+      "task_title": "Add tests for security scanning accuracy",
+      "context_suggestion_count": 2,
+      "files_suggested": [
+        "tests/test_security_scanning_benchmark.py",
+        "test_braxis.py"
+      ],
+      "files_actually_needed": [
+        "tests/test_security_scanning_benchmark.py",
+        "test_braxis.py"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 2, Needed: 2, Match: 2"
+    },
+    {
+      "task_id": "ADD_TEST_003",
+      "task_type": "ADD_TEST",
+      "task_title": "Add tests for context relevance correlation",
+      "context_suggestion_count": 1,
+      "files_suggested": [
+        "tests/test_validation_framework.py"
+      ],
+      "files_actually_needed": [
+        "tests/test_validation_framework.py"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 1, Needed: 1, Match: 1"
+    },
+    {
+      "task_id": "REFACTOR_001",
+      "task_type": "REFACTOR",
+      "task_title": "Extract complexity calculation into separate module",
+      "context_suggestion_count": 3,
+      "files_suggested": [
+        "braxis.py",
+        "test_braxis.py",
+        "complexity.py"
+      ],
+      "files_actually_needed": [
+        "braxis.py",
+        "test_braxis.py",
+        "complexity.py"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 3, Needed: 3, Match: 3"
+    },
+    {
+      "task_id": "REFACTOR_002",
+      "task_type": "REFACTOR",
+      "task_title": "Extract security scanning into separate module",
+      "context_suggestion_count": 3,
+      "files_suggested": [
+        "braxis.py",
+        "security.py",
+        "tests/test_security_scanning_benchmark.py"
+      ],
+      "files_actually_needed": [
+        "braxis.py",
+        "security.py",
+        "tests/test_security_scanning_benchmark.py"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 3, Needed: 3, Match: 3"
+    },
+    {
+      "task_id": "SECURITY_001",
+      "task_type": "SECURITY",
+      "task_title": "Add input validation to repo path parameter",
+      "context_suggestion_count": 1,
+      "files_suggested": [
+        "braxis.py"
+      ],
+      "files_actually_needed": [
+        "braxis.py"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 1, Needed: 1, Match: 1"
+    },
+    {
+      "task_id": "SECURITY_002",
+      "task_type": "SECURITY",
+      "task_title": "Sanitize file paths in output",
+      "context_suggestion_count": 1,
+      "files_suggested": [
+        "braxis.py"
+      ],
+      "files_actually_needed": [
+        "braxis.py"
+      ],
+      "agent_success": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "notes": "Suggested: 1, Needed: 1, Match: 1"
+    }
+  ]
+}

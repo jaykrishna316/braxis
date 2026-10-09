@@ -1,0 +1,306 @@
+{
+  "study": "Item #4: Context Relevance Metric Validation",
+  "repo": "/home/user/braxis",
+  "methodology": "Execute 12 representative tasks, measure file relevance",
+  "tasks": [
+    {
+      "task_id": "ADD_COMMAND_001",
+      "type": "ADD_ENDPOINT",
+      "title": "Add 'braxis score' command",
+      "description": "Add a new subcommand 'braxis score' that displays the AI readiness score for the current project",
+      "requirements": [
+        "Add new command to CLI interface",
+        "Implement scoring logic that calls existing analysis",
+        "Display score in format: 'Score: 73/100 (AI-Native)'",
+        "Add help text: 'Display AI readiness score'"
+      ],
+      "expected_files": [
+        "braxis.py",
+        "AGENTS.md"
+      ],
+      "success_criteria": [
+        "Command exists and shows help text",
+        "Score calculation works",
+        "Output format matches specification"
+      ]
+    },
+    {
+      "task_id": "ADD_COMMAND_002",
+      "type": "ADD_ENDPOINT",
+      "title": "Add 'braxis validate' command",
+      "description": "Add subcommand to validate Braxis limitations against actual codebase metrics",
+      "requirements": [
+        "New subcommand 'validate'",
+        "Check each of 8 limitations",
+        "Report confidence level vs actual",
+        "Exit code: 0 if valid, 1 if gaps found"
+      ],
+      "expected_files": [
+        "braxis.py",
+        "BRAXIS_LIMITATIONS.md"
+      ],
+      "success_criteria": [
+        "Command runs without error",
+        "Reports on 8 limitations",
+        "Exit codes correct"
+      ]
+    },
+    {
+      "task_id": "ADD_COMMAND_003",
+      "type": "ADD_ENDPOINT",
+      "title": "Add 'braxis benchmark' command",
+      "description": "Add command to run security scanning benchmark against test cases",
+      "requirements": [
+        "New subcommand 'benchmark'",
+        "Runs security tests",
+        "Reports precision/recall/F1",
+        "Outputs JSON results"
+      ],
+      "expected_files": [
+        "braxis.py",
+        "tests/test_security_scanning_benchmark.py"
+      ],
+      "success_criteria": [
+        "Command exists",
+        "Runs tests",
+        "JSON output generated"
+      ]
+    },
+    {
+      "task_id": "ADD_COMMAND_004",
+      "type": "ADD_ENDPOINT",
+      "title": "Add 'braxis template' command",
+      "description": "Add command to generate template-based context (for A/B testing)",
+      "requirements": [
+        "New subcommand 'template'",
+        "Takes task type as argument",
+        "Returns hardcoded file patterns",
+        "Used for A/B test baseline"
+      ],
+      "expected_files": [
+        "braxis.py"
+      ],
+      "success_criteria": [
+        "Command accessible",
+        "Accepts task type parameter",
+        "Returns consistent output"
+      ]
+    },
+    {
+      "task_id": "FIX_BUG_001",
+      "type": "FIX_BUG",
+      "title": "Fix: Complexity detection missing FastAPI custom wrappers",
+      "description": "Braxis doesn't detect FastAPI when used via internal wrapper (e.g., 'from my_fastapi_wrapper import FastAPI'). Add detection for indirect imports.",
+      "requirements": [
+        "Detect FastAPI even when wrapped",
+        "Check for 'import.*fastapi' in wrapper modules",
+        "Update complexity calculation accordingly"
+      ],
+      "expected_files": [
+        "braxis.py",
+        "test_braxis.py"
+      ],
+      "success_criteria": [
+        "Detects wrapped FastAPI correctly",
+        "Test case added for this pattern",
+        "No regression on existing tests"
+      ]
+    },
+    {
+      "task_id": "FIX_BUG_002",
+      "type": "FIX_BUG",
+      "title": "Fix: Confidence level display formatting",
+      "description": "When displaying confidence levels (e.g., '72%'), sometimes formatting is inconsistent. Ensure all confidence metrics use 2 decimal places.",
+      "requirements": [
+        "Find all confidence level outputs",
+        "Format as X.XX% consistently",
+        "Update BRAXIS_LIMITATIONS.md table if needed"
+      ],
+      "expected_files": [
+        "braxis.py",
+        "BRAXIS_LIMITATIONS.md"
+      ],
+      "success_criteria": [
+        "All confidence output uses consistent format",
+        "Tests pass",
+        "No output regression"
+      ]
+    },
+    {
+      "task_id": "FIX_BUG_003",
+      "type": "FIX_BUG",
+      "title": "Fix: Context relevance score inconsistency",
+      "description": "Context relevance score sometimes ranges 0-1, sometimes 0-100. Standardize to 0-1 scale throughout.",
+      "requirements": [
+        "Find all relevance score calculations",
+        "Ensure output is 0-1 float",
+        "Update tests to expect 0-1 range",
+        "Update documentation"
+      ],
+      "expected_files": [
+        "braxis.py",
+        "tests/test_validation_framework.py",
+        "EXECUTION_GUIDE_ITEM4.md"
+      ],
+      "success_criteria": [
+        "All relevance scores are 0-1",
+        "All tests pass",
+        "Documentation updated"
+      ]
+    },
+    {
+      "task_id": "ADD_TEST_001",
+      "type": "ADD_TEST",
+      "title": "Add tests for complexity formula edge cases",
+      "description": "Add test cases for complexity estimation with edge cases: 0 files, extremely large repos, monorepos",
+      "requirements": [
+        "Test 0 files → SIMPLE",
+        "Test 500+ py files → ENTERPRISE",
+        "Test monorepo with 10+ packages",
+        "All tests should pass"
+      ],
+      "expected_files": [
+        "test_braxis.py",
+        "braxis.py"
+      ],
+      "success_criteria": [
+        "3+ new test cases added",
+        "All tests pass",
+        "Coverage increased"
+      ]
+    },
+    {
+      "task_id": "ADD_TEST_002",
+      "type": "ADD_TEST",
+      "title": "Add tests for security scanning accuracy",
+      "description": "Add unit tests to verify security scanning finds expected vulnerabilities in test cases",
+      "requirements": [
+        "Test SQL injection detection",
+        "Test hardcoded credential detection",
+        "Test command injection detection",
+        "Each with positive and negative cases"
+      ],
+      "expected_files": [
+        "tests/test_security_scanning_benchmark.py",
+        "test_braxis.py"
+      ],
+      "success_criteria": [
+        "6+ new test cases",
+        "All pass",
+        "Coverage increased"
+      ]
+    },
+    {
+      "task_id": "ADD_TEST_003",
+      "type": "ADD_TEST",
+      "title": "Add tests for context relevance correlation",
+      "description": "Add tests verifying context relevance score correlates with agent task success",
+      "requirements": [
+        "Mock agent task execution",
+        "Verify high relevance → high success",
+        "Verify low relevance → low success"
+      ],
+      "expected_files": [
+        "tests/test_validation_framework.py"
+      ],
+      "success_criteria": [
+        "Correlation tests added",
+        "Test data includes success outcomes",
+        "Correlation > 0.5"
+      ]
+    },
+    {
+      "task_id": "REFACTOR_001",
+      "type": "REFACTOR",
+      "title": "Extract complexity calculation into separate module",
+      "description": "Move complexity estimation logic from braxis.py into dedicated complexity.py module for better organization and testability",
+      "requirements": [
+        "Create new complexity.py module",
+        "Move calculation logic from braxis.py",
+        "Update imports in braxis.py and tests",
+        "All tests pass"
+      ],
+      "expected_files": [
+        "braxis.py",
+        "complexity.py",
+        "test_braxis.py"
+      ],
+      "success_criteria": [
+        "complexity.py created",
+        "All tests pass",
+        "No functionality change"
+      ]
+    },
+    {
+      "task_id": "REFACTOR_002",
+      "type": "REFACTOR",
+      "title": "Extract security scanning into separate module",
+      "description": "Move security scanning logic from braxis.py into security.py module",
+      "requirements": [
+        "Create new security.py module",
+        "Move security scanning classes/functions",
+        "Update imports",
+        "All tests pass"
+      ],
+      "expected_files": [
+        "braxis.py",
+        "security.py",
+        "tests/test_security_scanning_benchmark.py"
+      ],
+      "success_criteria": [
+        "security.py created",
+        "All tests pass",
+        "Code organization clearer"
+      ]
+    },
+    {
+      "task_id": "SECURITY_001",
+      "type": "SECURITY",
+      "title": "Add input validation to repo path parameter",
+      "description": "Ensure repo_path parameter is validated before analysis: must exist, must be readable, must not be outside current user's home dir",
+      "requirements": [
+        "Add path validation function",
+        "Check path exists",
+        "Check readable permissions",
+        "Check no path traversal",
+        "Raise clear error on invalid path"
+      ],
+      "expected_files": [
+        "braxis.py"
+      ],
+      "success_criteria": [
+        "Invalid paths rejected",
+        "Valid paths accepted",
+        "Error messages are clear"
+      ]
+    },
+    {
+      "task_id": "SECURITY_002",
+      "type": "SECURITY",
+      "title": "Sanitize file paths in output",
+      "description": "When displaying file paths in analysis output, ensure no sensitive paths are exposed",
+      "requirements": [
+        "Replace absolute paths with relative paths",
+        "Hide home directory paths",
+        "Replace username with '<user>'",
+        "Test with sensitive paths"
+      ],
+      "expected_files": [
+        "braxis.py"
+      ],
+      "success_criteria": [
+        "Output shows relative paths",
+        "No /home paths in output",
+        "No usernames in output"
+      ]
+    }
+  ],
+  "total_tasks": 12,
+  "by_type": {
+    "ADD_ENDPOINT": 4,
+    "FIX_BUG": 3,
+    "ADD_TEST": 3,
+    "REFACTOR": 2,
+    "SECURITY": 2
+  }
+}
