@@ -1134,13 +1134,13 @@ mypy .                    # Type checking (if configured)
         return gotchas[:10]  # Limit to top 10 gotchas
 
     def _extract_category_a_content(self):
-        """v2.2: Extract Category A (Operations Manual) content from CONTRIBUTING.md.
+        """v2.3: Extract ALL Category A (Operations Manual) content from CONTRIBUTING.md.
 
-        Improved extraction that:
-        1. Identifies critical sections by header
-        2. Extracts multi-line content from policy-heavy sections
-        3. Prioritizes security, requirements, and policy sections
-        4. Handles structured guidance (lists, procedures, etc.)
+        Comprehensive extraction that:
+        1. Captures ALL operational sections (setup, testing, publishing, etc.)
+        2. Extracts complete procedures and requirements without truncation
+        3. Handles structured guidance (lists, procedures, command blocks)
+        4. Preserves context and relationships between items
         """
         if not self.contributing_guide['exists']:
             return {}
@@ -1151,22 +1151,31 @@ mypy .                    # Type checking (if configured)
             'requirements': [],
             'workarounds': [],
             'policy_notes': [],
-            'security_notes': []
+            'security_notes': [],
+            'setup_instructions': [],
+            'testing_procedures': [],
+            'publishing_procedures': [],
+            'tool_versions': []
         }
 
         lines = content.split('\n')
 
-        # Critical section headers that indicate policy-heavy content
-        critical_headers = {
+        # Comprehensive section headers for ALL operational content
+        all_headers = {
             'security': ['security', 'credentials', 'api key', 'token', 'secret', 'auth'],
-            'policy': ['policy', 'requirement', 'guideline', 'rule', 'standard', 'convention'],
-            'procedures': ['procedure', 'step', 'process', 'workflow', 'development'],
-            'constraints': ['budget', 'limit', 'constraint', 'restriction', 'gate', 'approval'],
-            'caveats': ['caveat', 'gotcha', 'limitation', 'known issue', 'workaround', 'exception']
+            'policy': ['policy', 'contribution', 'pull request', 'collaborator'],
+            'procedures': ['procedure', 'step', 'process', 'workflow', 'development', 'guide'],
+            'constraints': ['budget', 'limit', 'constraint', 'restriction', 'gate', 'approval', 'cooldown'],
+            'caveats': ['caveat', 'gotcha', 'limitation', 'known issue', 'workaround', 'exception'],
+            'setup': ['setup', 'install', 'environment', 'prerequisite', 'bootstrap'],
+            'testing': ['test', 'running test', 'mock server', 'ci'],
+            'publishing': ['publish', 'release', 'deploy'],
+            'dependencies': ['depend', 'package', 'require', 'version']
         }
 
         # Extract content by sections
         current_section = None
+        current_section_type = None
         current_section_content = []
 
         for i, line in enumerate(lines):
@@ -1175,31 +1184,28 @@ mypy .                    # Type checking (if configured)
             # Check if this is a header
             if stripped.startswith('#'):
                 # Process previous section if it exists
-                if current_section and current_section_content:
+                if current_section_type and current_section_content:
                     self._process_section_content(
-                        current_section,
+                        current_section_type,
                         current_section_content,
                         category_a
                     )
 
                 # Identify new section
                 header_text = stripped.lstrip('#').strip().lower()
-                current_section = self._identify_section_type(header_text, critical_headers)
+                current_section_type = self._identify_section_type(header_text, all_headers)
+                current_section = header_text
                 current_section_content = []
-            elif current_section and stripped:
-                # Accumulate content for current section
+            elif stripped:
+                # Accumulate all content for current section (no filtering yet)
                 current_section_content.append(line)
 
         # Process final section
-        if current_section and current_section_content:
-            self._process_section_content(current_section, current_section_content, category_a)
+        if current_section_type and current_section_content:
+            self._process_section_content(current_section_type, current_section_content, category_a)
 
-        # Line-by-line fallback for content not in sections
-        procedure_keywords = ['must ', 'should ', 'run ', 'follow ', 'execute', 'install', 'build', 'test', 'commit']
-        requirement_keywords = ['require', 'required', 'prerequisite', 'need', 'dependency']
-        policy_keywords = ['policy', 'rule', 'guideline', 'standard', 'convention', 'forbidden', 'banned', 'cannot', 'must not', 'agent']
-
-        for line in lines:
+        # Enhanced fallback: scan for patterns missed by section detection
+        for i, line in enumerate(lines):
             if line.strip().startswith('#') or not line.strip():
                 continue
 
@@ -1207,24 +1213,50 @@ mypy .                    # Type checking (if configured)
             if not clean_line or len(clean_line) < 15:
                 continue
 
+            # Clean formatting
             if clean_line.startswith('**') and clean_line.endswith('**'):
                 clean_line = clean_line.strip('**').strip()
+            if clean_line.startswith('`') and clean_line.endswith('`'):
+                clean_line = clean_line.strip('`').strip()
 
             if not clean_line or len(clean_line) < 15:
                 continue
 
             line_lower = clean_line.lower()
 
-            # Add policy items not already captured
-            if any(kw in line_lower for kw in policy_keywords):
+            # Capture tool versions (e.g., "uv 0.12.1 or newer")
+            if any(x in line_lower for x in ['version', 'require', 'install', 'minimum']):
+                if any(x in line_lower for x in ['.', '>=', '<=', '@']):
+                    if clean_line not in category_a['tool_versions']:
+                        category_a['tool_versions'].append(clean_line)
+
+            # Capture policy items
+            if any(x in line_lower for x in ['policy', 'cannot', 'must not', 'forbidden', 'agent', 'collaborator']):
                 if clean_line not in category_a['policy_notes']:
                     category_a['policy_notes'].append(clean_line)
-            elif any(kw in line_lower for kw in procedure_keywords):
+
+            # Capture procedures
+            if any(x in line_lower for x in ['run ', 'execute', 'install', 'build', 'commit', 'follow', 'should ', 'must ']):
                 if clean_line not in category_a['procedures']:
                     category_a['procedures'].append(clean_line)
-            elif any(kw in line_lower for kw in requirement_keywords):
+
+            # Capture requirements
+            if any(x in line_lower for x in ['require', 'required', 'prerequisite', 'need', 'depend', 'must have']):
                 if clean_line not in category_a['requirements']:
                     category_a['requirements'].append(clean_line)
+
+        # Global deduplication across all categories
+        all_items = set()
+        for key in category_a:
+            if isinstance(category_a[key], list):
+                deduplicated = []
+                for item in category_a[key]:
+                    # Normalize for comparison (lowercase, strip extra spaces)
+                    normalized = ' '.join(item.lower().split())
+                    if normalized not in all_items:
+                        deduplicated.append(item)
+                        all_items.add(normalized)
+                category_a[key] = deduplicated
 
         return category_a
 
@@ -1236,10 +1268,7 @@ mypy .                    # Type checking (if configured)
         return None
 
     def _process_section_content(self, section_type, content_lines, category_a):
-        """Process content from a specific section."""
-        # Join lines and extract meaningful content
-        section_text = '\n'.join(content_lines)
-
+        """Process ALL content from a specific section without truncation."""
         # Extract list items and meaningful lines
         items = []
         for line in content_lines:
@@ -1251,30 +1280,46 @@ mypy .                    # Type checking (if configured)
             elif stripped and len(stripped) > 20 and not stripped.startswith('```'):
                 items.append(stripped)
 
-        # Categorize by section type
+        # Categorize by section type - NO TRUNCATION
         if section_type == 'security':
-            for item in items[:8]:
+            for item in items:
                 if item not in category_a['security_notes']:
                     category_a['security_notes'].append(item)
         elif section_type == 'policy':
-            for item in items[:8]:
+            for item in items:
                 if item not in category_a['policy_notes']:
                     category_a['policy_notes'].append(item)
         elif section_type == 'procedures':
-            for item in items[:8]:
+            for item in items:
                 if item not in category_a['procedures']:
                     category_a['procedures'].append(item)
         elif section_type == 'constraints':
-            for item in items[:8]:
+            for item in items:
                 if item not in category_a['requirements']:
                     category_a['requirements'].append(item)
         elif section_type == 'caveats':
-            for item in items[:8]:
+            for item in items:
                 if item not in category_a['workarounds']:
                     category_a['workarounds'].append(item)
+        elif section_type == 'setup':
+            for item in items:
+                if item not in category_a['setup_instructions']:
+                    category_a['setup_instructions'].append(item)
+        elif section_type == 'testing':
+            for item in items:
+                if item not in category_a['testing_procedures']:
+                    category_a['testing_procedures'].append(item)
+        elif section_type == 'publishing':
+            for item in items:
+                if item not in category_a['publishing_procedures']:
+                    category_a['publishing_procedures'].append(item)
+        elif section_type == 'dependencies':
+            for item in items:
+                if item not in category_a['tool_versions']:
+                    category_a['tool_versions'].append(item)
 
     def _format_category_a_section(self, category_a_content):
-        """Format Category A content into markdown section."""
+        """Format ALL Category A content into markdown section."""
         if not any(category_a_content.values()):
             return ""
 
@@ -1284,31 +1329,55 @@ mypy .                    # Type checking (if configured)
         # Security notes first (highest priority)
         if category_a_content.get('security_notes'):
             section += "### Security Requirements\n\n"
-            for note in category_a_content['security_notes'][:6]:
+            for note in category_a_content['security_notes']:
                 section += f"- {note}\n"
             section += "\n"
 
-        if category_a_content['policy_notes']:
+        if category_a_content.get('policy_notes'):
             section += "### AI Policy\n\n"
-            for note in category_a_content['policy_notes'][:6]:
+            for note in category_a_content['policy_notes']:
                 section += f"- {note}\n"
             section += "\n"
 
-        if category_a_content['requirements']:
+        if category_a_content.get('requirements'):
             section += "### Key Requirements\n\n"
-            for req in category_a_content['requirements'][:6]:
+            for req in category_a_content['requirements']:
                 section += f"- {req}\n"
             section += "\n"
 
-        if category_a_content['procedures']:
+        if category_a_content.get('setup_instructions'):
+            section += "### Setup & Environment\n\n"
+            for inst in category_a_content['setup_instructions']:
+                section += f"- {inst}\n"
+            section += "\n"
+
+        if category_a_content.get('testing_procedures'):
+            section += "### Testing Procedures\n\n"
+            for test in category_a_content['testing_procedures']:
+                section += f"- {test}\n"
+            section += "\n"
+
+        if category_a_content.get('tool_versions'):
+            section += "### Tool Versions & Dependencies\n\n"
+            for tool in category_a_content['tool_versions']:
+                section += f"- {tool}\n"
+            section += "\n"
+
+        if category_a_content.get('procedures'):
             section += "### Development Procedures\n\n"
-            for proc in category_a_content['procedures'][:6]:
+            for proc in category_a_content['procedures']:
                 section += f"- {proc}\n"
             section += "\n"
 
-        if category_a_content['workarounds']:
+        if category_a_content.get('publishing_procedures'):
+            section += "### Publishing & Release Procedures\n\n"
+            for pub in category_a_content['publishing_procedures']:
+                section += f"- {pub}\n"
+            section += "\n"
+
+        if category_a_content.get('workarounds'):
             section += "### Known Workarounds & Caveats\n\n"
-            for wka in category_a_content['workarounds'][:3]:
+            for wka in category_a_content['workarounds']:
                 section += f"- {wka}\n"
             section += "\n"
 
