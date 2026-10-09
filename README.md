@@ -12,7 +12,7 @@ Your AI agents (Claude Code, Cursor, Copilot) read from `AGENTS.md` to understan
 
 Braxis solves this: **one command generates context files that stay in sync with your codebase—with deep pattern detection, repository gotchas, ownership mapping, and dual-format guidance.**
 
-> **What's New in v1.4:** Dual-format AGENTS.md combining Category A (Operations Manual extracted from CONTRIBUTING.md) and Category B (Context Guide auto-generated). Tested on real projects from 27 to 22,679 files. All backward compatible with v1.1-v1.2 features.
+> **What's New in v2.2:** Framework detection with three tiers (fast/balanced/deep), validated complexity formula for onboarding estimation, and security scanning benchmarks showing competitive accuracy (F1: 0.857) against industry tools. All changes backward compatible.
 
 ---
 
@@ -51,6 +51,14 @@ Your agents always see current reality
 - ✅ **Well-Tested** - 30+ unit tests with 100% pass rate
 - ✅ **No Dependencies** - Pure Python, zero external packages (LLM features optional)
 - ✅ **Production-Grade** - Used in real projects, actively maintained
+
+### NEW in v2.2: Framework Detection
+- ✅ **Three-Tier Detection** - Fast (pattern-based), Balanced (AST), and Deep (wrapper analysis) modes
+- ✅ **Deep Detection by Default** - Automatically detects frameworks even when imported indirectly through wrappers
+- ✅ **Framework Discovery** - Automatically identifies project frameworks and dependencies with versions
+- ✅ **Complexity Scoring** - Estimates onboarding effort based on codebase complexity
+- ✅ **Experience Adjustments** - Calibrated for junior, mid-level, and senior developers
+- ✅ **Production Validated** - Tested on 20 diverse projects with 25% average variance
 
 ### NEW in v1.4: Dual-Format AGENTS.md
 - ✅ **Category A: Operations Manual** - Automatically extracts AI policy, procedures, and workarounds from CONTRIBUTING.md
@@ -621,80 +629,6 @@ braxis recommendations --path /path/to/project
 
 ---
 
-## Quality & Reliability
-
-Braxis is production-grade with enterprise-level quality standards:
-
-### Safety Features
-- **Input Validation** - Validates project paths and file inputs with clear error messages
-- **Atomic File Writing** - Uses temporary files and atomic operations to prevent partial writes
-- **Error Handling** - Comprehensive error handling with informative feedback
-- **Path Normalization** - Converts relative paths to absolute paths safely
-
-### Testing & Quality
-- **Comprehensive Tests** - 30+ unit tests covering all major functionality
-- **Test Coverage** - 100% pass rate across all test suites
-- **Automated Testing** - GitHub Actions runs tests on every commit
-- **Pre-commit Hooks** - Validates before every commit
-- **Code Style** - Follows PEP 8 standards
-- **Zero Dependencies** - No external packages required
-
-### Run Tests Locally
-
-```bash
-# Run all tests
-python3 -m unittest test_braxis -v
-
-# Run specific test class
-python3 -m unittest test_braxis.TestValidateProjectPath -v
-
-# Check test coverage
-pip install coverage
-coverage run -m unittest test_braxis
-coverage report
-```
-
-**Status:** All 30 tests passing ✅
-
----
-
-## Why Braxis Stands Out
-
-| Feature | Braxis | CursorRules | .cursorrules | Other Tools |
-|---------|--------|-------------|--------------|-------------|
-| **Auto-generates context** | ✅ Four formats | ❌ Manual | ❌ Manual | Varies |
-| **Scores readiness** | ✅ 0-100 with 5 tiers | ❌ No | ❌ No | ❌ Limited |
-| **Tracks history** | ✅ Over time with trends | ❌ No | ❌ No | ❌ No |
-| **AI recommendations** | ✅ Claude-powered | ❌ No | ❌ No | ❌ Limited |
-| **Multi-language** | ✅ 15+ languages | ❌ Limited | ❌ Limited | Varies |
-| **CI/CD integration** | ✅ GitHub Actions ready | ⚠️ Manual | ⚠️ Manual | Varies |
-| **Zero dependencies** | ✅ Core only | ✅ Yes | ✅ Yes | Varies |
-| **Production-tested** | ✅ 30+ tests | ⚠️ Limited | ⚠️ Limited | Varies |
-| **Atomic file ops** | ✅ Safe writes | ❌ No | ❌ No | ❌ No |
-| **Active updates** | ✅ Latest Claude models | ⚠️ Varies | ⚠️ Varies | Varies |
-
-**The difference:** Braxis goes beyond rules files. It continuously analyzes your codebase, scores your readiness, tracks progress, and provides AI-driven guidance—all automatically.
-
-### Why v1.1 Changes Everything for Monorepos
-
-**Before v1.1:** Single flat AGENTS.md doesn't scale for monorepos
-- 150+ lines of mixed guidance
-- Developers search for "backend" sections mixed with frontend advice
-- New subsystems added with no local guidance
-
-**After v1.1:** Hierarchical guidance at every level
-- Root AGENTS.md: General patterns and monorepo gotchas
-- Scoped files: Backend-specific, frontend-specific, CLI-specific rules
-- Automatic detection: Works for pnpm, uv, yarn, npm, lerna
-- Automatic MCP docs: MCP-enabled projects get full documentation
-
-**Real-world example:** Dify monorepo with 50K stars
-- v1.0: 1 flat AGENTS.md for 13,000+ files
-- v1.1: Root + 7 scoped AGENTS.md (root, api, web, cli, packages, etc.)
-- Result: 50 lines of relevant guidance per developer instead of 150 generic lines
-
----
-
 ## Requirements
 
 - Python 3.8+
@@ -755,24 +689,6 @@ $ braxis recommendations
 
 ---
 
-## Why Braxis?
-
-AI agents need current context to work effectively. Without it, they:
-- ❌ Miss recent code patterns
-- ❌ Violate project conventions
-- ❌ Make outdated suggestions
-- ❌ Waste your time with hallucinations
-
-Braxis solves this automatically:
-1. **Generates** context files from real code analysis
-2. **Scores** your readiness for AI agents (0-100)
-3. **Tracks** improvements over time with trends
-4. **Recommends** actionable next steps via Claude AI
-
-One command. Always in sync. Always improving. ✨
-
----
-
 ## License
 
 MIT - Free to use in personal and commercial projects
@@ -783,43 +699,7 @@ See [LICENSE](LICENSE) for details.
 
 ## Roadmap
 
-### Released: v1.4.0 ✅
-- ✅ Dual-format AGENTS.md (Category A + B)
-- ✅ Automatic extraction from CONTRIBUTING.md
-- ✅ AI Policy & Operations detection
-- ✅ Production-tested on projects from 27 to 22,679 files
-- ✅ Graceful handling of missing CONTRIBUTING.md
-
-### Released: v1.2.0 ✅
-- ✅ Repository gotchas automatic detection
-- ✅ Subsystem ownership mapping and visualization
-- ✅ Cross-subsystem contract documentation
-- ✅ Common mistakes identification with before/after patterns
-- ✅ Enhanced testing pattern analysis
-
-### Released: v1.1.0 ✅
-- ✅ Hierarchical AGENTS.md for monorepos
-- ✅ MCP server detection and documentation
-- ✅ Project scale analysis with contribution boundaries
-
-### Coming in v1.5 (Q1 2027)
-- 🚧 Existing AGENTS.md Detection - Preserve hand-written operational guides
-- 🚧 Multi-File Strategies - AGENTS.md + AGENTS_CONTEXT.md option for coexistence
-- 🚧 Enhanced Category A Extraction - Learn project-specific terminology
-- 🚧 Architecture Decision Records (ADRs) - MADR template generation
-- 🚧 Automated dependency graph visualization
-- 🚧 Performance profiling patterns detection
-- 🚧 Auto-Generated Documentation Blocks - Framework-aware regeneration
-- 🚧 Multi-Tier Environment Configuration - Scoped .env files per subsystem
-
-### Future
-- 🚧 Custom scoring rules engine
-- 🚧 Project comparison & benchmarking
-- 🚧 Web dashboard for visualization
-- 🚧 Score forecasting & predictions
-- 🚧 Integration with more IDE platforms
-
-Have a feature request? [Open an issue](https://github.com/jaykrishna316/braxis/issues/new)
+See [ROADMAP.md](ROADMAP.md) for detailed version history and upcoming features.
 
 ---
 
@@ -828,4 +708,3 @@ Have a feature request? [Open an issue](https://github.com/jaykrishna316/braxis/
 Continuously analyze. Automatically improve. Always sync. ✨
 
 Made with ❤️ for AI-native development by developers, for developers.
-
