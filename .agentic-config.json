@@ -1,9 +1,9 @@
 {
   "metadata": {
     "project_name": "braxis",
-    "description": "A Python project with Python (setuptools)",
+    "description": "A Python project with setuptools",
     "generated_by": "Braxis",
-    "generated_at": "2026-10-09T05:57:05.427721",
+    "generated_at": "2026-10-09T13:14:07.200114",
     "schema_version": "1.0"
   },
   "project": {
@@ -11,7 +11,7 @@
       "python"
     ],
     "primary_language": "python",
-    "build_system": "Python (setuptools)",
+    "build_system": "setuptools",
     "architecture": "single-package",
     "is_monorepo": false,
     "monorepo_type": null,

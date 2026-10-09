@@ -8,11 +8,11 @@ Context file for AI agents working on braxis.
 
 ## Project Overview
 
-braxis is a Python project using Python (setuptools).
+braxis is a Python project using setuptools.
 
 **Key Info:**
 - **Primary Language:** Python
-- **Build System:** Python (setuptools)
+- **Build System:** setuptools
 - **Test Framework:** unittest
 - **Total Files:** 69
 - **Test Files:** 15

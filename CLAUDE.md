@@ -6,7 +6,7 @@ This project uses AGENTS.md as the standard agent context. Claude Code loads it 
 
 ## Project: braxis
 
-**Language:** Python | **Build:** Python (setuptools) | **Score:** 70/100
+**Language:** Python | **Build:** setuptools | **Score:** 70/100
 
 ---
 
