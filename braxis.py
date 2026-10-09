@@ -254,74 +254,166 @@ class BraxisAnalyzer:
         self.build_system = build_system
 
     def _detect_test_framework(self):
-        """Detect test framework, language-aware."""
+        """Detect test framework, language-aware with better edge case handling."""
         test_frameworks = set()
         primary_lang = self._get_primary_language()
 
-        # Language-specific test framework detection
+        # Language-specific test framework detection with fallbacks
         if primary_lang == "go":
-            # Go uses built-in testing package
             test_frameworks.add("Go testing")
         elif primary_lang == "python":
-            # Check pyproject.toml for pytest config
+            # Check multiple sources for pytest
+            framework_found = False
+
+            # 1. Check pyproject.toml
             pyproject = self.project_path / 'pyproject.toml'
             if pyproject.exists():
                 try:
                     content = pyproject.read_text()
-                    if '[tool.pytest' in content or 'pytest' in content:
+                    if 'pytest' in content.lower():
                         test_frameworks.add('pytest')
+                        framework_found = True
+                    elif 'unittest' in content.lower():
+                        test_frameworks.add('unittest')
+                        framework_found = True
                 except (IOError, UnicodeDecodeError):
                     pass
-            # Check for pytest imports in Python files
-            content_samples = self._sample_file_contents(limit=20)
-            for content in content_samples:
-                if 'pytest' in content or 'from pytest' in content:
-                    test_frameworks.add('pytest')
-                    break
-            # Default to pytest for Python
-            if not test_frameworks and self.test_files:
+
+            # 2. Check setup.cfg
+            setup_cfg = self.project_path / 'setup.cfg'
+            if setup_cfg.exists() and not framework_found:
+                try:
+                    content = setup_cfg.read_text()
+                    if 'pytest' in content.lower():
+                        test_frameworks.add('pytest')
+                        framework_found = True
+                except (IOError, UnicodeDecodeError):
+                    pass
+
+            # 3. Check test files for imports
+            if not framework_found and self.test_files:
+                for test_file in self.test_files[:10]:
+                    try:
+                        content = test_file.read_text()
+                        if 'import pytest' in content or 'from pytest' in content:
+                            test_frameworks.add('pytest')
+                            framework_found = True
+                            break
+                        elif 'import unittest' in content:
+                            test_frameworks.add('unittest')
+                            framework_found = True
+                            break
+                    except (IOError, UnicodeDecodeError):
+                        pass
+
+            # 4. Default to pytest if Python has tests
+            if not framework_found and self.test_files:
                 test_frameworks.add('pytest')
+
         elif primary_lang in ["javascript", "typescript"]:
-            content_samples = self._sample_file_contents(limit=20)
-            for content in content_samples:
-                if 'jest' in content:
-                    test_frameworks.add('Jest')
-                    break
-                elif 'mocha' in content or 'describe(' in content:
-                    test_frameworks.add('Mocha')
-                    break
+            # Check package.json first
+            pkg_json = self.project_path / 'package.json'
+            if pkg_json.exists():
+                try:
+                    content = pkg_json.read_text()
+                    if 'jest' in content.lower():
+                        test_frameworks.add('Jest')
+                    elif 'mocha' in content.lower():
+                        test_frameworks.add('Mocha')
+                    elif 'vitest' in content.lower():
+                        test_frameworks.add('Vitest')
+                except (IOError, UnicodeDecodeError):
+                    pass
+
             if not test_frameworks and self.test_files:
                 test_frameworks.add('Jest')  # Default for JS/TS
+
         elif primary_lang == "ruby":
             content_samples = self._sample_file_contents(limit=20)
+            found = False
             for content in content_samples:
-                if 'rspec' in content or 'describe' in content:
+                if 'rspec' in content.lower():
                     test_frameworks.add('RSpec')
+                    found = True
+                    break
+            if not found and self.test_files:
+                test_frameworks.add('RSpec')
+
+        elif primary_lang == "java":
+            # Check pom.xml for junit version to confirm it's a test framework
+            test_frameworks.add('JUnit')
+            if any('pom.xml' in str(f) for f in self.build_files):
+                try:
+                    pom = self.project_path / 'pom.xml'
+                    if pom.exists():
+                        content = pom.read_text()
+                        if 'testng' in content.lower():
+                            test_frameworks.add('TestNG')
+                except (IOError, UnicodeDecodeError):
+                    pass
+
+        elif primary_lang == "cpp":
+            # C++ doesn't use JUnit - check for C++ test frameworks
+            content_samples = self._sample_file_contents(limit=10)
+            for content in content_samples:
+                if 'gtest' in content or 'google/test' in content:
+                    test_frameworks.add('Google Test')
+                    break
+                elif 'catch' in content.lower() and 'include' in content.lower():
+                    test_frameworks.add('Catch2')
                     break
             if not test_frameworks and self.test_files:
-                test_frameworks.add('RSpec')
-        elif primary_lang == "java":
-            if any('pom.xml' in str(f) for f in self.build_files):
-                test_frameworks.add('JUnit')
-            else:
-                test_frameworks.add('JUnit')  # Standard for Java
+                test_frameworks.add('C++ Test Framework')
 
-        # Fallback to generic detection if nothing found
-        if not test_frameworks and self.test_files:
-            content_samples = self._sample_file_contents(limit=20)
+        elif primary_lang == "rust":
+            test_frameworks.add('Rust cargo')  # Rust has built-in testing
+
+        elif primary_lang == "c":
+            content_samples = self._sample_file_contents(limit=10)
             for content in content_samples:
-                if 'pytest' in content:
-                    test_frameworks.add('pytest')
-                elif 'jest' in content:
-                    test_frameworks.add('Jest')
-                elif 'mocha' in content:
-                    test_frameworks.add('Mocha')
-                elif 'rspec' in content:
-                    test_frameworks.add('RSpec')
-                elif 'junit' in content.lower():
-                    test_frameworks.add('JUnit')
+                if 'criterion' in content or 'unity' in content:
+                    test_frameworks.add('C Test Framework')
+                    break
 
-        self.test_frameworks = test_frameworks if test_frameworks else {"None detected"}
+        # If still nothing found, add placeholder (but prefer actual detection)
+        if not test_frameworks:
+            if self.test_files:
+                test_frameworks.add(f"{primary_lang.capitalize()} tests")
+            else:
+                # Only add "None detected" if there are truly no test files
+                test_frameworks.add("None detected")
+
+        self.test_frameworks = test_frameworks
+
+    def _detect_naming_patterns(self):
+        """Detect actual naming conventions used in the codebase."""
+        import re
+        primary_lang = self._get_primary_language()
+        patterns = {'snake_case': 0, 'camelCase': 0, 'PascalCase': 0, 'CONSTANT_CASE': 0}
+
+        content_samples = self._sample_file_contents(limit=30)
+        for content in content_samples:
+            # Extract identifiers (variable names, function names)
+            identifiers = re.findall(r'\b[a-zA-Z_]\w*\b', content)
+            for identifier in identifiers:
+                if identifier.isupper() and '_' in identifier:
+                    patterns['CONSTANT_CASE'] += 1
+                elif '_' in identifier and identifier.islower():
+                    patterns['snake_case'] += 1
+                elif identifier[0].isupper():
+                    patterns['PascalCase'] += 1
+                elif identifier[0].islower() and any(c.isupper() for c in identifier[1:]):
+                    patterns['camelCase'] += 1
+
+        # Return dominant pattern
+        if patterns['snake_case'] > patterns['camelCase'] * 2:
+            return "snake_case"
+        elif patterns['camelCase'] > patterns['snake_case'] * 2:
+            return "camelCase"
+        elif patterns['PascalCase'] > sum(patterns.values()) * 0.3:
+            return "PascalCase"
+        else:
+            return "mixed"
 
     def _detect_conventions(self):
         """Detect code conventions."""
@@ -345,6 +437,9 @@ class BraxisAnalyzer:
                 self.conventions['logging'] += 1
             if 'validate' in content.lower() or 'schema' in content.lower():
                 self.conventions['validation'] += 1
+
+        # Store detected naming pattern
+        self.naming_pattern = self._detect_naming_patterns()
 
     def _detect_project_structure(self):
         """Detect project layout: src/ vs top-level package."""
@@ -703,37 +798,71 @@ mypy .                    # Type checking (if configured)
 3. Ensure your contribution aligns with the project's design principles above"""
 
     def _calculate_score(self):
-        """Calculate agent readiness score."""
+        """Calculate agent readiness score - normalized to be consistent across project types."""
         scores = {}
-        arch_score = min(20, len(self.critical_files) * 5 + 10)
+
+        # Architecture: Focus on quality of critical files, not quantity
+        # Max 15 points: 5 for having any critical files, 10 for having multiple entry points
+        arch_score = 5 if self.critical_files else 0
+        arch_score += min(10, max(0, len(self.critical_files) - 1) * 3)
         scores['Architecture'] = arch_score
-        test_score = min(15, len(self.test_files) * 2 + 5)
+
+        # Testing: Has tests = 15, no tests = 0. Don't penalize small projects.
+        # The presence of tests matters more than quantity
+        test_score = 15 if self.test_files else 0
         scores['Testing'] = test_score
-        dep_score = 12 if self.build_system != "Unknown" else 6
+
+        # Dependencies: Has build system = 12, unknown = 0
+        # This is binary - either the project is buildable or not
+        dep_score = 12 if self.build_system != "Unknown" else 0
         scores['Dependencies'] = dep_score
+
+        # Conventions: Count detected conventions (async, error_handling, type_hints, logging, validation)
+        # Max 10 points for having multiple conventions detected
         convention_count = sum(1 for v in self.conventions.values() if v > 0)
         conv_score = min(10, convention_count * 2)
         scores['Conventions'] = conv_score
-        entry_score = min(10, len(self.critical_files) * 3 + 4)
+
+        # Entry Points: Has at least one clear entry point = 10, otherwise = 0
+        # Don't penalize projects with fewer entry points
+        entry_score = 10 if self.critical_files else 0
         scores['Entry Points'] = entry_score
-        sec_score = 10 if 'validation' in self.conventions else 5
+
+        # Security: Has validation or input handling = 10, has config files = 5
+        # Max 15 points
+        sec_score = 0
+        sec_score += 10 if 'validation' in self.conventions else 0
         sec_score += 5 if len(self.config_files) > 0 else 0
         scores['Security'] = min(15, sec_score)
-        build_score = 10 if len(self.build_files) > 0 else 5
+
+        # Build: Has any build files = 10, otherwise = 0
+        # Binary: buildable or not
+        build_score = 10 if self.build_files else 0
         scores['Build'] = build_score
-        readme_exists = any(f.name.lower() == 'readme.md' for f in self.files)
-        doc_score = 8 if readme_exists else 3
+
+        # Documentation: Has README = 8, has docs directory = full 8
+        # This is about presence, not volume
+        doc_score = 0
+        readme_exists = any(f.name.lower() in ['readme.md', 'readme.rst', 'readme.txt'] for f in self.files)
+        if readme_exists:
+            doc_score = 8
+        docs_exist = (self.project_path / 'docs').exists() and len(list((self.project_path / 'docs').iterdir())) > 0
+        if docs_exist:
+            doc_score = max(doc_score, 8)
         scores['Documentation'] = doc_score
+
         self.score_breakdown = scores
         total_score = sum(scores.values())
         self.total_score = total_score
-        if total_score >= 90:
+
+        # Tier assignment: More balanced distribution
+        if total_score >= 85:
             self.tier = "Agent-Optimized"
-        elif total_score >= 80:
+        elif total_score >= 70:
             self.tier = "AI-Native-Plus"
-        elif total_score >= 60:
+        elif total_score >= 50:
             self.tier = "AI-Native"
-        elif total_score >= 30:
+        elif total_score >= 25:
             self.tier = "Agent-Aware"
         else:
             self.tier = "Not Ready"
@@ -1543,6 +1672,17 @@ This ensures:
         logging_status = 'Yes' if 'logging' in self.conventions else 'No'
         testing_status = 'Yes' if self.test_files else 'No'
 
+        # Get detected naming pattern, with language-specific default
+        naming_pattern = getattr(self, 'naming_pattern', None) or self._detect_naming_patterns()
+        if naming_pattern == "snake_case":
+            naming_desc = "Use snake_case for functions and variables"
+        elif naming_pattern == "camelCase":
+            naming_desc = "Use camelCase for functions and variables"
+        elif naming_pattern == "PascalCase":
+            naming_desc = "Use PascalCase for classes and type names"
+        else:
+            naming_desc = f"Follow {primary_lang.capitalize()} conventions (observed: {naming_pattern})"
+
         arch_score = self.score_breakdown.get('Architecture', 0)
         test_score = self.score_breakdown.get('Testing', 0)
         dep_score = self.score_breakdown.get('Dependencies', 0)
@@ -1649,7 +1789,7 @@ cd {self.project_path.name}
 
 ### Code Style & Conventions
 
-- **Naming:** Use {primary_lang.capitalize()} conventions (snake_case for functions, PascalCase for classes)
+- **Naming:** {naming_desc}
 - **Type Hints:** {type_hints_status} (strongly encouraged)
 - **Error Handling:** {error_handling_status} - handle errors at boundaries; let exceptions propagate when another layer owns recovery
 - **Logging:** {logging_status}
@@ -1731,42 +1871,333 @@ Before making changes:
 *Generated by Braxis - keeping AI agents in sync with your code*
 """
 
+    def _extract_project_caveats_for_claude_md(self):
+        """Extract project-specific caveats and gotchas for CLAUDE.md."""
+        caveats = []
+
+        # Read README for gotchas
+        readme_candidates = [self.project_path / 'README.md', self.project_path / 'README.rst']
+        for readme in readme_candidates:
+            if readme.exists():
+                try:
+                    content = readme.read_text()
+                    lines = content.split('\n')
+                    for line in lines:
+                        line_lower = line.lower()
+                        if any(kw in line_lower for kw in ['caveat', 'gotcha', 'warning', 'limitation', 'known issue', 'important:', 'note:']):
+                            clean = line.strip().lstrip('-*>').strip()
+                            if clean and len(clean) > 15 and clean not in caveats:
+                                caveats.append(clean)
+                except (IOError, UnicodeDecodeError):
+                    pass
+
+        # Read CONTRIBUTING.md for additional gotchas
+        if self.contributing_guide['exists'] and self.contributing_guide['content']:
+            content = self.contributing_guide['content']
+            lines = content.split('\n')
+            for line in lines:
+                line_lower = line.lower()
+                if any(kw in line_lower for kw in ['caveat', 'gotcha', 'warning', 'limitation', 'known issue', 'important:', 'note:']):
+                    clean = line.strip().lstrip('-*>').strip()
+                    if clean and len(clean) > 15 and clean not in caveats:
+                        caveats.append(clean)
+
+        return caveats[:8]  # Return top 8 caveats
+
+    def _extract_api_quirks(self):
+        """Extract API or architecture quirks from documentation."""
+        quirks = []
+        doc_files = [
+            self.project_path / 'docs' / 'README.md',
+            self.project_path / 'docs' / 'ARCHITECTURE.md',
+            self.project_path / 'docs' / 'API.md',
+            self.project_path / 'docs' / 'DESIGN.md'
+        ]
+
+        for doc_file in doc_files:
+            if doc_file.exists():
+                try:
+                    content = doc_file.read_text()
+                    if 'api' in doc_file.name.lower() or 'architecture' in doc_file.name.lower():
+                        lines = content.split('\n')
+                        for i, line in enumerate(lines):
+                            if any(kw in line.lower() for kw in ['quirk', 'design decision', 'tradeoff', 'trade-off', 'different from', 'unlike']):
+                                clean = line.strip().lstrip('-*>').strip()
+                                if clean and len(clean) > 15:
+                                    quirks.append(clean)
+                except (IOError, UnicodeDecodeError):
+                    pass
+
+        return quirks[:5]
+
     def generate_claude_md(self):
-        """Generate CLAUDE.md as a router to AGENTS.md."""
-        return """# CLAUDE.md
+        """Generate project-specific CLAUDE.md with real caveats and quirks."""
+        primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
+        caveats = self._extract_project_caveats_for_claude_md()
+        quirks = self._extract_api_quirks()
+
+        caveats_section = ""
+        if caveats:
+            caveats_text = '\n'.join([f"- {c}" for c in caveats])
+            caveats_section = f"""## Project-Specific Caveats
+
+{caveats_text}
+
+"""
+
+        quirks_section = ""
+        if quirks:
+            quirks_text = '\n'.join([f"- {q}" for q in quirks])
+            quirks_section = f"""## Architecture & API Quirks
+
+{quirks_text}
+
+"""
+
+        return f"""# CLAUDE.md
 
 @AGENTS.md
 
 This project uses AGENTS.md as the standard agent context. Claude Code loads it automatically via the @AGENTS.md import above.
 
-## Claude Code Setup
+## Project: {self.project_path.name}
 
-1. **Read AGENTS.md first** for full project context
-2. **Use the provided commands** in AGENTS.md for development workflow
-3. **Follow the code style** outlined in AGENTS.md Conventions section
-4. **Run tests locally** before asking for code suggestions
-5. **Reference the scoring dimensions** when optimizing code
-
-## Quick Commands
-
-Generate updated context: `braxis generate`
-View your AI readiness score: `braxis score`
-See score trends: `braxis history --trends`
-
-See AGENTS.md for full documentation and the complete list of available commands.
+**Language:** {primary_lang.capitalize()} | **Build:** {self.build_system} | **Score:** {self.total_score}/100
 
 ---
 
-*Generated by Braxis*
+{caveats_section}{quirks_section}## Quick Reference for Claude
+
+### Before You Start
+1. **Read AGENTS.md first** for full project architecture and workflow
+2. **Check the caveats above** — they're extracted from this project's docs
+3. **Run tests locally** before suggesting code changes
+4. **Follow AGENTS.md conventions** for code style
+
+### Key Commands
+```bash
+# Regenerate AI context files
+braxis generate
+
+# View AI readiness score
+braxis score
+
+# See score trends
+braxis history --trends
+```
+
+### Testing Workflow
+```bash
+{', '.join(sorted(self.test_frameworks)) if self.test_frameworks else 'pytest'}
+```
+
+### Code Quality
+```bash
+ruff check .          # Lint
+ruff format .         # Format
+mypy .               # Type check
+```
+
+---
+
+See AGENTS.md for complete project documentation.
+
+*Generated by Braxis - keeping AI agents in sync with {self.project_path.name}*
+"""
+
+    def _generate_language_specific_cursorrules(self, primary_lang, test_frameworks_str):
+        """Generate language-specific cursor rules."""
+        base_rules = """## Must-Follow Rules
+
+### Code Style & Formatting"""
+
+        if primary_lang == "python":
+            return f"""{base_rules}
+
+1. Use **ruff** for formatting: `ruff format .`
+2. Use **ruff** for linting: `ruff check .`
+3. Python conventions: **snake_case** for functions/variables, **PascalCase** for classes
+4. Type hints: Required for all public functions using **mypy** for checking
+5. Docstrings: Use triple-quoted strings for all public functions and classes
+6. No commented-out code, no dead code
+7. Max line length: 100 characters
+
+### Testing
+1. Framework: {test_frameworks_str}
+2. Test file naming: `test_*.py` or `*_test.py`
+3. Test discovery: `pytest` finds and runs all tests
+4. Fixtures: Use pytest fixtures for setup/teardown
+5. Coverage: Maintain 80%+ coverage for critical paths
+6. Run before commit: `pytest -v`
+
+### Imports & Dependencies
+1. Use absolute imports, not relative imports (unless necessary)
+2. Group imports: stdlib, third-party, local (isort style)
+3. No wildcard imports (`from module import *`)
+4. Pin versions in requirements.txt/pyproject.toml
+5. Avoid circular dependencies
+
+### Error Handling
+1. Be specific with exception types (not bare `except:`)
+2. Log errors before re-raising
+3. Validate all function arguments at entry points
+4. Use try/except at system boundaries (I/O, network, DB)
+"""
+        elif primary_lang in ["javascript", "typescript"]:
+            return f"""{base_rules}
+
+1. Use **Prettier** for formatting: `npm run format`
+2. Use **ESLint** for linting: `npm run lint`
+3. JavaScript/TypeScript conventions: **camelCase** for functions/variables, **PascalCase** for classes/components
+4. Type hints: TypeScript or JSDoc for all public functions
+5. No commented-out code, no dead code
+6. Max line length: 100 characters
+7. Use const/let, avoid var
+8. Use arrow functions for callbacks, regular functions for methods
+
+### Testing
+1. Framework: Jest or Mocha
+2. Test file naming: `*.test.js`, `*.spec.js`, or `__tests__/` directory
+3. Test discovery: `npm test` runs all tests
+4. Mocking: Use Jest mocks or sinon for dependencies
+5. Async tests: Use async/await, not callbacks
+6. Coverage: Maintain 80%+ coverage
+7. Run before commit: `npm test`
+
+### Imports & Dependencies
+1. Use ES6 imports (`import ... from`)
+2. Group imports: stdlib, third-party, local
+3. No wildcard imports unless necessary
+4. Pin versions in package.json (use ^, ~, or exact)
+5. Avoid circular dependencies
+
+### React/Component Rules (if applicable)
+1. Functional components with hooks, not class components
+2. Custom hooks for shared logic (prefix with `use`)
+3. Props must be validated (PropTypes or TypeScript)
+4. Separate presentational from container components
+"""
+        elif primary_lang == "go":
+            return f"""{base_rules}
+
+1. Use **gofmt** for formatting: `go fmt ./...`
+2. Use **golint** for linting: `golangci-lint run ./...`
+3. Go conventions: **camelCase** for local variables/functions, **PascalCase** for exported functions
+4. No type comments needed (Go's type system is strict)
+5. Error handling: Always check and handle errors explicitly
+6. Max line length: 100 characters
+7. Use interfaces for abstraction, not inheritance
+
+### Testing
+1. Framework: Go's built-in `testing` package
+2. Test file naming: `*_test.go`
+3. Benchmarks: `BenchmarkXxx` for performance tests
+4. Coverage: `go test -cover ./...`
+5. Table-driven tests: Use test case slices for multiple scenarios
+6. Run before commit: `go test -v ./...`
+
+### Imports & Dependencies
+1. Use `go.mod` for dependency management
+2. Organize imports: stdlib, external, local
+3. Use `import` blocks, not individual imports
+4. No vendoring unless required
+
+### Error Handling
+1. Use sentinel values or custom error types
+2. Wrap errors: `fmt.Errorf("context: %w", err)`
+3. No panic in libraries (only in main)
+4. Check errors immediately after operation
+"""
+        elif primary_lang == "rust":
+            return f"""{base_rules}
+
+1. Use **rustfmt** for formatting: `cargo fmt`
+2. Use **clippy** for linting: `cargo clippy`
+3. Rust conventions: **snake_case** for functions/variables, **PascalCase** for types
+4. Type hints: Required (Rust enforces at compile time)
+5. No unsafe code without explicit justification in comments
+6. Max line length: 100 characters
+7. Use Result<T, E> for fallible operations, Option<T> for optional values
+
+### Testing
+1. Framework: Rust's built-in `#[cfg(test)]` module system
+2. Test file naming: Tests live in `tests/` directory and alongside code as modules
+3. Unit tests: `#[test]` attribute on functions
+4. Integration tests: Separate `.rs` files in `tests/`
+5. Coverage: Use `cargo tarpaulin` for coverage
+6. Run before commit: `cargo test`
+
+### Cargo & Dependencies
+1. Keep `Cargo.toml` updated with all direct dependencies
+2. Use workspace for monorepos: `[workspace]`
+3. Specify versions explicitly (no `*`)
+4. Minimize dependencies (Rust philosophy)
+
+### Memory Safety (Critical)
+1. Borrow checker: Understand ownership rules
+2. Lifetimes: Explicit when multiple references exist
+3. Mutability: Make intent clear (mut keyword)
+4. No null pointer dereferences (Option/Result)
+"""
+        elif primary_lang == "cpp":
+            return f"""{base_rules}
+
+1. Use **clang-format** for formatting: `clang-format -i *.cpp`
+2. Use **clang-tidy** for linting: `clang-tidy -fix *.cpp`
+3. C++ conventions: **snake_case** for functions/variables, **PascalCase** for classes
+4. Include guards or `#pragma once` for headers
+5. Const correctness: Mark const methods, const references
+6. Memory safety: Use smart pointers (unique_ptr, shared_ptr), not raw pointers
+7. RAII: Resource Acquisition Is Initialization
+
+### Testing
+1. Framework: GoogleTest (gtest), Catch2, or Doctest
+2. Test file naming: `*_test.cpp`, `test_*.cpp`
+3. Fixtures: Use gtest TEST_F for setup/teardown
+4. Mocking: Use gmock for complex dependencies
+5. Coverage: Use gcov/lcov for coverage
+6. Run before commit: `ctest`
+
+### Compilation & Build
+1. Use CMake: `mkdir build && cd build && cmake .. && make`
+2. Compiler warnings: Treat warnings as errors (`-Werror`)
+3. Enable optimizations: `-O2` or `-O3` for release builds
+4. Sanitizers: Use `-fsanitize=address,undefined` for debug
+
+### C++ Best Practices
+1. No manual `new`/`delete` — use smart pointers
+2. RAII pattern for all resources
+3. Prefer standard library over manual implementation
+4. Modern C++ (C++17+): Use structured bindings, auto, constexpr
+5. No null pointers — use std::optional
+"""
+        else:
+            # Generic fallback
+            return f"""{base_rules}
+
+1. Use language-appropriate formatter
+2. Follow {primary_lang.capitalize()} naming conventions
+3. Add type hints/signatures where supported
+4. No commented-out code or dead code
+5. Keep functions focused and single-purpose
+
+### Testing
+1. Framework: {test_frameworks_str}
+2. Write tests for all new functionality
+3. Coverage: Maintain high coverage for critical paths
+4. Run before commit: `{test_frameworks_str if test_frameworks_str else 'test command'}`
+
+### Project Structure
+- Keep related code colocated
+- Use clear, descriptive names
+- Follow existing patterns in the codebase
 """
 
     def generate_cursorrules(self):
-        """Generate .cursorrules file with project-specific rules."""
+        """Generate language-specific .cursorrules file."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
         test_frameworks_str = ', '.join(sorted(self.test_frameworks)) if self.test_frameworks else 'pytest'
-        code_formatter = "ruff" if primary_lang == "python" else "prettier" if primary_lang in ["javascript", "typescript"] else "default"
-        type_checking = "mypy" if primary_lang == "python" else "TypeScript" if primary_lang == "typescript" else "available"
-        
+
         arch_score = self.score_breakdown.get('Architecture', 0)
         test_score = self.score_breakdown.get('Testing', 0)
         dep_score = self.score_breakdown.get('Dependencies', 0)
@@ -1775,74 +2206,43 @@ See AGENTS.md for full documentation and the complete list of available commands
         sec_score = self.score_breakdown.get('Security', 0)
         build_score = self.score_breakdown.get('Build', 0)
         doc_score = self.score_breakdown.get('Documentation', 0)
-        
+
+        language_rules = self._generate_language_specific_cursorrules(primary_lang, test_frameworks_str)
+
         return f"""# Cursor Rules for {self.project_path.name}
 
 ## What This Project Does
 
-{self.project_path.name} is a {primary_lang.capitalize()} project using {self.build_system}.
+**Language:** {primary_lang.capitalize()} | **Build:** {self.build_system}
 
 **AI Readiness Score:** {self.total_score}/100 ({self.tier})
 
-## Architecture Overview
-
-- **Pattern:** Single-package project
-- **Primary Language:** {primary_lang.capitalize()}
-- **Build System:** {self.build_system}
-- **Test Framework:** {test_frameworks_str}
-- **Test Files:** {len(self.test_files)}
-
-## Must-Follow Rules
-
-### Code Style
-
-1. Use {code_formatter} for code formatting
-2. Follow {primary_lang.capitalize()} naming conventions (snake_case for functions/variables, PascalCase for classes)
-3. Add type hints where applicable ({type_checking} checking enabled)
-4. No commented-out code or dead code
-5. Keep functions focused and single-purpose
-
-### Testing
-
-1. Write tests alongside code changes
-2. Run full test suite before commit: `pytest`
-3. Maintain test coverage for critical paths
-4. Use descriptive test names that explain what's being tested
-5. Test both success and error cases
-
-### Project Structure
-
-- Don't create new top-level directories without understanding existing patterns
-- Follow existing file organization in src/ and tests/
-- Keep related code colocated
-- Use clear module names that indicate their purpose
+{language_rules}
 
 ## Scoring Dimensions (What Matters)
 
 These 8 areas drive AI readiness. Focus on these when making changes:
 
-1. **Architecture** ({arch_score}/100) - Keep code organized and modular
-2. **Testing** ({test_score}/100) - Write comprehensive tests
-3. **Dependencies** ({dep_score}/100) - Minimize external dependencies
-4. **Conventions** ({conv_score}/100) - Be consistent
-5. **Entry Points** ({entry_score}/100) - Make main/start clear
-6. **Security** ({sec_score}/100) - Validate inputs, handle errors
-7. **Build** ({build_score}/100) - Clear build/setup instructions
-8. **Documentation** ({doc_score}/100) - Document patterns and decisions
-
-## Core Principles
-
-- **Modularity** - Organize code by functionality with clear separation of concerns
-- **Testability** - Every feature should be independently testable
-- **Clarity** - Write code that's easy for AI agents (and humans) to understand
-- **Consistency** - Follow established patterns throughout the codebase
+1. **Architecture** ({arch_score}/15) - Code organization and modularity
+2. **Testing** ({test_score}/15) - Test coverage and quality
+3. **Dependencies** ({dep_score}/12) - Dependency management
+4. **Conventions** ({conv_score}/10) - Consistent patterns
+5. **Entry Points** ({entry_score}/10) - Clear main/start locations
+6. **Security** ({sec_score}/15) - Input validation and error handling
+7. **Build** ({build_score}/10) - Clear build/setup instructions
+8. **Documentation** ({doc_score}/8) - Code and project documentation
 
 ## Before You Commit
 
 ```bash
-ruff format .                 # Format code
-ruff check .                  # Lint check
-pytest                        # Run all tests
+# Format code
+{self._get_format_command(primary_lang)}
+
+# Lint check
+{self._get_lint_command(primary_lang)}
+
+# Run tests
+{self._get_test_command(primary_lang)}
 ```
 
 All checks must pass before committing.
@@ -1853,8 +2253,50 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
 
 ---
 
-*Generated by Braxis*
+*Generated by Braxis - language-aware rules for {primary_lang.capitalize()} projects*
 """
+
+    def _get_format_command(self, lang):
+        """Get the format command for the language."""
+        commands = {
+            'python': 'ruff format .',
+            'javascript': 'prettier --write .',
+            'typescript': 'prettier --write .',
+            'go': 'go fmt ./...',
+            'rust': 'cargo fmt',
+            'cpp': 'clang-format -i **/*.{cpp,h}',
+            'java': 'google-java-format -i **/*.java',
+            'csharp': 'dotnet format'
+        }
+        return commands.get(lang, 'Use language formatter')
+
+    def _get_lint_command(self, lang):
+        """Get the lint command for the language."""
+        commands = {
+            'python': 'ruff check .',
+            'javascript': 'eslint .',
+            'typescript': 'eslint .',
+            'go': 'golangci-lint run ./...',
+            'rust': 'cargo clippy',
+            'cpp': 'clang-tidy **/*.cpp',
+            'java': 'checkstyle src/**/*.java',
+            'csharp': 'dotnet analyzers'
+        }
+        return commands.get(lang, 'Use language linter')
+
+    def _get_test_command(self, lang):
+        """Get the test command for the language."""
+        commands = {
+            'python': 'pytest',
+            'javascript': 'npm test',
+            'typescript': 'npm test',
+            'go': 'go test ./...',
+            'rust': 'cargo test',
+            'cpp': 'ctest',
+            'java': 'mvn test',
+            'csharp': 'dotnet test'
+        }
+        return commands.get(lang, 'Use language test runner')
 
     def generate_agentic_config(self):
         """Generate comprehensive .agentic-config.json file."""
