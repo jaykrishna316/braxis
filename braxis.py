@@ -56,6 +56,12 @@ class BraxisAnalyzer:
         self.monorepo_type = None
         self.monorepo_subsystems = []
         self.mcp_servers = []
+        # v2.1 features: Domain detection
+        self.detected_domain = None
+        self.domain_keywords = []
+        self.agent_patterns = []
+        self.ecommerce_patterns = []
+        self.ml_patterns = []
 
     def _validate_project_path(self, project_path):
         """Validate and normalize project path."""
@@ -157,6 +163,11 @@ class BraxisAnalyzer:
         if self.monorepo_type:
             self.monorepo_subsystems = self.get_monorepo_subsystems()
         self.mcp_servers = self.detect_mcp_servers()
+        # v2.1: Detect project domains
+        self.detected_domain = self._detect_project_domain()
+        self.agent_patterns = self._detect_agent_patterns()
+        self.ecommerce_patterns = self._detect_ecommerce_patterns()
+        self.ml_patterns = self._detect_ml_patterns()
         self._calculate_score()
 
     def _scan_files(self):
@@ -440,6 +451,114 @@ class BraxisAnalyzer:
 
         # Store detected naming pattern
         self.naming_pattern = self._detect_naming_patterns()
+
+    def _detect_project_domain(self):
+        """Detect project domain: agent/chatbot, ecommerce, ml, etc."""
+        agent_score = len(self.agent_patterns)
+        ecommerce_score = len(self.ecommerce_patterns)
+        ml_score = len(self.ml_patterns)
+
+        if agent_score >= ecommerce_score and agent_score >= ml_score and agent_score > 0:
+            return "agent/chatbot"
+        elif ecommerce_score >= ml_score and ecommerce_score > 0:
+            return "ecommerce"
+        elif ml_score > 0:
+            return "ml/training"
+        else:
+            return "generic"
+
+    def _detect_agent_patterns(self):
+        """Detect agent/chatbot/LLM framework patterns."""
+        patterns = []
+        agent_keywords = [
+            'intent', 'entity', 'dialogue', 'conversation', 'utterance', 'slot', 'action',
+            'skill', 'agent', 'orchestrator', 'handler', 'policy', 'nlu', 'nlg', 'rasa',
+            'langchain', 'openai', 'anthropic', 'botkit', 'framework', 'tool_use', 'multi_turn',
+            'task_history', 'memory', 'prompt_template', 'function_calling', 'tool_call',
+            'agent_state', 'turn_taking', 'context_window', 'message_history', 'system_prompt'
+        ]
+
+        content_samples = self._sample_file_contents(limit=50)
+        agent_matches = set()
+
+        for content in content_samples:
+            content_lower = content.lower()
+            for keyword in agent_keywords:
+                if keyword in content_lower:
+                    agent_matches.add(keyword)
+
+        patterns.extend(list(agent_matches))
+        return patterns
+
+    def _detect_agent_testing_patterns(self):
+        """Detect agent/dialogue testing patterns."""
+        patterns = []
+        dialogue_test_keywords = [
+            'test_conversation', 'test_dialogue', 'test_intent', 'test_entity_extraction',
+            'conversation_fixture', 'dialogue_test', 'mock_user', 'intent_accuracy',
+            'entity_extraction_test', 'action_execution', 'dialogue_flow', 'turn_test'
+        ]
+
+        # Check test files for dialogue patterns
+        test_content = []
+        for test_file in self.test_files[:20]:
+            try:
+                test_content.append(test_file.read_text())
+            except:
+                pass
+
+        for content in test_content:
+            content_lower = content.lower()
+            for keyword in dialogue_test_keywords:
+                if keyword in content_lower:
+                    patterns.append(keyword)
+
+        return patterns
+
+    def _detect_ecommerce_patterns(self):
+        """Detect e-commerce/order management patterns."""
+        patterns = []
+        ecommerce_keywords = [
+            'order', 'product', 'cart', 'checkout', 'payment', 'inventory', 'sku',
+            'price', 'discount', 'coupon', 'catalog', 'fulfillment', 'shipment',
+            'customer', 'subscription', 'marketplace', 'vendor', 'merchant', 'transaction',
+            'refund', 'warranty', 'return', 'exchange', 'listing', 'warehouse', 'shipping'
+        ]
+
+        content_samples = self._sample_file_contents(limit=50)
+        ecommerce_matches = set()
+
+        for content in content_samples:
+            content_lower = content.lower()
+            for keyword in ecommerce_keywords:
+                if keyword in content_lower:
+                    ecommerce_matches.add(keyword)
+
+        patterns.extend(list(ecommerce_matches))
+        return patterns
+
+    def _detect_ml_patterns(self):
+        """Detect ML/training pipeline patterns."""
+        patterns = []
+        ml_keywords = [
+            'model', 'training', 'dataset', 'pipeline', 'neural', 'tensor', 'keras',
+            'pytorch', 'tensorflow', 'sklearn', 'scikit', 'ml', 'deep_learning', 'cv',
+            'nlp', 'transformer', 'bert', 'gpt', 'embedding', 'vector', 'loss', 'epoch',
+            'batch', 'gradient', 'optimization', 'inference', 'predict', 'classify',
+            'regression', 'clustering', 'hyperparameter', 'validation', 'cross_validation'
+        ]
+
+        content_samples = self._sample_file_contents(limit=50)
+        ml_matches = set()
+
+        for content in content_samples:
+            content_lower = content.lower()
+            for keyword in ml_keywords:
+                if keyword in content_lower:
+                    ml_matches.add(keyword)
+
+        patterns.extend(list(ml_matches))
+        return patterns
 
     def _detect_project_structure(self):
         """Detect project layout: src/ vs top-level package."""
@@ -798,18 +917,24 @@ mypy .                    # Type checking (if configured)
 3. Ensure your contribution aligns with the project's design principles above"""
 
     def _calculate_score(self):
-        """Calculate agent readiness score - normalized to be consistent across project types."""
+        """Calculate agent readiness score - normalized and domain-aware."""
         scores = {}
+        domain_bonus = 0
 
         # Architecture: Focus on quality of critical files, not quantity
-        # Max 15 points: 5 for having any critical files, 10 for having multiple entry points
+        # Max 20 points: 5 for having any critical files, 15 for having multiple entry points
         arch_score = 5 if self.critical_files else 0
-        arch_score += min(10, max(0, len(self.critical_files) - 1) * 3)
+        arch_score += min(15, max(0, len(self.critical_files) - 1) * 3)
         scores['Architecture'] = arch_score
 
         # Testing: Has tests = 15, no tests = 0. Don't penalize small projects.
         # The presence of tests matters more than quantity
         test_score = 15 if self.test_files else 0
+
+        # v2.1: Bonus for domain-specific test patterns
+        if self.detected_domain == "agent/chatbot" and self._detect_agent_testing_patterns():
+            test_score = min(15, test_score + 5)  # Bonus for dialogue tests
+
         scores['Testing'] = test_score
 
         # Dependencies: Has build system = 12, unknown = 0
@@ -829,10 +954,17 @@ mypy .                    # Type checking (if configured)
         scores['Entry Points'] = entry_score
 
         # Security: Has validation or input handling = 10, has config files = 5
-        # Max 15 points
+        # Max 15 points, domain-aware adjustments
         sec_score = 0
         sec_score += 10 if 'validation' in self.conventions else 0
         sec_score += 5 if len(self.config_files) > 0 else 0
+
+        # v2.1: Ecommerce and agent projects need stronger security
+        if self.detected_domain == "ecommerce":
+            # For ecommerce, payment security is critical
+            if 'validation' not in self.conventions:
+                sec_score += 5  # Even without explicit validation, ecommerce needs consideration
+
         scores['Security'] = min(15, sec_score)
 
         # Build: Has any build files = 10, otherwise = 0
@@ -853,16 +985,22 @@ mypy .                    # Type checking (if configured)
 
         self.score_breakdown = scores
         total_score = sum(scores.values())
-        self.total_score = total_score
+
+        # v2.1: Domain detection bonus (not counted in individual dimensions)
+        # Detected domains show project maturity
+        if self.detected_domain != "generic":
+            domain_bonus = 5
+
+        self.total_score = min(100, total_score + domain_bonus)
 
         # Tier assignment: More balanced distribution
-        if total_score >= 85:
+        if self.total_score >= 85:
             self.tier = "Agent-Optimized"
-        elif total_score >= 70:
+        elif self.total_score >= 70:
             self.tier = "AI-Native-Plus"
-        elif total_score >= 50:
+        elif self.total_score >= 50:
             self.tier = "AI-Native"
-        elif total_score >= 25:
+        elif self.total_score >= 25:
             self.tier = "Agent-Aware"
         else:
             self.tier = "Not Ready"
@@ -1631,6 +1769,116 @@ This ensures:
         """Merge for AGENTS.md (delegates to generic merge_file_content)."""
         return self.merge_file_content('AGENTS.md', existing, new_content)
 
+    def _generate_agent_domain_section(self):
+        """v2.1: Generate agent/chatbot-specific guidance."""
+        if self.detected_domain != "agent/chatbot":
+            return ""
+
+        dialogue_tests = self._detect_agent_testing_patterns()
+
+        section = """## 🤖 Agent/Chatbot Architecture
+
+This is an AI agent or dialogue system project.
+
+### Key Patterns Detected
+
+- **Intent Handling:** The project processes user intents and maps them to actions
+- **Entity Extraction:** Named entity recognition and slot filling for dialogue context
+- **Conversation Management:** Multi-turn dialogue flows with context preservation
+- **Tool Use:** Agent actions or skills that execute external operations
+
+### Testing Agent Conversations
+
+When writing tests for dialogue systems:
+
+1. **Conversation Flows:** Test end-to-end dialogue paths, not individual components
+2. **Intent Accuracy:** Verify correct intent detection for various phrasings
+3. **Entity Extraction:** Test slot filling accuracy and edge cases
+4. **Context Preservation:** Ensure multi-turn conversations maintain state correctly
+5. **Action Execution:** Mock external actions and verify correct invocation
+6. **Fallback Handling:** Test graceful degradation when confidence is low
+
+"""
+        if dialogue_tests:
+            section += f"### Detected Dialogue Testing Patterns\n\n"
+            for pattern in dialogue_tests[:8]:
+                section += f"- {pattern}\n"
+            section += "\n"
+
+        return section
+
+    def _generate_ecommerce_domain_section(self):
+        """v2.1: Generate e-commerce-specific guidance."""
+        if self.detected_domain != "ecommerce":
+            return ""
+
+        section = """## 🛒 E-Commerce Architecture
+
+This is an e-commerce or order management system.
+
+### Key Domains
+
+- **Order Management:** Order creation, state transitions, fulfillment tracking
+- **Inventory Management:** Product availability, stock levels, warehouse coordination
+- **Payment Processing:** Secure payment handling, transaction records, refunds
+- **Customer Management:** User accounts, preferences, order history
+- **Catalog Management:** Product information, pricing, categories, SKUs
+
+### Critical Areas
+
+1. **Data Consistency:** Orders and inventory must stay synchronized
+2. **Payment Safety:** Never log sensitive payment data; use PCI-compliant handling
+3. **Idempotency:** Operations must handle retries without duplicating orders
+4. **Audit Trail:** Track all order changes for compliance and debugging
+5. **Concurrency:** Handle concurrent updates to inventory and orders
+
+### Testing Strategy
+
+- **Order Workflows:** Test complete order lifecycle (create, pay, fulfill, deliver)
+- **Inventory Constraints:** Verify orders cannot exceed available stock
+- **Payment Flows:** Use sandbox APIs; never test with real payment data
+- **Refund Scenarios:** Test partial refunds, reversals, and chargebacks
+- **Tax & Shipping:** Verify calculations for various jurisdictions
+
+"""
+        return section
+
+    def _generate_ml_domain_section(self):
+        """v2.1: Generate ML/training-specific guidance."""
+        if self.detected_domain != "ml/training":
+            return ""
+
+        section = """## 🧠 Machine Learning Architecture
+
+This is a machine learning or model training system.
+
+### Key Components
+
+- **Data Pipeline:** Data loading, preprocessing, augmentation
+- **Model Definition:** Architecture, hyperparameters, checkpoints
+- **Training Loop:** Loss calculation, gradient updates, validation
+- **Inference:** Model predictions, batch processing, latency optimization
+- **Evaluation:** Metrics, benchmarks, comparison to baselines
+
+### Critical Areas
+
+1. **Data Leakage:** Ensure train/test/validation splits are isolated
+2. **Reproducibility:** Set random seeds; version datasets and models
+3. **Resource Management:** Monitor memory, GPU usage during training
+4. **Versioning:** Track model checkpoints, hyperparameters, and results
+5. **Evaluation Rigor:** Use proper metrics; avoid optimizing to test set
+
+### Testing Strategy
+
+- **Data Pipeline Tests:** Verify shape, type, and value ranges
+- **Model Tests:** Check predictions with synthetic/known inputs
+- **Training Tests:** Verify loss decreases on toy datasets
+- **Inference Tests:** Check latency and memory usage
+- **Regression Tests:** Compare results against baseline models
+
+"""
+        return section
+
     def generate_agents_md(self):
         """v1.4: Generate dual-format AGENTS.md with Category A (Operations) + Category B (Context)."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
@@ -1715,11 +1963,19 @@ This ensures:
 
 """
 
+        # v2.1: Add domain-specific sections
+        agent_domain_section = self._generate_agent_domain_section()
+        ecommerce_domain_section = self._generate_ecommerce_domain_section()
+        ml_domain_section = self._generate_ml_domain_section()
+        domain_sections = agent_domain_section + ecommerce_domain_section + ml_domain_section
+
         return f"""# AGENTS.md
 
 Context file for AI agents working on {self.project_path.name}.
 
 **Dual Format**: This file combines Category A (Operations Manual) and Category B (Context Guide) for comprehensive agent guidance.
+
+**Domain Detected:** {self.detected_domain.replace('/', ' / ').title()} (Based on codebase patterns)
 
 ## Project Overview
 
@@ -1736,6 +1992,8 @@ Context file for AI agents working on {self.project_path.name}.
 ---
 
 {category_a_section}
+
+{domain_sections}
 
 ## 🏗️ Architecture & Context Guide
 
@@ -2171,6 +2429,84 @@ See AGENTS.md for complete project documentation.
 4. Modern C++ (C++17+): Use structured bindings, auto, constexpr
 5. No null pointers — use std::optional
 """
+        elif primary_lang == "php":
+            return f"""{base_rules}
+
+1. Use **PHP-CS-Fixer** for formatting: `php-cs-fixer fix .`
+2. Use **PHPStan** for static analysis: `phpstan analyse`
+3. PHP conventions: **snake_case** for functions/variables, **PascalCase** for classes
+4. Type hints: Use strict types and return type declarations
+5. Docstrings: Use PHPDoc for all public functions and classes
+6. No commented-out code, no dead code
+7. Max line length: 120 characters
+8. Use PSR-12 coding standards
+
+### Testing
+1. Framework: PHPUnit
+2. Test file naming: `*Test.php` or `Test*.php`
+3. Test discovery: `vendor/bin/phpunit tests/`
+4. Fixtures: Use setUp/tearDown methods
+5. Mocking: Use PHPUnit's built-in mocking or Mockery
+6. Coverage: Maintain 80%+ coverage: `phpunit --coverage-html=coverage`
+7. Run before commit: `vendor/bin/phpunit`
+
+### Dependencies
+1. Use Composer for dependency management
+2. Use `composer.json` and `composer.lock` for versioning
+3. Autoloading: Follow PSR-4 standards
+4. Avoid deprecated packages
+5. Keep dependencies up-to-date: `composer update`
+
+### Error Handling
+1. Use exceptions for errors, not return codes
+2. Create custom exception classes for specific errors
+3. Log errors with structured logging (Monolog, etc.)
+4. Validate all user input at entry points
+5. Use type hints to catch errors early
+"""
+        elif primary_lang == "ruby":
+            return f"""{base_rules}
+
+1. Use **RuboCop** for formatting and linting: `rubocop -A`
+2. Ruby conventions: **snake_case** for methods/variables, **PascalCase** for classes
+3. Use `attr_accessor`, `attr_reader`, `attr_writer` for properties
+4. YARD or comment blocks for public methods
+5. No commented-out code, no dead code
+6. Max line length: 120 characters
+7. Use modern Ruby syntax (symbols, string interpolation)
+
+### Testing
+1. Framework: RSpec or Minitest
+2. Test file naming: `spec/` directory with `*_spec.rb` or `test/test_*.rb`
+3. Test discovery: `bundle exec rspec spec/` or `rake test`
+4. Fixtures: Use RSpec contexts and describe blocks
+5. Mocking: Use RSpec mocks or WebMock for HTTP
+6. Coverage: Use SimpleCov: `bundle exec rspec --format RspecJunitFormatter`
+7. Run before commit: `bundle exec rspec`
+
+### Gems & Dependencies
+1. Use Bundler for dependency management
+2. Pin exact versions in Gemfile
+3. Run `bundle update` carefully
+4. Use `Gemfile.lock` for reproducible installs
+5. Avoid heavy gems — understand your dependencies
+
+### Rails Specifics (if applicable)
+1. Follow Rails conventions (models, views, controllers)
+2. Use ActiveRecord for database access
+3. Validations on models, not controllers
+4. DRY: Extract common code to concerns or helpers
+5. Use gems: devise, pundit, sidekiq as appropriate
+6. Database migrations: Never modify past migrations
+7. Run migrations: `rails db:migrate`
+
+### Error Handling
+1. Use exceptions for exceptional cases
+2. Define custom exception classes
+3. Use `begin/rescue/ensure` blocks appropriately
+4. Log errors with Rails logger
+5. Never swallow exceptions without logging
+"""
         else:
             # Generic fallback
             return f"""{base_rules}
@@ -2266,7 +2602,9 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
             'rust': 'cargo fmt',
             'cpp': 'clang-format -i **/*.{cpp,h}',
             'java': 'google-java-format -i **/*.java',
-            'csharp': 'dotnet format'
+            'csharp': 'dotnet format',
+            'php': 'php-cs-fixer fix .',
+            'ruby': 'rubocop -A'
         }
         return commands.get(lang, 'Use language formatter')
 
@@ -2280,7 +2618,9 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
             'rust': 'cargo clippy',
             'cpp': 'clang-tidy **/*.cpp',
             'java': 'checkstyle src/**/*.java',
-            'csharp': 'dotnet analyzers'
+            'csharp': 'dotnet analyzers',
+            'php': 'phpstan analyse',
+            'ruby': 'rubocop'
         }
         return commands.get(lang, 'Use language linter')
 
@@ -2294,7 +2634,9 @@ See AGENTS.md for detailed documentation on architecture, development workflow, 
             'rust': 'cargo test',
             'cpp': 'ctest',
             'java': 'mvn test',
-            'csharp': 'dotnet test'
+            'csharp': 'dotnet test',
+            'php': 'vendor/bin/phpunit',
+            'ruby': 'bundle exec rspec'
         }
         return commands.get(lang, 'Use language test runner')
 
