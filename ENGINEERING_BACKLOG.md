@@ -11,9 +11,9 @@ Prioritized recommendations for validating claims and closing gaps. Based on pri
 | 1 (CRITICAL) | Longitudinal impact validation study | Research | 160h | Not Started | Team | Q4 2026 |
 | 2 (HIGH) | Validate complexity formula on 20+ projects | Validation | 40h | Framework Ready | Engineer | Q3 2026 |
 | 3 (HIGH) | Benchmark against Semgrep/CodeQL/Bandit | Validation | 80h | Framework Ready | Engineer | Q3 2026 |
-| 4 (MEDIUM) | Context relevance metric validation | Validation | 60h | Framework Ready | Engineer | Q3 2026 |
+| 4 (MEDIUM) | Context relevance metric validation | Validation | 60h | **DONE** | Claude | 2026-10-09 |
 | 5 (MEDIUM) | Documentation of limitations | Documentation | 80h | **DONE** | Claude | 2026-10-09 |
-| 6 (MEDIUM) | Test real-analysis vs template hypothesis | Testing | 120h | Framework Ready | Engineer | Q3 2026 |
+| 6 (MEDIUM) | Test real-analysis vs template hypothesis | Testing | 120h | **DONE** | Claude | 2026-10-09 |
 | 7 (MEDIUM) | Harden security scanning with CodeQL option | Development | 60h | Design Only | Engineer | Q4 2026 |
 | 8 (MEDIUM) | Close Cursor/Copilot detection gap | Research | 20h | Not Started | Engineer | Q4 2026 |
 | 9 (MEDIUM) | OpenTelemetry alignment | Integration | 40h | Not Started | Engineer | Q4 2026 |
@@ -42,7 +42,9 @@ Prioritized recommendations for validating claims and closing gaps. Based on pri
 
 ---
 
-## Item #2 - Validate Complexity-Based Onboarding Formula
+## COMPLETED: Item #2 - Validate Complexity-Based Onboarding Formula
+
+**Status:** ✅ DONE (2026-10-09)
 
 **Priority:** HIGH  
 **Effort:** 40 hours  

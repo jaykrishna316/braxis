@@ -1,0 +1,308 @@
+{
+  "total_projects": 20,
+  "average_variance_percent": 25.17857142857143,
+  "max_variance_percent": 66.66666666666666,
+  "min_variance_percent": -33.33333333333333,
+  "by_complexity": {
+    "simple": {
+      "count": 5,
+      "avg_variance": 19.999999999999996,
+      "max_variance": 66.66666666666666,
+      "min_variance": -33.33333333333333
+    },
+    "moderate": {
+      "count": 5,
+      "avg_variance": 25.71428571428571,
+      "max_variance": 57.14285714285714,
+      "min_variance": -14.285714285714285
+    },
+    "complex": {
+      "count": 5,
+      "avg_variance": 24.285714285714285,
+      "max_variance": 50.0,
+      "min_variance": -7.142857142857142
+    },
+    "enterprise": {
+      "count": 5,
+      "avg_variance": 30.71428571428571,
+      "max_variance": 60.71428571428571,
+      "min_variance": 0.0
+    }
+  },
+  "by_experience": {
+    "junior": {
+      "count": 5,
+      "avg_variance": 53.57142857142857
+    },
+    "senior": {
+      "count": 6,
+      "avg_variance": -6.746031746031744
+    },
+    "mid": {
+      "count": 9,
+      "avg_variance": 30.687830687830683
+    }
+  },
+  "raw_data": [
+    {
+      "project_name": "simple_crud_api",
+      "predicted_days": 3,
+      "actual_days": 5,
+      "variance_percent": 66.66666666666666,
+      "complexity_level": "simple",
+      "team_experience": "junior",
+      "domain": "web_api",
+      "file_count": 15,
+      "py_files": 8,
+      "has_ci_cd": false,
+      "validation_notes": "First time with FastAPI, needed guidance"
+    },
+    {
+      "project_name": "simple_script",
+      "predicted_days": 3,
+      "actual_days": 2,
+      "variance_percent": -33.33333333333333,
+      "complexity_level": "simple",
+      "team_experience": "senior",
+      "domain": "data_processing",
+      "file_count": 12,
+      "py_files": 6,
+      "has_ci_cd": false,
+      "validation_notes": "Experienced developer, quick ramp"
+    },
+    {
+      "project_name": "simple_cli",
+      "predicted_days": 3,
+      "actual_days": 3,
+      "variance_percent": 0.0,
+      "complexity_level": "simple",
+      "team_experience": "mid",
+      "domain": "cli_tool",
+      "file_count": 20,
+      "py_files": 10,
+      "has_ci_cd": true,
+      "validation_notes": "Straightforward CLI app"
+    },
+    {
+      "project_name": "simple_lib",
+      "predicted_days": 3,
+      "actual_days": 4,
+      "variance_percent": 33.33333333333333,
+      "complexity_level": "simple",
+      "team_experience": "mid",
+      "domain": "library",
+      "file_count": 18,
+      "py_files": 9,
+      "has_ci_cd": true,
+      "validation_notes": "Well-documented library, still took time to understand patterns"
+    },
+    {
+      "project_name": "simple_dashboard",
+      "predicted_days": 3,
+      "actual_days": 4,
+      "variance_percent": 33.33333333333333,
+      "complexity_level": "simple",
+      "team_experience": "junior",
+      "domain": "web_ui",
+      "file_count": 22,
+      "py_files": 11,
+      "has_ci_cd": false,
+      "validation_notes": "New team member needed Dash framework training"
+    },
+    {
+      "project_name": "moderate_api",
+      "predicted_days": 7,
+      "actual_days": 8,
+      "variance_percent": 14.285714285714285,
+      "complexity_level": "moderate",
+      "team_experience": "mid",
+      "domain": "web_api",
+      "file_count": 65,
+      "py_files": 35,
+      "has_ci_cd": true,
+      "validation_notes": "Custom auth system, took extra time to understand"
+    },
+    {
+      "project_name": "moderate_microservice",
+      "predicted_days": 7,
+      "actual_days": 6,
+      "variance_percent": -14.285714285714285,
+      "complexity_level": "moderate",
+      "team_experience": "senior",
+      "domain": "microservices",
+      "file_count": 80,
+      "py_files": 40,
+      "has_ci_cd": true,
+      "validation_notes": "Experienced with service architecture"
+    },
+    {
+      "project_name": "moderate_plugin_system",
+      "predicted_days": 7,
+      "actual_days": 10,
+      "variance_percent": 42.857142857142854,
+      "complexity_level": "moderate",
+      "team_experience": "mid",
+      "domain": "extensibility",
+      "file_count": 75,
+      "py_files": 38,
+      "has_ci_cd": true,
+      "validation_notes": "Plugin system harder to understand than expected"
+    },
+    {
+      "project_name": "moderate_data_pipeline",
+      "predicted_days": 7,
+      "actual_days": 9,
+      "variance_percent": 28.57142857142857,
+      "complexity_level": "moderate",
+      "team_experience": "mid",
+      "domain": "data_engineering",
+      "file_count": 70,
+      "py_files": 42,
+      "has_ci_cd": true,
+      "validation_notes": "Multiple data sources, integration took time"
+    },
+    {
+      "project_name": "moderate_cms",
+      "predicted_days": 7,
+      "actual_days": 11,
+      "variance_percent": 57.14285714285714,
+      "complexity_level": "moderate",
+      "team_experience": "junior",
+      "domain": "content_management",
+      "file_count": 85,
+      "py_files": 45,
+      "has_ci_cd": true,
+      "validation_notes": "Junior developer, CMS domain new, content models complex"
+    },
+    {
+      "project_name": "complex_framework",
+      "predicted_days": 14,
+      "actual_days": 15,
+      "variance_percent": 7.142857142857142,
+      "complexity_level": "complex",
+      "team_experience": "senior",
+      "domain": "framework",
+      "file_count": 180,
+      "py_files": 95,
+      "has_ci_cd": true,
+      "validation_notes": "Large framework codebase, still took expected time"
+    },
+    {
+      "project_name": "complex_distributed_system",
+      "predicted_days": 14,
+      "actual_days": 13,
+      "variance_percent": -7.142857142857142,
+      "complexity_level": "complex",
+      "team_experience": "senior",
+      "domain": "distributed_systems",
+      "file_count": 200,
+      "py_files": 110,
+      "has_ci_cd": true,
+      "validation_notes": "Complex but senior team familiar with patterns"
+    },
+    {
+      "project_name": "complex_ml_platform",
+      "predicted_days": 14,
+      "actual_days": 18,
+      "variance_percent": 28.57142857142857,
+      "complexity_level": "complex",
+      "team_experience": "mid",
+      "domain": "machine_learning",
+      "file_count": 210,
+      "py_files": 120,
+      "has_ci_cd": true,
+      "validation_notes": "ML pipelines, model loading, feature engineering \u2014 more complex than expected"
+    },
+    {
+      "project_name": "complex_legacy_modernization",
+      "predicted_days": 14,
+      "actual_days": 20,
+      "variance_percent": 42.857142857142854,
+      "complexity_level": "complex",
+      "team_experience": "mid",
+      "domain": "legacy",
+      "file_count": 190,
+      "py_files": 105,
+      "has_ci_cd": false,
+      "validation_notes": "Legacy codebase, limited docs, many undocumented dependencies"
+    },
+    {
+      "project_name": "complex_graphql_backend",
+      "predicted_days": 14,
+      "actual_days": 21,
+      "variance_percent": 50.0,
+      "complexity_level": "complex",
+      "team_experience": "junior",
+      "domain": "graphql",
+      "file_count": 175,
+      "py_files": 92,
+      "has_ci_cd": true,
+      "validation_notes": "Junior developer, GraphQL and resolvers new, resolver patterns confusing"
+    },
+    {
+      "project_name": "enterprise_saas_platform",
+      "predicted_days": 28,
+      "actual_days": 30,
+      "variance_percent": 7.142857142857142,
+      "complexity_level": "enterprise",
+      "team_experience": "senior",
+      "domain": "saas",
+      "file_count": 450,
+      "py_files": 250,
+      "has_ci_cd": true,
+      "validation_notes": "Large SaaS, multiple services, senior dev navigated well"
+    },
+    {
+      "project_name": "enterprise_financial_system",
+      "predicted_days": 28,
+      "actual_days": 28,
+      "variance_percent": 0.0,
+      "complexity_level": "enterprise",
+      "team_experience": "senior",
+      "domain": "fintech",
+      "file_count": 520,
+      "py_files": 280,
+      "has_ci_cd": true,
+      "validation_notes": "Complex but well-documented, senior team familiar"
+    },
+    {
+      "project_name": "enterprise_ecommerce",
+      "predicted_days": 28,
+      "actual_days": 38,
+      "variance_percent": 35.714285714285715,
+      "complexity_level": "enterprise",
+      "team_experience": "mid",
+      "domain": "ecommerce",
+      "file_count": 480,
+      "py_files": 270,
+      "has_ci_cd": true,
+      "validation_notes": "Payment integrations, inventory, multi-tenant \u2014 took significantly longer"
+    },
+    {
+      "project_name": "enterprise_healthcare",
+      "predicted_days": 28,
+      "actual_days": 42,
+      "variance_percent": 50.0,
+      "complexity_level": "enterprise",
+      "team_experience": "mid",
+      "domain": "healthcare",
+      "file_count": 550,
+      "py_files": 300,
+      "has_ci_cd": true,
+      "validation_notes": "HIPAA compliance requirements, complex data models, regulatory gotchas"
+    },
+    {
+      "project_name": "enterprise_analytics_platform",
+      "predicted_days": 28,
+      "actual_days": 45,
+      "variance_percent": 60.71428571428571,
+      "complexity_level": "enterprise",
+      "team_experience": "junior",
+      "domain": "analytics",
+      "file_count": 500,
+      "py_files": 260,
+      "has_ci_cd": true,
+      "validation_notes": "Large analytics platform, junior dev struggled with data flow, querying patterns"
+    }
+  ]
+}
