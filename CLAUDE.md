@@ -16,8 +16,6 @@ This project uses AGENTS.md as the standard agent context. Claude Code loads it 
 - ✅ **Smart Extraction** - Filters markdown formatting, identifies policy constraints, procedures, and gotchas
 - ✅ **Repository Gotchas Detection** - Automatically identifies common pitfalls (I/O in transactions, missing error handling, etc.)
 - ### Known Workarounds & Caveats
-- Root AGENTS.md: General patterns and monorepo gotchas
-- ✅ Repository gotchas automatic detection
 
 ## Quick Reference for Claude
 
