@@ -1134,7 +1134,14 @@ mypy .                    # Type checking (if configured)
         return gotchas[:10]  # Limit to top 10 gotchas
 
     def _extract_category_a_content(self):
-        """v1.4: Extract Category A (Operations Manual) content from CONTRIBUTING.md."""
+        """v2.2: Extract Category A (Operations Manual) content from CONTRIBUTING.md.
+
+        Improved extraction that:
+        1. Identifies critical sections by header
+        2. Extracts multi-line content from policy-heavy sections
+        3. Prioritizes security, requirements, and policy sections
+        4. Handles structured guidance (lists, procedures, etc.)
+        """
         if not self.contributing_guide['exists']:
             return {}
 
@@ -1143,36 +1150,72 @@ mypy .                    # Type checking (if configured)
             'procedures': [],
             'requirements': [],
             'workarounds': [],
-            'policy_notes': []
+            'policy_notes': [],
+            'security_notes': []
         }
 
         lines = content.split('\n')
 
-        # Extract procedures (lines with verbs like "must", "should", "run", "follow")
+        # Critical section headers that indicate policy-heavy content
+        critical_headers = {
+            'security': ['security', 'credentials', 'api key', 'token', 'secret', 'auth'],
+            'policy': ['policy', 'requirement', 'guideline', 'rule', 'standard', 'convention'],
+            'procedures': ['procedure', 'step', 'process', 'workflow', 'development'],
+            'constraints': ['budget', 'limit', 'constraint', 'restriction', 'gate', 'approval'],
+            'caveats': ['caveat', 'gotcha', 'limitation', 'known issue', 'workaround', 'exception']
+        }
+
+        # Extract content by sections
+        current_section = None
+        current_section_content = []
+
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+
+            # Check if this is a header
+            if stripped.startswith('#'):
+                # Process previous section if it exists
+                if current_section and current_section_content:
+                    self._process_section_content(
+                        current_section,
+                        current_section_content,
+                        category_a
+                    )
+
+                # Identify new section
+                header_text = stripped.lstrip('#').strip().lower()
+                current_section = self._identify_section_type(header_text, critical_headers)
+                current_section_content = []
+            elif current_section and stripped:
+                # Accumulate content for current section
+                current_section_content.append(line)
+
+        # Process final section
+        if current_section and current_section_content:
+            self._process_section_content(current_section, current_section_content, category_a)
+
+        # Line-by-line fallback for content not in sections
         procedure_keywords = ['must ', 'should ', 'run ', 'follow ', 'execute', 'install', 'build', 'test', 'commit']
         requirement_keywords = ['require', 'required', 'prerequisite', 'need', 'dependency']
-        workaround_keywords = ['workaround', 'caveat', 'limitation', 'known issue', 'gotcha', 'exception']
         policy_keywords = ['policy', 'rule', 'guideline', 'standard', 'convention', 'forbidden', 'banned', 'cannot', 'must not', 'agent']
 
         for line in lines:
-            # Skip markdown headers and empty lines
             if line.strip().startswith('#') or not line.strip():
                 continue
 
             clean_line = line.strip().lstrip('-').lstrip('*').lstrip('>').strip()
-            if not clean_line or len(clean_line) < 10:
+            if not clean_line or len(clean_line) < 15:
                 continue
 
-            # Strip bold markdown
             if clean_line.startswith('**') and clean_line.endswith('**'):
                 clean_line = clean_line.strip('**').strip()
 
-            if not clean_line or len(clean_line) < 10:
+            if not clean_line or len(clean_line) < 15:
                 continue
 
             line_lower = clean_line.lower()
 
-            # Classify based on keywords - check policy first
+            # Add policy items not already captured
             if any(kw in line_lower for kw in policy_keywords):
                 if clean_line not in category_a['policy_notes']:
                     category_a['policy_notes'].append(clean_line)
@@ -1182,11 +1225,53 @@ mypy .                    # Type checking (if configured)
             elif any(kw in line_lower for kw in requirement_keywords):
                 if clean_line not in category_a['requirements']:
                     category_a['requirements'].append(clean_line)
-            elif any(kw in line_lower for kw in workaround_keywords):
-                if clean_line not in category_a['workarounds']:
-                    category_a['workarounds'].append(clean_line)
 
         return category_a
+
+    def _identify_section_type(self, header_text, critical_headers):
+        """Identify which type of section this header represents."""
+        for section_type, keywords in critical_headers.items():
+            if any(kw in header_text for kw in keywords):
+                return section_type
+        return None
+
+    def _process_section_content(self, section_type, content_lines, category_a):
+        """Process content from a specific section."""
+        # Join lines and extract meaningful content
+        section_text = '\n'.join(content_lines)
+
+        # Extract list items and meaningful lines
+        items = []
+        for line in content_lines:
+            stripped = line.strip()
+            if stripped.startswith(('-', '*', '+')):
+                item = stripped.lstrip('-*+ ').strip()
+                if len(item) > 15:
+                    items.append(item)
+            elif stripped and len(stripped) > 20 and not stripped.startswith('```'):
+                items.append(stripped)
+
+        # Categorize by section type
+        if section_type == 'security':
+            for item in items[:8]:
+                if item not in category_a['security_notes']:
+                    category_a['security_notes'].append(item)
+        elif section_type == 'policy':
+            for item in items[:8]:
+                if item not in category_a['policy_notes']:
+                    category_a['policy_notes'].append(item)
+        elif section_type == 'procedures':
+            for item in items[:8]:
+                if item not in category_a['procedures']:
+                    category_a['procedures'].append(item)
+        elif section_type == 'constraints':
+            for item in items[:8]:
+                if item not in category_a['requirements']:
+                    category_a['requirements'].append(item)
+        elif section_type == 'caveats':
+            for item in items[:8]:
+                if item not in category_a['workarounds']:
+                    category_a['workarounds'].append(item)
 
     def _format_category_a_section(self, category_a_content):
         """Format Category A content into markdown section."""
@@ -1196,21 +1281,28 @@ mypy .                    # Type checking (if configured)
         section = "## 🚨 AI Policy & Operations\n\n"
         section += "Extracted from CONTRIBUTING.md - operational constraints and procedures.\n\n"
 
+        # Security notes first (highest priority)
+        if category_a_content.get('security_notes'):
+            section += "### Security Requirements\n\n"
+            for note in category_a_content['security_notes'][:6]:
+                section += f"- {note}\n"
+            section += "\n"
+
         if category_a_content['policy_notes']:
             section += "### AI Policy\n\n"
-            for note in category_a_content['policy_notes'][:5]:
+            for note in category_a_content['policy_notes'][:6]:
                 section += f"- {note}\n"
             section += "\n"
 
         if category_a_content['requirements']:
             section += "### Key Requirements\n\n"
-            for req in category_a_content['requirements'][:5]:
+            for req in category_a_content['requirements'][:6]:
                 section += f"- {req}\n"
             section += "\n"
 
         if category_a_content['procedures']:
             section += "### Development Procedures\n\n"
-            for proc in category_a_content['procedures'][:5]:
+            for proc in category_a_content['procedures'][:6]:
                 section += f"- {proc}\n"
             section += "\n"
 
