@@ -36,7 +36,52 @@ class BraxisAnalyzer:
         'sql': ['.sql'],
     }
     TEST_PATTERNS = ['test_', '_test.', 'spec_', '.spec.', 'tests/', 'test/']
-    BUILD_FILES = ['package.json', 'pyproject.toml', 'setup.py', 'Makefile', 'build.gradle', 'pom.xml', 'Cargo.toml']
+    # Comprehensive build system file signatures (v2.4 - market research)
+    BUILD_FILES = [
+        # C/C++ Build Systems
+        'BUILD', '.bazelrc', '.bazelversion', 'MODULE.bazel',  # Bazel
+        'CMakeLists.txt',                                       # CMake
+        'meson.build',                                          # Meson
+        'SConstruct', 'SConscript',                            # SCons
+        'Makefile', 'makefile', 'GNUmakefile',                # Make
+        'build.ninja',                                          # Ninja
+        'configure', 'configure.ac', 'configure.in',           # Autotools
+        'BUCK',                                                 # Buck2
+        '.xcodeproj', '.xcworkspace',                          # Xcode
+        '.vcxproj', '.sln',                                    # Visual Studio/MSBuild
+
+        # Python Build Systems
+        'pyproject.toml', 'setup.py', 'setup.cfg',            # Python (multiple systems)
+        'tox.ini',                                              # Tox
+
+        # Java Build Systems
+        'pom.xml',                                              # Maven
+        'build.gradle', 'build.gradle.kts',                    # Gradle
+        'build.xml',                                            # Ant
+
+        # JavaScript/Node.js Build Systems
+        'package.json',                                         # npm
+        'pnpm-workspace.yaml', '.pnpmfile.cjs',               # pnpm
+        'yarn.lock', '.yarnrc', '.yarnrc.yml',                # yarn
+        'bunfig.toml',                                          # Bun
+
+        # Go Build Systems
+        'go.mod', 'go.sum',                                     # Go modules
+
+        # Rust Build Systems
+        'Cargo.toml',                                           # Cargo
+
+        # Ruby Build Systems
+        'Gemfile', 'Gemfile.lock',                             # Bundler
+        'Rakefile',                                             # Rake
+
+        # Other Languages
+        'dub.json', 'dub.sdl',                                 # D language
+        '.cabal', 'Setup.hs',                                  # Haskell
+        'stack.yaml',                                           # Haskell Stack
+        'mix.exs',                                              # Elixir
+        'flake.nix', 'default.nix',                            # Nix
+    ]
     CONFIG_FILES = ['.env', '.env.example', 'config.json', 'settings.py', 'config.yaml']
 
     def __init__(self, project_path='.'):
@@ -206,67 +251,115 @@ class BraxisAnalyzer:
         return max(self.languages.items(), key=lambda x: x[1])[0]
 
     def _detect_build_system(self):
-        """Detect build system, prioritized by primary language."""
-        primary_lang = self._get_primary_language()
-        build_system = "Unknown"
+        """v2.4: Comprehensive build system detection - NO GUESSING.
 
-        # Check build files by language priority
-        if primary_lang == "go":
-            if any('go.mod' in str(f) for f in self.build_files):
-                build_system = "Go (go modules)"
-            elif any('Makefile' in str(f) for f in self.build_files):
-                build_system = "Go (Makefile)"
-        elif primary_lang == "rust":
-            if any('Cargo.toml' in str(f) for f in self.build_files):
-                build_system = "Rust (cargo)"
-        elif primary_lang == "python":
-            if any('pyproject.toml' in str(f) for f in self.build_files):
-                pyproject = self.project_path / 'pyproject.toml'
-                if pyproject.exists():
-                    try:
-                        content = pyproject.read_text()
-                        if 'build-system' in content:
-                            if 'hatchling' in content.lower():
-                                build_system = "Python (hatchling)"
-                            elif 'pdm' in content.lower():
-                                build_system = "Python (pdm)"
-                            elif 'flit' in content.lower():
-                                build_system = "Python (flit)"
-                            elif 'poetry' in content.lower():
-                                build_system = "Python (poetry)"
-                            else:
-                                build_system = "Python (setuptools)"
-                        else:
-                            build_system = "Python (pip)"
-                    except (IOError, UnicodeDecodeError):
-                        build_system = "Python (pip/setuptools)"
-            elif any('setup.py' in str(f) for f in self.build_files):
-                build_system = "Python (setuptools)"
-        elif primary_lang in ["javascript", "typescript"]:
-            if any('package.json' in str(f) for f in self.build_files):
-                build_system = "npm/Node.js"
-        elif primary_lang == "java":
-            if any('pom.xml' in str(f) for f in self.build_files):
-                build_system = "Java (Maven)"
-            elif any('build.gradle' in str(f) for f in self.build_files):
-                build_system = "Java (Gradle)"
+        Detects build systems by checking explicit file signatures.
+        Returns "Not detected" if build system cannot be identified.
+        Never falls back to guessing (e.g., Makefile as catch-all).
+        """
+        # Explicit file signatures for each build system
+        build_system_signatures = {
+            # C/C++ Build Systems
+            "Bazel": ["BUILD", ".bazelrc", ".bazelversion", "MODULE.bazel"],
+            "CMake": ["CMakeLists.txt"],
+            "Meson": ["meson.build"],
+            "SCons": ["SConstruct", "SConscript"],
+            "Make": ["Makefile", "makefile", "GNUmakefile"],
+            "Ninja": ["build.ninja"],
+            "Autotools": ["configure", "configure.ac", "configure.in", "Makefile.in"],
+            "Buck2": ["BUCK"],
+            "Xcode": [".xcodeproj", ".xcworkspace"],
 
-        # Fallback: check any language-agnostic build files
-        if build_system == "Unknown":
-            if any('Makefile' in str(f) for f in self.build_files):
-                build_system = "Makefile"
-            elif any('go.mod' in str(f) for f in self.build_files):
-                build_system = "Go (go modules)"
-            elif any('package.json' in str(f) for f in self.build_files):
-                build_system = "npm/Node.js"
-            elif any('pyproject.toml' in str(f) for f in self.build_files):
-                build_system = "Python (pip/setuptools)"
-            elif any('Cargo.toml' in str(f) for f in self.build_files):
-                build_system = "Rust (cargo)"
-            elif any('pom.xml' in str(f) for f in self.build_files):
-                build_system = "Java (Maven)"
+            # Python Build Systems
+            "Poetry": ["pyproject.toml"],  # Special: check content for "poetry"
+            "PDM": ["pyproject.toml"],      # Special: check content for "pdm"
+            "uv": ["pyproject.toml"],       # Special: check content for "uv"
+            "Flit": ["pyproject.toml"],     # Special: check content for "flit"
+            "Hatchling": ["pyproject.toml"],# Special: check content for "hatchling"
+            "setuptools": ["setup.py", "setup.cfg", "pyproject.toml"],
+            "Tox": ["tox.ini"],
 
-        self.build_system = build_system
+            # Java/JVM Build Systems
+            "Maven": ["pom.xml"],
+            "Gradle": ["build.gradle", "build.gradle.kts"],
+            "Ant": ["build.xml"],
+
+            # JavaScript/Node.js Build Systems
+            "npm": ["package.json"],
+            "pnpm": ["pnpm-workspace.yaml", ".pnpmfile.cjs"],
+            "yarn": ["yarn.lock", ".yarnrc", ".yarnrc.yml"],
+            "Bun": ["bunfig.toml"],
+
+            # Go Build Systems
+            "Go modules": ["go.mod", "go.sum"],
+
+            # Rust Build Systems
+            "Cargo": ["Cargo.toml"],
+
+            # .NET/C# Build Systems
+            "dotnet": [".csproj", ".sln"],
+            "MSBuild": [".vcxproj", ".sln"],
+
+            # Ruby Build Systems
+            "Bundler": ["Gemfile", "Gemfile.lock"],
+            "Rake": ["Rakefile"],
+
+            # Other Languages
+            "Dub": ["dub.json", "dub.sdl"],           # D language
+            "Cabal": [".cabal", "Setup.hs"],          # Haskell
+            "Stack": ["stack.yaml"],                   # Haskell
+            "Mix": ["mix.exs"],                        # Elixir
+            "Nix": ["flake.nix", "default.nix"],      # Nix package manager
+        }
+
+        # Check for explicit file signatures - NO PRIORITY, just detection
+        detected_systems = []
+
+        for system, signatures in build_system_signatures.items():
+            for sig in signatures:
+                if any(sig in str(f) for f in self.build_files):
+                    # Special handling for pyproject.toml - check content
+                    if sig == "pyproject.toml" and system in ["Poetry", "PDM", "uv", "Flit", "Hatchling"]:
+                        pyproject = self.project_path / "pyproject.toml"
+                        if pyproject.exists():
+                            try:
+                                content = pyproject.read_text().lower()
+                                if system.lower() in content or f"[tool.{system.lower()}]" in content:
+                                    detected_systems.append(f"Python ({system})")
+                                    break
+                            except (IOError, UnicodeDecodeError):
+                                pass
+                    else:
+                        detected_systems.append(system)
+                        break
+
+        # If multiple systems detected, prefer language-appropriate one
+        if detected_systems:
+            primary_lang = self._get_primary_language()
+
+            # Language-aware preference (don't override, just prefer in same language)
+            lang_preferences = {
+                "cpp": ["Bazel", "CMake", "Meson", "SCons"],
+                "c": ["Bazel", "CMake", "Make"],
+                "python": ["Poetry", "PDM", "uv", "setuptools"],
+                "java": ["Maven", "Gradle"],
+                "javascript": ["npm", "yarn", "pnpm"],
+                "typescript": ["npm", "yarn", "pnpm"],
+                "rust": ["Cargo"],
+                "go": ["Go modules"],
+            }
+
+            if primary_lang in lang_preferences:
+                for preferred in lang_preferences[primary_lang]:
+                    if preferred in detected_systems:
+                        self.build_system = preferred
+                        return
+
+            # If no language preference match, return first detected (highest priority)
+            self.build_system = detected_systems[0]
+        else:
+            # NO GUESSING - if we can't detect it, say so
+            self.build_system = "Not detected"
 
     def _detect_test_framework(self):
         """Detect test framework, language-aware with better edge case handling."""
@@ -1204,46 +1297,11 @@ mypy .                    # Type checking (if configured)
         if current_section_type and current_section_content:
             self._process_section_content(current_section_type, current_section_content, category_a)
 
-        # Enhanced fallback: scan for patterns missed by section detection
-        for i, line in enumerate(lines):
-            if line.strip().startswith('#') or not line.strip():
-                continue
-
-            clean_line = line.strip().lstrip('-').lstrip('*').lstrip('>').strip()
-            if not clean_line or len(clean_line) < 15:
-                continue
-
-            # Clean formatting
-            if clean_line.startswith('**') and clean_line.endswith('**'):
-                clean_line = clean_line.strip('**').strip()
-            if clean_line.startswith('`') and clean_line.endswith('`'):
-                clean_line = clean_line.strip('`').strip()
-
-            if not clean_line or len(clean_line) < 15:
-                continue
-
-            line_lower = clean_line.lower()
-
-            # Capture tool versions (e.g., "uv 0.12.1 or newer")
-            if any(x in line_lower for x in ['version', 'require', 'install', 'minimum']):
-                if any(x in line_lower for x in ['.', '>=', '<=', '@']):
-                    if clean_line not in category_a['tool_versions']:
-                        category_a['tool_versions'].append(clean_line)
-
-            # Capture policy items
-            if any(x in line_lower for x in ['policy', 'cannot', 'must not', 'forbidden', 'agent', 'collaborator']):
-                if clean_line not in category_a['policy_notes']:
-                    category_a['policy_notes'].append(clean_line)
-
-            # Capture procedures
-            if any(x in line_lower for x in ['run ', 'execute', 'install', 'build', 'commit', 'follow', 'should ', 'must ']):
-                if clean_line not in category_a['procedures']:
-                    category_a['procedures'].append(clean_line)
-
-            # Capture requirements
-            if any(x in line_lower for x in ['require', 'required', 'prerequisite', 'need', 'depend', 'must have']):
-                if clean_line not in category_a['requirements']:
-                    category_a['requirements'].append(clean_line)
+        # NO fallback keyword extraction from loose text.
+        # Fallback extraction creates fragments and misleads agents.
+        # ONLY extract from explicitly formatted content (lists, code blocks, structured sections).
+        # If a section isn't detected by headers, don't guess - it's better to miss content
+        # than to extract corrupted fragments.
 
         # Global deduplication across all categories
         all_items = set()
@@ -1268,17 +1326,50 @@ mypy .                    # Type checking (if configured)
         return None
 
     def _process_section_content(self, section_type, content_lines, category_a):
-        """Process ALL content from a specific section without truncation."""
-        # Extract list items and meaningful lines
+        """Process section content - extract complete list items with continuations.
+
+        Markdown list items can span multiple lines (second+ lines are indented).
+        Only extract complete, well-formed items. Never extract fragments.
+        Strategy: Only extract explicitly formatted list items, NOT loose text.
+        """
         items = []
-        for line in content_lines:
+        i = 0
+        while i < len(content_lines):
+            line = content_lines[i]
             stripped = line.strip()
+
+            # Skip empty lines and code blocks
+            if not stripped or stripped.startswith('```'):
+                i += 1
+                continue
+
+            # ONLY handle explicit list items (- * +)
             if stripped.startswith(('-', '*', '+')):
-                item = stripped.lstrip('-*+ ').strip()
-                if len(item) > 15:
-                    items.append(item)
-            elif stripped and len(stripped) > 20 and not stripped.startswith('```'):
-                items.append(stripped)
+                item_text = stripped.lstrip('-*+ ').strip()
+                i += 1
+
+                # Gather continuation lines (indented continuation of same item)
+                while i < len(content_lines):
+                    next_line = content_lines[i]
+                    next_stripped = next_line.strip()
+
+                    # Stop if: empty, code block, or new list item
+                    if not next_stripped or next_stripped.startswith('```') or next_stripped.startswith(('-', '*', '+')):
+                        break
+
+                    # If indented (continuation line), add to item
+                    if next_line and next_line[0] in (' ', '\t'):
+                        item_text += ' ' + next_stripped
+                        i += 1
+                    else:
+                        break
+
+                # Only add well-formed items (> 15 chars)
+                if len(item_text) > 15:
+                    items.append(item_text)
+            else:
+                # Skip non-list-item text (don't extract loose paragraphs)
+                i += 1
 
         # Categorize by section type - NO TRUNCATION
         if section_type == 'security':
