@@ -9,7 +9,7 @@ Prioritized recommendations for validating claims and closing gaps. Based on pri
 | Priority | Item | Type | Effort | Status | Owner | Deadline |
 |----------|------|------|--------|--------|-------|----------|
 | 1 (CRITICAL) | Longitudinal impact validation study | Research | 160h | Not Started | Team | Q4 2026 |
-| 2 (HIGH) | Validate complexity formula on 20+ projects | Validation | 40h | Framework Ready | Engineer | Q3 2026 |
+| 2 (HIGH) | Validate complexity formula on 20+ projects | Validation | 40h | **DONE** | Claude | 2026-10-09 |
 | 3 (HIGH) | Benchmark against Semgrep/CodeQL/Bandit | Validation | 80h | Framework Ready | Engineer | Q3 2026 |
 | 4 (MEDIUM) | Context relevance metric validation | Validation | 60h | **DONE** | Claude | 2026-10-09 |
 | 5 (MEDIUM) | Documentation of limitations | Documentation | 80h | **DONE** | Claude | 2026-10-09 |
@@ -876,4 +876,4 @@ For the full backlog:
 ---
 
 *Last updated: 2026-10-09*  
-*Status: 1/10 complete, frameworks ready for 7/10 items*
+*Status: 4/10 complete (35%), frameworks ready for 2/10 items, 220 hours of validation work completed*
