@@ -4,6 +4,8 @@ Context file for AI agents working on braxis.
 
 **Dual Format**: This file combines Category A (Operations Manual) and Category B (Context Guide) for comprehensive agent guidance.
 
+**Domain Detected:** Generic (Based on codebase patterns)
+
 ## Project Overview
 
 braxis is a Python project using Python (setuptools).
@@ -11,12 +13,14 @@ braxis is a Python project using Python (setuptools).
 **Key Info:**
 - **Primary Language:** Python
 - **Build System:** Python (setuptools)
-- **Test Framework:** pytest
-- **Total Files:** 28
+- **Test Framework:** unittest
+- **Total Files:** 35
 - **Test Files:** 1
-- **AI Readiness Score:** 71/100 (AI-Native)
+- **AI Readiness Score:** 65/100 (AI-Native)
 
 ---
+
+
 
 
 
@@ -28,7 +32,7 @@ This section provides architectural context and agent-understanding for the code
 
 - **Python:** >=3.8 (or applicable language version)
 - **Package Manager:** pip or uv
-- **Test Runner:** pytest
+- **Test Runner:** unittest
 
 
 
@@ -97,7 +101,7 @@ mypy .                    # Type checking (if configured)
 
 ### Code Style & Conventions
 
-- **Naming:** Use Python conventions (snake_case for functions, PascalCase for classes)
+- **Naming:** Use snake_case for functions and variables
 - **Type Hints:** Yes (strongly encouraged)
 - **Error Handling:** Yes - handle errors at boundaries; let exceptions propagate when another layer owns recovery
 - **Logging:** Yes
@@ -105,7 +109,7 @@ mypy .                    # Type checking (if configured)
 
 ### Testing Strategy
 
-**Framework:** pytest
+**Framework:** unittest
 **Test Files:** 1 found
 
 Before committing:
@@ -161,11 +165,11 @@ When contributing to this project:
 
 This project is evaluated across 8 dimensions:
 
-1. **Architecture** (10/100) - Code organization and modularity
-2. **Testing** (7/100) - Test coverage and quality
+1. **Architecture** (0/100) - Code organization and modularity
+2. **Testing** (15/100) - Test coverage and quality
 3. **Dependencies** (12/100) - Dependency management
 4. **Conventions** (10/100) - Consistent patterns
-5. **Entry Points** (4/100) - Clear main/start locations
+5. **Entry Points** (0/100) - Clear main/start locations
 6. **Security** (10/100) - Input validation and error handling
 7. **Build** (10/100) - Clear build/setup instructions
 8. **Documentation** (8/100) - Code and project documentation
