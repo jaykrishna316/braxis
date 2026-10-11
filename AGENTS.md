@@ -2,95 +2,44 @@
 
 Context file for AI agents working on braxis.
 
-**Dual Format**: This file combines Category A (Operations Manual) and Category B (Context Guide) for comprehensive agent guidance.
-
-**Domain Detected:** Ml / Training (Based on codebase patterns)
-
 ## Project Overview
 
-braxis is a Python project using setuptools.
+braxis is a Python project using Python (setuptools).
 
 **Key Info:**
 - **Primary Language:** Python
-- **Build System:** setuptools
-- **Test Framework:** unittest
-- **Total Files:** 69
-- **Test Files:** 15
-- **AI Readiness Score:** 70/100 (AI-Native-Plus)
+- **Build System:** Python (setuptools)
+- **Test Framework:** pytest
+- **Total Files:** 64
+- **Test Files:** 10
+- **AI Readiness Score:** 79/100 (AI-Native)
 
----
-
-
-
-## 🧠 Machine Learning Architecture
-
-This is a machine learning or model training system.
-
-### Key Components
-
-- **Data Pipeline:** Data loading, preprocessing, augmentation
-- **Model Definition:** Architecture, hyperparameters, checkpoints
-- **Training Loop:** Loss calculation, gradient updates, validation
-- **Inference:** Model predictions, batch processing, latency optimization
-- **Evaluation:** Metrics, benchmarks, comparison to baselines
-
-### Critical Areas
-
-1. **Data Leakage:** Ensure train/test/validation splits are isolated
-2. **Reproducibility:** Set random seeds; version datasets and models
-3. **Resource Management:** Monitor memory, GPU usage during training
-4. **Versioning:** Track model checkpoints, hyperparameters, and results
-5. **Evaluation Rigor:** Use proper metrics; avoid optimizing to test set
-
-### Testing Strategy
-
-- **Data Pipeline Tests:** Verify shape, type, and value ranges
-- **Model Tests:** Check predictions with synthetic/known inputs
-- **Training Tests:** Verify loss decreases on toy datasets
-- **Inference Tests:** Check latency and memory usage
-- **Regression Tests:** Compare results against baseline models
-
-
-
-### Detected Frameworks
-
-| Framework | Version | Detection Type |
-|-----------|---------|-----------------|
-| pytest | unknown | Direct import |
-| unittest | unknown | Direct import |
-
-
-
-## 🏗️ Architecture & Context Guide
-
-This section provides architectural context and agent-understanding for the codebase.
-
-### Prerequisites
+## Prerequisites
 
 - **Python:** >=3.8 (or applicable language version)
 - **Package Manager:** pip or uv
-- **Test Runner:** unittest
+- **Test Runner:** pytest
 
 
 
-### Project Structure
+## Project Structure
 
 ```
 braxis/
 ├── setup.py
 ├── src/                  # Source code
-├── tests/                # Test suite (15 files)
+├── tests/                # Test suite (10 files)
 └── README.md             # Project documentation
 ```
 
-### Architecture Overview
+## Architecture Overview
 
-#### Key Components
+### Key Components
 - **Main Entry:** Standard layout
-- **Test Suite:** 15 test files
+- **Test Suite:** 10 test files
 - **Build Configuration:** setup.py
 
-#### Design Principles
+### Design Principles
 
 1. **Modularity** - Code organized by functionality with clear separation of concerns
 2. **Testability** - Comprehensive test coverage across critical paths
@@ -105,9 +54,9 @@ braxis/
 | `tests/` | Test suite |
 
 
-### Development Workflow
+## Development Workflow
 
-#### Initial Setup
+### Initial Setup
 
 ```bash
 git clone https://github.com/YOUR_ORG/braxis.git
@@ -117,9 +66,9 @@ pip install -e .
 uv sync --all-groups
 ```
 
-#### Development Commands
+### Development Commands
 
-**Running Tests:**
+#### Running Tests
 ```bash
 pytest                    # Run all tests
 pytest tests/             # Run specific test directory
@@ -135,18 +84,18 @@ ruff format .             # Format code
 mypy .                    # Type checking (if configured)
 ```
 
-### Code Style & Conventions
+## Code Style & Conventions
 
-- **Naming:** Use snake_case for functions and variables
+- **Naming:** Use Python conventions (snake_case for functions, PascalCase for classes)
 - **Type Hints:** Yes (strongly encouraged)
 - **Error Handling:** Yes - handle errors at boundaries; let exceptions propagate when another layer owns recovery
 - **Logging:** Yes
 - **Testing:** Yes - write tests alongside code changes
 
-### Testing Strategy
+## Testing Strategy
 
-**Framework:** unittest
-**Test Files:** 15 found
+**Framework:** pytest
+**Test Files:** 10 found
 
 Before committing:
 1. Run the full test suite: `pytest`
@@ -154,7 +103,7 @@ Before committing:
 3. Check type hints: `mypy .`
 4. Format code: `ruff format .`
 
-### Writing Documentation
+## Writing Documentation
 
 When updating docs:
 1. Always include explanatory text before code snippets
@@ -162,14 +111,14 @@ When updating docs:
 3. Keep sections focused on a single concept
 4. Use clear, concrete examples
 
-### Contributing Guidelines
+## Contributing Guidelines
 
 This project doesn't have a separate CONTRIBUTING.md yet. When contributing:
 1. Review recent merged PRs to understand maintainer preferences
 2. Follow the patterns established in the codebase
 3. Ensure your contribution aligns with the project's design principles above
 
-### Common Patterns
+## Common Patterns
 
 When contributing to this project:
 1. Read existing code in the area you're modifying
@@ -179,7 +128,7 @@ When contributing to this project:
 5. Add docstrings for public APIs
 6. Update tests when changing behavior
 
-### What We Value
+## What We Value
 
 ✅ Well-tested code with clear intent
 ✅ Consistent code style and naming conventions
@@ -188,7 +137,7 @@ When contributing to this project:
 ✅ Modular, reusable components
 ✅ Comprehensive documentation
 
-### What We Avoid
+## What We Avoid
 
 ❌ Large functions doing multiple things
 ❌ Commented-out dead code
@@ -197,20 +146,20 @@ When contributing to this project:
 ❌ Unexplained magic numbers or strings
 ❌ Skipped tests or test TODOs
 
-### AI Readiness Dimensions (Scoring)
+## AI Readiness Dimensions (Scoring)
 
 This project is evaluated across 8 dimensions:
 
-1. **Architecture** (0/100) - Code organization and modularity
+1. **Architecture** (10/100) - Code organization and modularity
 2. **Testing** (15/100) - Test coverage and quality
 3. **Dependencies** (12/100) - Dependency management
 4. **Conventions** (10/100) - Consistent patterns
-5. **Entry Points** (0/100) - Clear main/start locations
+5. **Entry Points** (4/100) - Clear main/start locations
 6. **Security** (10/100) - Input validation and error handling
 7. **Build** (10/100) - Clear build/setup instructions
 8. **Documentation** (8/100) - Code and project documentation
 
-### Next Steps
+## Next Steps
 
 Before making changes:
 1. Read relevant source files to understand the existing code

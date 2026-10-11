@@ -1,9 +1,9 @@
 {
   "metadata": {
     "project_name": "braxis",
-    "description": "A Python project with setuptools",
+    "description": "A Python project with Python (setuptools)",
     "generated_by": "Braxis",
-    "generated_at": "2026-10-09T13:14:07.200114",
+    "generated_at": "2026-10-11T02:38:18.157696",
     "schema_version": "1.0"
   },
   "project": {
@@ -11,23 +11,23 @@
       "python"
     ],
     "primary_language": "python",
-    "build_system": "setuptools",
+    "build_system": "Python (setuptools)",
     "architecture": "single-package",
     "is_monorepo": false,
     "monorepo_type": null,
     "subsystems": []
   },
   "ai_readiness": {
-    "overall_score": 70,
-    "tier": "AI-Native-Plus",
+    "overall_score": 79,
+    "tier": "AI-Native",
     "dimensions": {
       "architecture": {
-        "score": 0,
+        "score": 10,
         "reason": "Code organization and modularity"
       },
       "testing": {
         "score": 15,
-        "reason": "15 test files found"
+        "reason": "10 test files found"
       },
       "dependencies": {
         "score": 12,
@@ -38,7 +38,7 @@
         "reason": "Consistency in naming and patterns"
       },
       "entry_points": {
-        "score": 0,
+        "score": 4,
         "reason": "0 critical files identified"
       },
       "security": {
@@ -65,7 +65,7 @@
       "language_version": "3.9+",
       "package_manager": "pip or uv",
       "key_tools": [
-        "unittest",
+        "pytest",
         "ruff",
         "mypy"
       ]
@@ -126,8 +126,8 @@
     }
   },
   "testing": {
-    "framework": "unittest",
-    "total_tests": 15,
+    "framework": "pytest",
+    "total_tests": 10,
     "pass_rate": 100,
     "run_command": "pytest"
   }
