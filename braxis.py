@@ -1744,6 +1744,271 @@ Before making changes:
             + "\n"
         )
 
+    def detect_existing_agents_md(self):
+        """Detect and score existing AGENTS.md for merge decisions."""
+        agents_path = self.project_path / 'AGENTS.md'
+        if not agents_path.exists():
+            return None
+
+        try:
+            content = agents_path.read_text()
+            return {
+                'exists': True,
+                'path': agents_path,
+                'content': content,
+                'score': self._score_agents_md(content),
+                'sections': self._extract_sections(content)
+            }
+        except (IOError, UnicodeDecodeError):
+            return None
+
+    def _score_agents_md(self, content):
+        """Score existing AGENTS.md on completeness and customization."""
+        score = 0
+
+        # Check for custom sections beyond standard auto-generated ones
+        custom_indicators = [
+            'Skills',           # Meteor-style skills
+            'Package Domain',   # Custom domain mapping
+            'Key Entry Point',  # Strategic files
+            'Gotcha',          # Project-specific warnings
+            'Governance',      # Roles/processes
+            'Notes',           # Custom context
+        ]
+
+        for indicator in custom_indicators:
+            if indicator.lower() in content.lower():
+                score += 15
+
+        # Score on section count and completeness
+        section_count = content.count('##')
+        score += min(section_count * 5, 25)
+
+        # Check if it's hand-written (has detailed examples, not generic templates)
+        if len(content) > 2000:
+            score += 10
+
+        return min(score, 100)
+
+    def _extract_sections(self, content):
+        """Extract custom sections from AGENTS.md."""
+        lines = content.split('\n')
+        sections = {}
+        current_section = None
+        current_content = []
+
+        for line in lines:
+            if line.startswith('##') and not line.startswith('###'):
+                if current_section:
+                    sections[current_section] = '\n'.join(current_content).strip()
+                current_section = line.replace('##', '').strip()
+                current_content = []
+            elif current_section:
+                current_content.append(line)
+
+        if current_section:
+            sections[current_section] = '\n'.join(current_content).strip()
+
+        return sections
+
+    def _format_score_breakdown(self):
+        """Format the score breakdown for PR description."""
+        if not self.score_breakdown:
+            return ""
+
+        breakdown_text = "\n### AI Readiness Score Breakdown\n\n"
+        breakdown_text += "| Category | Score | Status |\n"
+        breakdown_text += "|----------|-------|--------|\n"
+
+        # Define max scores and emojis for each category
+        max_scores = {
+            'Architecture': 20,
+            'Testing': 15,
+            'Dependencies': 12,
+            'Conventions': 10,
+            'Entry Points': 10,
+            'Security': 15,
+            'Build': 10,
+            'Documentation': 8,
+        }
+
+        for category, score in self.score_breakdown.items():
+            max_score = max_scores.get(category, 100)
+            percentage = (score / max_score * 100) if max_score > 0 else 0
+
+            if percentage >= 80:
+                status = "✅ Strong"
+            elif percentage >= 60:
+                status = "⚠️ Fair"
+            elif percentage >= 40:
+                status = "⚠️ Needs Work"
+            else:
+                status = "❌ Weak"
+
+            breakdown_text += f"| {category} | {score}/{max_score} | {status} |\n"
+
+        breakdown_text += f"\n**Total: {self.total_score}/100** ({self.tier})\n"
+        return breakdown_text
+
+    def generate_pr_description(self):
+        """Generate PR description for Braxis context files with intelligent messaging."""
+        existing = self.detect_existing_agents_md()
+        ai_readiness = f"{self.total_score}/100 ({self.tier})"
+        score_breakdown = self._format_score_breakdown()
+
+        summary = f"""# Braxis: AI Context Files + Continuous Auto-Update
+
+We've analyzed {self.project_path.name} and generated AI-ready context files:
+
+- **AGENTS.md** — AI agent guidance + architecture documentation
+- **CLAUDE.md** — Quick reference router to AGENTS.md
+- **.cursorrules** — IDE/Claude Code conventions
+- **.agentic-config.json** — Agent configuration
+
+**AI Readiness Score:** {ai_readiness}
+
+{score_breakdown}
+---
+"""
+
+        # CASE 1: No existing AGENTS.md
+        if not existing:
+            summary += f"""
+## What You're Getting
+
+Fresh, automatically-generated AI context files for {self.project_path.name}:
+
+```
+Project:         {self.project_path.name}
+Languages:       {', '.join(self.languages.keys()) if self.languages else 'Unknown'}
+Build System:    {self.build_system or 'Unknown'}
+Test Frameworks: {', '.join(self.test_frameworks) if self.test_frameworks else 'Unknown'}
+AI Readiness:    {ai_readiness}
+Total Files:     {len(self.files)}
+Test Files:      {len(self.test_files)}
+"""
+            if self.monorepo_type:
+                summary += f"Monorepo Type:   {self.monorepo_type.upper()} with {len(self.monorepo_subsystems)} subsystems\n"
+            summary += "```\n"
+
+            summary += """
+## How to Use These Files
+
+1. **Review this PR** to see what we auto-discovered about your project
+2. **Accept the PR** to add all 4 files to your repo
+3. **Customize if needed** for your specific project requirements
+
+## Keep Them Fresh: Install Braxis for Auto-Updates
+
+These files are valuable today. But their **real power is staying in sync** with your code as it evolves.
+
+Every time your codebase changes:
+- New test frameworks get auto-detected
+- Architecture documentation stays current
+- AI readiness score tracks improvements automatically
+- Entry points update as files move
+
+### Setup Automatic Updates (Recommended)
+
+Add this GitHub Actions workflow to keep your AI context files fresh:
+
+```yaml
+# .github/workflows/ai-context.yml
+name: Auto-Update AI Context Files
+
+on:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly
+
+jobs:
+  update-context:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: pip install braxis
+      - run: braxis generate --smart-merge --path .
+      - uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: 'chore: auto-update AI context files'
+          title: 'Auto: Update AI context files'
+          branch: braxis/auto-update
+```
+
+**Once installed, Braxis will:**
+- ✅ Regenerate files weekly (or on every commit)
+- ✅ Auto-detect architecture changes
+- ✅ Update entry points as codebase evolves
+- ✅ Track AI readiness improvements
+"""
+        else:
+            # CASE 2: Existing AGENTS.md found
+            summary += f"""
+## What's In This PR
+
+We've detected your existing AGENTS.md (Quality: {existing['score']}/100) and are recommending:
+
+**Option A (Full Replace):** Accept all 4 files - Braxis will overwrite with fresh auto-generated versions
+**Option B (Preserve + Enhance):** Keep your AGENTS.md sections + accept CLAUDE.md, .cursorrules, .agentic-config.json
+**Option C (Smart Merge):** Merge your best sections with Braxis auto-detected content
+
+### Your Existing Sections Detected:
+"""
+            for section, content in existing['sections'].items():
+                summary += f"- **{section}** ({len(content)} chars)\n"
+
+            summary += f"""
+### Recommendation
+
+Since your AGENTS.md has strong customization (score: {existing['score']}/100):
+- **Best Option:** Option B (Preserve + Enhance)
+  - Keeps your custom guidance intact
+  - Adds Braxis auto-generated context to CLAUDE.md
+  - Adds IDE conventions to .cursorrules
+  - Adds agent config to .agentic-config.json
+
+## Keep Them Fresh: Braxis Auto-Updates
+
+Even better: once you install Braxis, it will:
+- ✅ Auto-update while respecting your custom AGENTS.md sections
+- ✅ Keep CLAUDE.md, .cursorrules, and .agentic-config.json in sync
+- ✅ Run weekly or on every commit (your choice)
+
+### Setup Auto-Updates
+
+```yaml
+# .github/workflows/ai-context.yml
+name: Auto-Update AI Context Files
+
+on:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly
+
+jobs:
+  update-context:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: pip install braxis
+      - run: braxis generate --smart-merge --path .
+      - uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: 'chore: auto-update AI context files'
+          title: 'Auto: Update AI context files'
+          branch: braxis/auto-update
+```
+
+**Once running:**
+- ✅ AGENTS.md stays YOUR custom content (never overwritten)
+- ✅ Other files auto-sync with your codebase changes
+- ✅ AI readiness score updates automatically
+"""
+
+        return summary
+
     def generate_claude_md(self) -> str:
         """Generate CLAUDE.md as a router to AGENTS.md."""
         return """# CLAUDE.md
