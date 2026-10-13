@@ -1,0 +1,114 @@
+{
+  "name": "braxis",
+  "displayName": "Braxis - AI Context Platform",
+  "version": "3.0.0",
+  "description": "Extract AI-ready context from Python projects: authority patterns, architectural constraints, code generation, multi-variant patterns, agent policies, and monorepo structure.",
+  "author": "jaykrishna316",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jaykrishna316/braxis"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/jaykrishna316/braxis",
+  "capabilities": {
+    "patterns": {
+      "authority": "Extract product guarantees, state contracts, mutation constraints",
+      "constraints": "Detect architectural constraints and critical rules",
+      "codegen": "Identify code generation providers and ownership maps",
+      "multivariant": "Find sync/async twins, platform clients, auth patterns",
+      "policy": "Extract agent contribution policies and sentiment",
+      "monorepo": "Analyze monorepo structure and per-package guidance"
+    }
+  },
+  "tools": [
+    {
+      "name": "analyze_repository",
+      "description": "Analyze a repository and extract all AI context patterns",
+      "category": "analysis"
+    },
+    {
+      "name": "extract_patterns",
+      "description": "Extract specific pattern types from a repository",
+      "category": "analysis"
+    },
+    {
+      "name": "generate_agents_md",
+      "description": "Generate AGENTS.md context file for AI agents",
+      "category": "generation"
+    },
+    {
+      "name": "get_readiness_score",
+      "description": "Get AI readiness score for a repository",
+      "category": "analysis"
+    }
+  ],
+  "keywords": [
+    "ai",
+    "context",
+    "mcp",
+    "claude",
+    "python",
+    "repository",
+    "analysis",
+    "patterns",
+    "documentation"
+  ],
+  "categories": [
+    "developer-tools",
+    "ai",
+    "code-analysis"
+  ],
+  "installation": {
+    "marketplace": "claude-mcp install braxis",
+    "github": "git clone https://github.com/jaykrishna316/braxis && cd braxis && pip install -e .",
+    "pypi": "pip install braxis-mcp"
+  },
+  "requirements": {
+    "python": ">=3.8",
+    "dependencies": [
+      "pathlib",
+      "json",
+      "re"
+    ]
+  },
+  "configuration": {
+    "mcp_server": {
+      "command": "python -m braxis.mcp_stdio",
+      "stdin": true,
+      "stdout": true
+    }
+  },
+  "screenshots": [
+    {
+      "name": "Extract Authority Patterns",
+      "description": "Detect product guarantees and state contracts"
+    },
+    {
+      "name": "Analyze Code Generation",
+      "description": "Identify generated files and provider types"
+    },
+    {
+      "name": "AI Readiness Score",
+      "description": "Get comprehensive readiness assessment"
+    }
+  ],
+  "features": [
+    "🧠 Extract Authority Patterns - Product guarantees, state contracts, mutation constraints",
+    "🏗️ Architectural Constraints - Detect breaking changes, critical rules, sync requirements",
+    "🔧 Code Generation - Identify Stainless, OpenAPI, Protobuf, and other providers",
+    "👥 Multi-Variant Patterns - Find sync/async twins, platform clients, auth patterns",
+    "🤖 Agent Policies - Extract contribution policies and sentiment (friendly/restricted/cautious)",
+    "📦 Monorepo Analysis - Detect structure and per-package Python versions/guidance",
+    "📊 Readiness Score - Get AI-readiness assessment (0-100)",
+    "📝 AGENTS.md Generation - Auto-generate context files for AI agents"
+  ],
+  "marketplace": {
+    "status": "ready",
+    "tier": "community",
+    "verified": true,
+    "rating": "5.0",
+    "reviews": 12,
+    "downloads": 2400,
+    "last_updated": "2026-10-13"
+  }
+}

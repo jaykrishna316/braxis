@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from pathlib import Path
 
 # Read README for long description
@@ -7,10 +7,10 @@ long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="braxis",
-    version="1.3.0",
+    version="3.0.0",
     author="Jayakrishna Ichapurapu",
     author_email="jayichapurapu@example.com",
-    description="Auto-generate AI agent context files. Keep AGENTS.md, CLAUDE.md, .cursorrules, and .agentic-config.json in sync with your codebase.",
+    description="AI Context Platform v3.0 - Extract Tier 1 & Tier 2 patterns + MCP Server for Claude integration.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/jaykrishna316/braxis",
@@ -24,20 +24,23 @@ setup(
         "Programming Language :: Python :: 3.12",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Libraries",
         "Topic :: Text Processing",
+        "Environment :: Console",
     ],
     python_requires=">=3.8",
-    py_modules=["braxis"],
+    packages=find_packages(),
     install_requires=[],
     extras_require={
         "llm": ["anthropic>=0.24.0"],
+        "mcp": [],
     },
     entry_points={
         "console_scripts": [
             "braxis=braxis:main",
+            "braxis-mcp=braxis.mcp_stdio:run_server",
         ],
     },
 )
