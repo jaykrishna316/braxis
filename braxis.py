@@ -2184,6 +2184,227 @@ This is a machine learning or model training system.
 """
         return section
 
+    # v3.0 Enhancement Methods: Policy, Constraints, Topics, Release, Distribution, Ecosystem
+
+    def _extract_ai_policy(self):
+        """v3.0: Extract AI contribution policies from CONTRIBUTING.md and AGENTS.md."""
+        policies = []
+
+        # Check contributing guide
+        if self.contributing_guide['exists'] and self.contributing_guide['content']:
+            content = self.contributing_guide['content'].lower()
+            if 'dco' in content or 'signed-off' in content:
+                policies.append("DCO Sign-off Required (git commit -s)")
+            if 'co-authored-by' in content and 'not' in content[:500]:
+                policies.append('No "Co-Authored-By: <AI>" trailers')
+            if 'assisted-by' in content:
+                policies.append('Use "Assisted-by: <AI>:<MODEL>" for attribution')
+            if 'ai' in content or 'assistant' in content or 'llm' in content or 'claude' in content:
+                policies.append('AI-assisted contributions have special rules')
+
+        return policies
+
+    def _detect_constraints_and_gotchas(self):
+        """v3.0: Extract operational constraints (never/always patterns)."""
+        constraints = []
+        keywords = ['never', 'always', 'must not', 'dont', 'avoid', 'forbidden']
+
+        if self.contributing_guide['exists'] and self.contributing_guide['content']:
+            lines = self.contributing_guide['content'].split('\n')
+            for i, line in enumerate(lines):
+                lower = line.lower()
+                if any(kw in lower for kw in keywords):
+                    clean = line.strip().lstrip('-*>').strip()
+                    if clean and len(clean) > 20 and clean not in constraints:
+                        constraints.append(clean[:100])
+
+        # Auto-detect common constraints
+        if self.test_files and len(self.test_files) > 10:
+            constraints.append("Coverage gates are monotonic (never lower baseline)")
+
+        return constraints[:8]
+
+    def _detect_cross_file_sync(self):
+        """v3.0: Detect cross-file synchronization requirements."""
+        syncs = []
+
+        # Check for docs-with-code rule
+        if self.contributing_guide['exists'] and self.contributing_guide['content']:
+            content = self.contributing_guide['content'].lower()
+            if 'user-facing' in content and 'docs' in content and 'same pr' in content:
+                syncs.append(('API endpoints / CLI flags / config keys', 'docs/content/', 'docs-with-code rule'))
+
+        # Check for .agents/ directory indicating MCP tools requirement
+        if (self.project_path / '.agents').exists():
+            syncs.append(('Admin REST endpoints', 'pkg/mcp/ tools', 'MCP tool exposure'))
+
+        return syncs
+
+    def _generate_topic_index(self):
+        """v3.0: Generate index of specialized guide files."""
+        topics = []
+
+        # Scan .agents/ directory
+        agents_dir = self.project_path / '.agents'
+        if agents_dir.exists():
+            for guide_file in sorted(agents_dir.glob('*.md')):
+                try:
+                    content = guide_file.read_text()
+                    # Extract first line as title
+                    title = None
+                    for line in content.split('\n'):
+                        if line.startswith('#') and not line.startswith('##'):
+                            title = line.lstrip('#').strip()
+                            break
+                    if title:
+                        topics.append((guide_file.name, title))
+                except:
+                    pass
+
+        return topics
+
+    def _extract_release_procedures(self):
+        """v3.0: Extract release checklist from workflows and docs."""
+        procedures = []
+
+        # Check for RELEASE_NOTES pattern
+        release_notes_files = list(self.project_path.glob('RELEASE_NOTES_*.md'))
+        if release_notes_files:
+            procedures.append("RELEASE_NOTES_v${VERSION}.md file required")
+
+        # Check for blog post directory
+        if (self.project_path / 'website' / 'content' / 'blog').exists():
+            procedures.append("Blog post: website/content/blog/release-v${VERSION}.md")
+
+        # Check for media/demo directory
+        if (self.project_path / 'website' / 'static' / 'media').exists():
+            procedures.append("Demo clips: website/static/media/feature-demo-${NAME}.mp4")
+
+        # Check for release workflow
+        release_workflows = list((self.project_path / '.github' / 'workflows').glob('*release*.yml')) if (self.project_path / '.github' / 'workflows').exists() else []
+        if release_workflows:
+            procedures.append("Release workflow: .github/workflows/release.yml")
+
+        return procedures
+
+    def _detect_distribution_awareness(self):
+        """v3.0: Detect multi-frontend / distributed clustering awareness."""
+        patterns = []
+
+        # Check for distribution keywords
+        keywords = ['syncstate', 'advisory-lock', 'advisory_lock', 'multi-frontend', 'distributed-state', 'per-instance']
+
+        for root, dirs, files in os.walk(self.project_path):
+            if any(x in root for x in ['.git', 'node_modules', '.venv']):
+                continue
+            for file in files:
+                if file.endswith(('.go', '.py', '.ts', '.js', '.rs')):
+                    file_path = Path(root) / file
+                    try:
+                        content = file_path.read_text(errors='ignore')
+                        for kw in keywords:
+                            if kw.lower() in content.lower():
+                                patterns.append(kw)
+                                break
+                    except:
+                        pass
+
+        return list(set(patterns))[:5]
+
+    def _detect_ecosystem_info(self):
+        """v3.0: Detect ecosystem patterns (backends, variants, gallery)."""
+        ecosystem = {}
+
+        # Go backend system
+        if (self.project_path / 'backend' / 'index.yaml').exists():
+            ecosystem['backend_system'] = 'Go - Backend variants in index.yaml'
+
+        # Check for gallery system
+        if (self.project_path / 'gallery' / 'models.json').exists() or (self.project_path / 'gallery').exists():
+            ecosystem['gallery'] = True
+
+        # Check for preference rules
+        if (self.project_path / 'pkg' / 'system' / 'capabilities.go').exists():
+            try:
+                content = (self.project_path / 'pkg' / 'system' / 'capabilities.go').read_text()
+                if 'PreferenceRules' in content or 'preferenceRules' in content:
+                    ecosystem['preference_rules'] = True
+            except:
+                pass
+
+        return ecosystem
+
+    def _extract_tool_specificity(self):
+        """v3.0: Extract specific tool names instead of generic recommendations."""
+        tools = {}
+
+        primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else None
+
+        # Go specific
+        if primary_lang == 'go':
+            # Check for specific logging libraries
+            has_xlog = False
+            has_slog = False
+            for f in self.files:
+                if f.suffix == '.go':
+                    try:
+                        content = f.read_text(errors='ignore')
+                        if 'mudler/xlog' in content:
+                            has_xlog = True
+                        if 'log/slog' in content:
+                            has_slog = True
+                    except:
+                        pass
+
+            if has_xlog:
+                tools['logging'] = 'github.com/mudler/xlog (slog API)'
+            elif has_slog:
+                tools['logging'] = 'log/slog (stdlib)'
+
+        # Python specific
+        elif primary_lang == 'python':
+            for f in self.files:
+                if f.suffix == '.py':
+                    try:
+                        content = f.read_text(errors='ignore')
+                        if 'import loguru' in content or 'from loguru' in content:
+                            tools['logging'] = 'loguru'
+                            break
+                    except:
+                        pass
+
+        return tools
+
+    def _detect_enforcement_tests(self):
+        """v3.0: Detect tests that auto-enforce constraints (drift detection, coverage, etc)."""
+        enforcements = []
+
+        # Scan test files for enforcement patterns
+        keywords = ['Mapping', 'drift', 'sync', 'coverage', 'check', 'Test']
+
+        for test_file in self.test_files[:50]:  # Check first 50 test files
+            try:
+                content = test_file.read_text(errors='ignore')
+                if any(kw in content for kw in keywords):
+                    # Extract test function names
+                    for line in content.split('\n'):
+                        if 'def test' in line and any(kw.lower() in line.lower() for kw in ['mapping', 'drift', 'sync', 'coverage']):
+                            test_name = line.split('def ')[1].split('(')[0] if 'def ' in line else None
+                            if test_name and test_name not in enforcements:
+                                enforcements.append(test_name)
+            except:
+                pass
+
+        return enforcements[:8]
+
+    def _detect_docs_with_code_rule(self):
+        """v3.0: Detect docs-with-code requirement."""
+        if self.contributing_guide['exists'] and self.contributing_guide['content']:
+            content = self.contributing_guide['content'].lower()
+            if 'user-facing' in content and 'docs' in content and 'same pr' in content:
+                return True
+        return False
+
     def generate_agents_md(self):
         """v1.4: Generate dual-format AGENTS.md with Category A (Operations) + Category B (Context)."""
         primary_lang = max(self.languages.items(), key=lambda x: x[1])[0] if self.languages else "Unknown"
@@ -2277,6 +2498,87 @@ This is a machine learning or model training system.
         # v2.2: Generate frameworks section
         frameworks_section = self._generate_frameworks_section()
 
+        # v3.0: Extract advanced operational guidance
+        ai_policies = self._extract_ai_policy()
+        constraints = self._detect_constraints_and_gotchas()
+        syncs = self._detect_cross_file_sync()
+        topics = self._generate_topic_index()
+        release_procs = self._extract_release_procedures()
+        distribution = self._detect_distribution_awareness()
+        ecosystem = self._detect_ecosystem_info()
+        tools = self._extract_tool_specificity()
+        enforcements = self._detect_enforcement_tests()
+        has_docs_with_code = self._detect_docs_with_code_rule()
+
+        # Build v3.0 sections
+        v3_policy_section = ""
+        if ai_policies:
+            policies_list = '\n'.join([f"- ✅ {p}" for p in ai_policies])
+            v3_policy_section = f"""## 🤖 AI Contribution Policy
+
+{policies_list}
+
+"""
+
+        v3_constraints_section = ""
+        if constraints:
+            constraints_list = '\n'.join([f"- ⚠️ {c}" for c in constraints])
+            v3_constraints_section = f"""## Operational Constraints
+
+{constraints_list}
+
+"""
+
+        v3_sync_section = ""
+        if syncs:
+            v3_sync_section = "## Critical Synchronization Points\n\n| Change Type | Also Update | Rule |\n|---|---|---|\n"
+            for source, target, rule in syncs:
+                v3_sync_section += f"| {source} | {target} | {rule} |\n"
+            v3_sync_section += "\n"
+
+        v3_topics_section = ""
+        if topics:
+            v3_topics_section = "## Specialized Guides\n\n| File | Topic | When to Read |\n|---|---|---|\n"
+            for filename, title in topics[:12]:
+                v3_topics_section += f"| [{filename}](.agents/{filename}) | {title} | See file |\n"
+            v3_topics_section += "\n"
+
+        v3_release_section = ""
+        if release_procs:
+            v3_release_section = "## Release Procedures\n\n"
+            for proc in release_procs:
+                v3_release_section += f"- {proc}\n"
+            v3_release_section += "\n"
+
+        v3_distribution_section = ""
+        if distribution:
+            v3_distribution_section = f"## Multi-Frontend / Distributed Awareness\n\nThis project uses patterns: {', '.join(distribution)}\n\n"
+
+        v3_ecosystem_section = ""
+        if ecosystem:
+            v3_ecosystem_section = "## Ecosystem Patterns\n\n"
+            for key, val in ecosystem.items():
+                v3_ecosystem_section += f"- **{key.replace('_', ' ').title()}**: {val}\n"
+            v3_ecosystem_section += "\n"
+
+        v3_tools_section = ""
+        if tools:
+            v3_tools_section = "## Language-Specific Tools\n\n"
+            for tool_type, tool_name in tools.items():
+                v3_tools_section += f"- **{tool_type.title()}**: {tool_name}\n"
+            v3_tools_section += "\n"
+
+        v3_enforcement_section = ""
+        if enforcements:
+            v3_enforcement_section = "## Automated Enforcement Tests\n\n"
+            for test in enforcements:
+                v3_enforcement_section += f"- `{test}` - Auto-detects drift/violations\n"
+            v3_enforcement_section += "\n"
+
+        v3_full_section = (v3_policy_section + v3_constraints_section + v3_sync_section +
+                          v3_topics_section + v3_release_section + v3_distribution_section +
+                          v3_ecosystem_section + v3_tools_section + v3_enforcement_section)
+
         return f"""# AGENTS.md
 
 Context file for AI agents working on {self.project_path.name}.
@@ -2304,6 +2606,8 @@ Context file for AI agents working on {self.project_path.name}.
 {domain_sections}
 
 {frameworks_section}
+
+{v3_full_section}
 
 ## 🏗️ Architecture & Context Guide
 
