@@ -1,0 +1,40 @@
+#!/bin/bash
+# Braxis Pre-commit Hook
+# Automatically regenerates AI context files before commits
+
+set -e
+
+# Get the repository root
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+# Colors for output
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}🤖 Braxis Context Generator (pre-commit hook)${NC}"
+
+# Check if braxis is installed
+if ! command -v braxis &> /dev/null; then
+    echo -e "${YELLOW}⚠️  Braxis not found. Install with: pip install braxis${NC}"
+    echo "Skipping context generation..."
+    exit 0
+fi
+
+# Run braxis generate
+echo "📝 Regenerating context files..."
+braxis generate
+
+# Check if context files changed
+if git diff --quiet AGENTS.md CLAUDE.md .cursorrules .agentic-config.json 2>/dev/null; then
+    echo -e "${GREEN}✅ Context files are up to date${NC}"
+else
+    echo -e "${YELLOW}📌 Context files updated${NC}"
+    echo "   Staging changes..."
+    git add AGENTS.md CLAUDE.md .cursorrules .agentic-config.json 2>/dev/null || true
+    echo -e "${GREEN}✅ Updated files staged for commit${NC}"
+fi
+
+exit 0
