@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.jaykrishna316/braxis",
+  "title": "Braxis - AI Context Platform",
+  "description": "Extract AI-ready context from Python projects using strategic pattern detection",
+  "repository": {
+    "url": "https://github.com/jaykrishna316/braxis",
+    "source": "github"
+  },
+  "version": "3.0.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "braxis",
+      "version": "3.0.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

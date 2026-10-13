@@ -6,6 +6,8 @@
 [![License - MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/jaykrishna316/braxis/blob/main/LICENSE)
 [![Agent Readiness - AI-Native](https://img.shields.io/badge/agent%20readiness-71%2F100%20%7C%20AI--Native-blue.svg)]()
 
+<!-- mcp-name: io.github.jaykrishna316/braxis -->
+
 **Auto-generate AI agent context files. Keep them in sync with your code.**
 
 Your AI agents (Claude Code, Cursor, Copilot) read from `AGENTS.md` to understand your project. When your code changes, that file gets stale. Agents miss patterns, violate conventions, hallucinate.
