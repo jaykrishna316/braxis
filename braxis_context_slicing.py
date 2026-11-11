@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-ad78451d
 """
 Feature 3: Smart Context Slicing by Agent Type
 Generates agent-specific context guidance (Claude Code, Cursor, Copilot).

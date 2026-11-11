@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-83d86811
 """
 Framework Detection Module for Braxis
 Provides AST-based framework detection with wrapper analysis and version extraction.

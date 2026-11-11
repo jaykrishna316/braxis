@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-c75a6c51
 """
 Feature 6: Real-Time Readiness Monitoring in CI/CD
 Integrates AI-readiness scoring with CI/CD to track changes and enforce standards.

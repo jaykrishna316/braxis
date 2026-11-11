@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-6eb6d570
 """
 Feature 5: Architecture Decision Record (ADR) Auto-Generation
 Extracts architectural decisions from code patterns and generates ADRs.

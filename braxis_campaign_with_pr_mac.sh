@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-c20b7148
 
 # Braxis Campaign Script - Generate, commit, and show PR description
 # Usage: ./braxis_campaign_with_pr_mac.sh owner/repo [github-username]

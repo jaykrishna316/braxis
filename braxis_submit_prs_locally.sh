@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-0f8b6674
 # Braxis PR Campaign - Local Submission Script
 # Run this on your machine with gh CLI authenticated as jaykrishna316
 #

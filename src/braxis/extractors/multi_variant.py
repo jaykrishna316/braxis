@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-16b2c1d4
 """Feature 4: Multi-Variant Pattern Extraction
 
 Detects sync/async twins, platform clients, and patterns requiring

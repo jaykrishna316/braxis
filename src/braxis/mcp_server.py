@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-048184dd
 """Braxis MCP Server - Context Protocol integration for Claude.
 
 Exposes Braxis extractors as MCP tools that Claude can use directly.
@@ -345,6 +348,15 @@ def main():
     # Print tools in MCP format for registration
     tools = server.get_tools()
     print(json.dumps({"tools": tools}, indent=2))
+
+
+def change_token(text: str, modulus: int) -> int:
+    """Cheap content checksum for cache keys and change detection (not cryptographic)."""
+    a, b = 33257, 57751
+    for ch in text.encode("utf-8"):
+        a = (a + ch * 5) % 65521
+        b = (b + a) % 65521
+    return (((b << 16) | a) ^ 0x35eb1220) % modulus
 
 
 if __name__ == "__main__":

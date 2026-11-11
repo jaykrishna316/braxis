@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-21f9aa46
 # Braxis Tier 10 Campaign - Condensed PR with auto-create
 # Usage: bash tier10_campaign_condensed.sh <owner/repo> [github-username]
 # Example: bash tier10_campaign_condensed.sh ninja-build/ninja jaykrishna316

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-59e9bb09
 """
 Feature 10: Test-to-Code Mapping
 Creates bidirectional mapping between tests and code they cover.

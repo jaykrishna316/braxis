@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-f7160f47
 """
 Tests for Braxis Programmatic API, Configuration, and Triggers.
 """

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-8ed8c161
 """
 Braxis Smart Triggering Logic
 Detects meaningful changes and decides when to regenerate context files.

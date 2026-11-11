@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-1c5796aa
 """
 Comprehensive Test Suite for Enhanced Braxis Features
 Verifies that all 6 fixed features now perform REAL ANALYSIS instead of hard-coded generation.

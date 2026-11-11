@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-fbcc1f89
 """
 Braxis Regression Test Suite
 Tests that Braxis performs REAL code analysis, not templating.

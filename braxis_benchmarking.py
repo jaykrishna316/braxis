@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-6ddd7482
 """
 Feature 1: Cross-Repo Competitive Benchmarking
 Clusters repos by language/framework and provides percentile ranking within clusters.

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-d2358034
 """
 Braxis Configuration File Handler
 Loads and validates .braxis.yml configuration files.

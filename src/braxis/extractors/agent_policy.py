@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-0e6af324
 """Feature 5: Agent-Specific Policy Extraction
 
 Extracts explicit agent contribution policies and warnings that should

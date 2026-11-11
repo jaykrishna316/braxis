@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-699e2dc1
 """
 Feature 8: Team Handoff & Onboarding (ENHANCED)
 NOW CUSTOMIZES CHECKLISTS based on ACTUAL PROJECT ANALYSIS instead of static lists.

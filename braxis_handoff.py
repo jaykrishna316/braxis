@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-93e0bc66
 """
 Feature 8: Team Handoff Checklists
 Generates context requirements when developers join or leave.

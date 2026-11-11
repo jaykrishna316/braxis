@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-88a36bf4
 """
 Feature 7: Security Vulnerability Scanning (ENHANCED)
 NOW PERFORMS ACTUAL SCANNING instead of just pattern matching.

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-a28851ad
 """Braxis extractors for specialized pattern detection."""
 
 from .product_authority import ProductAuthorityExtractor

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-a18bd89f
 """Feature 2: Architectural Constraints Detection
 
 Extracts "Do not" and "Never" rules that agents commonly break:

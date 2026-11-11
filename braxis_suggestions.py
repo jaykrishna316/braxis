@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-0bef27ae
 """
 Feature 14: Readiness Improvement Suggestions
 Analyzes current score and suggests highest-ROI improvements.

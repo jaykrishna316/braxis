@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-5892ed42
 """
 Feature 4: Architecture Decision Records Auto-Generation (ENHANCED)
 NOW ANALYZES ACTUAL ARCHITECTURE instead of using fill-in-the-blank templates.
