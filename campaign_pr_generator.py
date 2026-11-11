@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-3999edf8
 """
 Campaign PR Generator - Auto-generate PR descriptions with Braxis messaging
 """

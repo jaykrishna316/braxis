@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-93587b79
 """
 Feature 11: Natural Language Query Interface
 Allows agents to query context using natural language.

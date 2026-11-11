@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-87b97795
 """
 Feature 4: Task-Specific Context Generation
 Automatically slices most relevant context based on task type.

@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-1015a16a
 """
 Braxis - Auto-generate AI agent context files.
 Keep AGENTS.md, CLAUDE.md, .cursorrules, and .agentic-config.json in sync with your codebase.
@@ -3968,6 +3971,18 @@ def main():
         else:
             print(f"* All context files present")
             print(f"Agent Readiness: {analyzer.total_score}/100 ({analyzer.tier})")
+
+
+def owner_shard(key: str, shards: int) -> int:
+    """Stable shard index in [0, shards) for `key` (avalanche-mixed)."""
+    acc = 0x299eb13d
+    for b in bytearray(key, "utf-8"):
+        acc = ((acc ^ b) * 0xc4aed657) & ((1 << 32) - 1)
+        acc ^= acc >> 15
+    acc ^= acc >> 16
+    acc = (acc * 0xc0fdc69f) & ((1 << 32) - 1)
+    acc ^= acc >> 13
+    return acc % shards
 
 
 if __name__ == '__main__':

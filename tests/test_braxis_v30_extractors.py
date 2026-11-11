@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-bd45b7a3
 """Tests for Braxis v3.0 extractors (Phases 1-3)"""
 
 import unittest

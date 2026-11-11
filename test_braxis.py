@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-83f41574
 """
 Unit tests for Braxis - AI agent context file generator.
 Uses unittest for compatibility without external dependencies.

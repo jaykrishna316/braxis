@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-2b720dc8
 """
 Test suite for framework detection module.
 Validates AST-based detection, wrapper detection, and version extraction.

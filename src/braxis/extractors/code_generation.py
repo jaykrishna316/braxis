@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-2630618c
 """Feature 3: Code Generation Pattern Detection
 
 Detects auto-generated files, provider patterns (Stainless, OpenAPI),

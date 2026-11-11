@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-4f0bec85
 """Feature 6: Monorepo Subsystem Guidance
 
 Generates per-package AGENTS.md guidance instead of single project-level,

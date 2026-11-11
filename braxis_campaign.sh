@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-ca2ca669
 
 # Braxis Campaign Script - Generate and push AGENTS.md to multiple repos
 # Usage: ./braxis_campaign.sh [repo1] [repo2] ... or ./braxis_campaign.sh --all

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-d3771630
 """
 Feature 4: Task-Specific Context Generation (ENHANCED)
 NOW ANALYZES ACTUAL FILE PATTERNS instead of returning hard-coded templates.

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-fea6dccc
 """Braxis CLI entry point with MCP server mode."""
 
 import argparse

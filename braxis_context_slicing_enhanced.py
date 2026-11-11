@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-b2bf1391
 """
 Feature 3: Smart Context Slicing by Agent Type (ENHANCED)
 Generates agent-specific context guidance by ANALYZING actual codebase.

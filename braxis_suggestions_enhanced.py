@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-cd0d1943
 """
 Feature 13: AI-Readiness Improvement Suggestions (ENHANCED)
 NOW CALCULATES ROI from ACTUAL CODE METRICS instead of hard-coded values.

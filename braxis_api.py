@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-b1c85b77
 """
 Braxis Programmatic API
 Expose Braxis functionality as a Python library for integration into custom tools.

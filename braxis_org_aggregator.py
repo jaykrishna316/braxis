@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-46dc4e81
 """
 Feature 12: Organization Readiness Aggregator
 Provides org-wide dashboards and cross-repo comparisons.

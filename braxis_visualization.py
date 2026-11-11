@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-6ebb7e26
 """
 Feature 9: Visual Dependency Graphs
 Renders monorepo structure and dependencies as interactive diagrams.

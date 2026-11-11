@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-7d4defe8
 """
 Feature 7: Vulnerability Pattern Detection
 Scans codebase for security anti-patterns specific to language/framework.

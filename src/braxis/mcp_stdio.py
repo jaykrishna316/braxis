@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-b5aca806
 """MCP Protocol Handler - Implements Model Context Protocol over stdio."""
 
 import json

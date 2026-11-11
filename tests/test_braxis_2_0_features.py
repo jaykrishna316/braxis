@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-92f5155f
 """
 Comprehensive regression tests for Braxis 2.0 - All 14 Features
 Run with: python -m unittest tests.test_braxis_2_0_features

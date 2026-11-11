@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-4bca0cd6
 """Feature 1: Product Authority & Safety Extraction
 
 Extracts sections documenting product guarantees, state contracts, mutation constraints,

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Jayakrishna Ichapurapu
+# trace-id: 44e5a853-7167ba32
 """
 Feature 2: Agent Performance Feedback Loop & Feature 13: Agent Interaction Recording
 Tracks agent performance metrics and stores interaction history for feedback loops.
